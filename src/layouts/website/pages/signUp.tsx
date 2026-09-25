@@ -2,8 +2,9 @@
 import React, { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { useTheme } from "@/hooks/useTheme.ts";
+import { useTheme } from "@majid-superior/sell-digital-assets-theme/react";
 import { Icons } from "@/lib/icons/index.ts";
+import { Button } from "@majid-superior/sell-digital-assets-theme/components";
 
 export const SignUpPage: React.FC = () => {
     const { theme, toggleTheme } = useTheme();
@@ -346,20 +347,16 @@ export const SignUpPage: React.FC = () => {
                             </div>
 
                             {/* Submit Button */}
-                            <button
+                            <Button
                                 type="submit"
-                                disabled={isLoading}
-                                className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-primary text-on-primary text-sm font-semibold hover:opacity-90 active:scale-95 transition-all shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                variant="primary"
+                                size="lg"
+                                isLoading={isLoading}
+                                className="w-full justify-center"
+                                rightIcon={!isLoading ? <Icons.Next size={16} /> : undefined}
                             >
-                                {isLoading ? (
-                                    <span>Creating account...</span>
-                                ) : (
-                                    <>
-                                        <span>Create Account</span>
-                                        <Icons.Next size={16} />
-                                    </>
-                                )}
-                            </button>
+                                Create Account
+                            </Button>
                         </form>
 
                         {/* Switch to Sign In */}

@@ -2,6 +2,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Icons } from "@/lib/icons/index.ts";
+import { Button } from "@majid-superior/sell-digital-assets-theme/components";
 
 export const ServerPage: React.FC = () => {
     return (
@@ -33,20 +34,26 @@ export const ServerPage: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col items-center justify-center gap-3 pt-2 sm:flex-row">
-                    <button
+                    <Button
                         type="button"
+                        variant="outline"
+                        size="md"
                         onClick={() => window.location.reload()}
-                        className="inline-flex items-center gap-2 rounded-full border border-outline px-5 py-2.5 text-sm font-semibold text-on-surface transition-colors hover:bg-surface-variant"
+                        className="rounded-full"
                     >
-                        <span>Try Again</span>
-                    </button>
+                        Try Again
+                    </Button>
 
-                    <Link
-                        to="/"
-                        className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-on-primary shadow-sm transition-opacity hover:opacity-90"
-                    >
-                        <Icons.Home size={16} />
-                        <span>Go To Home</span>
+                    <Link to="/">
+                        <Button
+                            type="button"
+                            variant="primary"
+                            size="md"
+                            leftIcon={<Icons.Home size={16} />}
+                            className="rounded-full"
+                        >
+                            Go To Home
+                        </Button>
                     </Link>
                 </div>
             </div>

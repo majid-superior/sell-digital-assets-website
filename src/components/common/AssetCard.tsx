@@ -5,6 +5,7 @@ import type { DigitalAsset } from "@/types/asset.ts";
 import { MOCK_SELLERS } from "@/data/mockAssets.ts";
 import { formatCurrency } from "@/utils/currency.ts";
 import { Icons } from "@/lib/icons/index.ts";
+import { Card, Badge, Button } from "@majid-superior/sell-digital-assets-theme/components";
 
 interface AssetCardProps {
   asset: DigitalAsset;
@@ -22,7 +23,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
   };
 
   return (
-    <article className="group flex flex-col rounded-2xl bg-surface-container-low border border-outline-variant/30 overflow-hidden hover:border-outline-variant/70 hover:shadow-lg transition-all duration-300">
+    <Card className="group flex flex-col overflow-hidden hover:border-outline-variant/70 hover:shadow-lg transition-all duration-300">
       {/* Thumbnail */}
       <Link
         to={`/asset/${asset.slug}`}
@@ -35,9 +36,13 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
         />
         {/* Category Pill */}
-        <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-surface/90 text-on-surface backdrop-blur-md shadow-xs">
+        <Badge
+          variant="outline"
+          size="sm"
+          className="absolute top-3 left-3 text-[11px] font-bold uppercase tracking-wider bg-surface/90 text-on-surface backdrop-blur-md shadow-xs border-transparent"
+        >
           {categoryLabels[asset.category] || asset.category}
-        </span>
+        </Badge>
       </Link>
 
       {/* Content */}
@@ -85,24 +90,23 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
             <span className="text-lg font-extrabold text-on-surface">
               {formatCurrency(asset.priceCents, asset.currency)}
             </span>
-            <button
+            <Button
               type="button"
+              variant="primary"
+              size="sm"
               onClick={() => {
                 toast.success("Added to Cart!", {
                   description: `${asset.title} (${formatCurrency(asset.priceCents, asset.currency)})`,
                 });
               }}
-              // bg-primary + text-on-primary is the correct Material Design token pairing.
-              // bg-primary-container + text-on-primary was incorrect and could fail contrast.
-              // min-h/min-w ensures ≥44px touch target for accessibility compliance.
-              className="min-h-[44px] min-w-[44px] p-2 rounded-xl bg-primary text-on-primary hover:opacity-90 active:scale-95 transition-all cursor-pointer shadow-xs flex items-center justify-center"
+              className="min-h-[44px] min-w-[44px] p-0 rounded-xl flex items-center justify-center"
               aria-label={`Add ${asset.title} to cart`}
             >
               <Icons.Cart size={16} />
-            </button>
+            </Button>
           </div>
         </div>
       </div>
-    </article>
+    </Card>
   );
 };

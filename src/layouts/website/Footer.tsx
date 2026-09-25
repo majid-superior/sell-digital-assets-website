@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Icons } from "@/lib/icons/index.ts";
+import { Button, Badge } from "@majid-superior/sell-digital-assets-theme/components";
 
 export interface FooterLink {
     label: string;
@@ -175,13 +176,15 @@ export const Footer: React.FC<FooterProps> = ({
                                         should span the full width for a proper touch target.
                                         sm:w-auto: on sm+ it sits inline with the input.
                                     */}
-                                    <button
+                                    <Button
                                         type="submit"
-                                        className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-on-primary text-sm font-semibold hover:opacity-90 active:scale-95 transition-all shadow-xs cursor-pointer"
+                                        variant="primary"
+                                        size="md"
+                                        className="w-full sm:w-auto"
+                                        rightIcon={<Icons.Send size={15} />}
                                     >
-                                        <span>Subscribe</span>
-                                        <Icons.Send size={15} />
-                                    </button>
+                                        Subscribe
+                                    </Button>
                                 </form>
                             )}
                         </div>
@@ -214,9 +217,9 @@ export const Footer: React.FC<FooterProps> = ({
                                             >
                                                 <span>{link.label}</span>
                                                 {link.badge && (
-                                                    <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                                                    <Badge variant="primary" size="sm" className="text-[10px]">
                                                         {link.badge}
-                                                    </span>
+                                                    </Badge>
                                                 )}
                                             </Link>
                                         )}

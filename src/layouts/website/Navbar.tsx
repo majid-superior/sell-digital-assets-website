@@ -1,8 +1,9 @@
 // src/layouts/website/Navbar.tsx
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useTheme } from "@/hooks/useTheme.ts";
+import { useTheme } from "@majid-superior/sell-digital-assets-theme/react";
 import { Icons, type IconComponent } from "@/lib/icons/index.ts";
+import { Badge } from "@majid-superior/sell-digital-assets-theme/components";
 
 export interface NavLinkItem {
     label: string;
@@ -103,9 +104,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                                     {Icon && <Icon size={16} />}
                                     <span>{label}</span>
                                     {badge && (
-                                        <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                                        <Badge variant="primary" size="sm" className="text-[10px]">
                                             {badge}
-                                        </span>
+                                        </Badge>
                                     )}
                                 </Link>
                             );
