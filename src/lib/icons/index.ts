@@ -1,16 +1,16 @@
-import { lucideRegistry } from './registry.ts';
-import * as brandIcons from './brands.tsx';
+import * as brands from "./brands.tsx";
+import * as semantic from "./semantic.tsx";
 
-export * from './types.ts';
-export * from './brands.tsx';
+export type { IconProps, IconComponent } from "./types.ts";
+export * from "./brands.tsx";
+export * from "./semantic.tsx";
 
 /**
- * Unified Icons namespace exposing semantic icons for the application.
- * All UI components should consume icons via this namespace.
+ * Unified Icons namespace exposing semantic and brand icons for the application.
  */
 export const Icons = {
-    ...lucideRegistry,
-    ...brandIcons,
-} as const;
+  ...brands,
+  ...semantic,
+};
 
 export type IconName = keyof typeof Icons;

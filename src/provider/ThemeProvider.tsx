@@ -1,59 +1,77 @@
 import React, { useCallback, useEffect, useState, useMemo } from "react";
-import { ThemeContext, type Theme } from "@/context/themeContext.ts";
+import { ThemeContext, type Theme } from "@/context/themeContext";
 
-const THEME_STORAGE_KEY = "theme";
+export interface ThemeProviderProps {
+  children: React.ReactNode;
+  storageKey?: string;
+  defaultTheme?: Theme;
+}
 
-export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [theme, setThemeState] = useState<Theme>(() => {
-        if (typeof window === "undefined") return "light";
-        const stored = localStorage.getItem(THEME_STORAGE_KEY);
-        if (stored === "dark" || stored === "light") return stored;
-        return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+export const ThemeProvider: React.FC<ThemeProviderProps> = ({
+  children,
+  storageKey = "theme",
+  defaultTheme,
+}) => {
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === "undefined") return defaultTheme ?? "light";
+    const stored = localStorage.getItem(storageKey);
+    if (stored === "dark" || stored === "light") return stored;
+    if (defaultTheme) return defaultTheme;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  });
+
+  const setTheme = useCallback(
+    (newTheme: Theme) => {
+      setThemeState(newTheme);
+      try {
+        localStorage.setItem(storageKey, newTheme);
+      } catch {
+        // Handle private browsing storage restrictions
+      }
+    },
+    [storageKey]
+  );
+
+  const toggleTheme = useCallback(() => {
+    setThemeState((prev) => {
+      const next = prev === "light" ? "dark" : "light";
+      try {
+        localStorage.setItem(storageKey, next);
+      } catch {
+        // Ignore storage access errors in private browsing modes
+      }
+      return next;
     });
+  }, [storageKey]);
 
-    const setTheme = useCallback((newTheme: Theme) => {
-        setThemeState(newTheme);
-        localStorage.setItem(THEME_STORAGE_KEY, newTheme);
-    }, []);
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === "dark") {
+      root.classList.add("dark");
+      root.setAttribute("data-theme", "dark");
+    } else {
+      root.classList.remove("dark");
+      root.setAttribute("data-theme", "light");
+    }
+  }, [theme]);
 
-    const toggleTheme = useCallback(() => {
-        setThemeState((prev) => {
-            const next = prev === "light" ? "dark" : "light";
-            localStorage.setItem(THEME_STORAGE_KEY, next);
-            return next;
-        });
-    }, []);
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = (e: MediaQueryListEvent) => {
+      const stored = localStorage.getItem(storageKey);
+      if (!stored) {
+        setThemeState(e.matches ? "dark" : "light");
+      }
+    };
 
-    // Synchronize <html> attributes on change
-    useEffect(() => {
-        const root = document.documentElement;
-        if (theme === "dark") {
-            root.classList.add("dark");
-            root.setAttribute("data-theme", "dark");
-        } else {
-            root.classList.remove("dark");
-            root.setAttribute("data-theme", "light");
-        }
-    }, [theme]);
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, [storageKey]);
 
-    // Listen for OS system theme changes if user hasn't set an explicit preference
-    useEffect(() => {
-        const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-        const handleChange = (e: MediaQueryListEvent) => {
-            const stored = localStorage.getItem(THEME_STORAGE_KEY);
-            if (!stored) {
-                setThemeState(e.matches ? "dark" : "light");
-            }
-        };
+  const value = useMemo(
+    () => ({ theme, setTheme, toggleTheme }),
+    [theme, setTheme, toggleTheme]
+  );
 
-        mediaQuery.addEventListener("change", handleChange);
-        return () => mediaQuery.removeEventListener("change", handleChange);
-    }, []);
-
-    const value = useMemo(
-        () => ({ theme, setTheme, toggleTheme }),
-        [theme, setTheme, toggleTheme]
-    );
-
-    return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 };

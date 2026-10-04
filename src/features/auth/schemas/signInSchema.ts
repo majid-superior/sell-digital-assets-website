@@ -9,7 +9,6 @@ export const signInSchema = z.object({
         .email("Please enter a valid email address"),
     password: z
         .string()
-        .min(1, "Password cannot be empty")
         .min(8, "Password must be at least 8 characters"),
     rememberMe: z.boolean(),
 });

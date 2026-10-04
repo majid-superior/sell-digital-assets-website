@@ -1,41 +1,56 @@
 // src/routes/AppRoutes.tsx
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "@/layouts/website/index.tsx";
 import Page from "@/layouts/website/page.tsx";
-import ServerPage from "@/layouts/website/pages/server.tsx";
-import ErrorPage from "@/layouts/website/pages/error.tsx";
-import SignInPage from "@/layouts/website/pages/signIn.tsx";
-import SignUpPage from "@/layouts/website/pages/signUp.tsx";
+import { Spinner } from "@/components/ui/Spinner.tsx";
+
+const HomePage = lazy(() => import("@/features/website/pages/HomePage.tsx"));
+const SignInPage = lazy(() => import("@/layouts/website/pages/signIn.tsx"));
+const SignUpPage = lazy(() => import("@/layouts/website/pages/signUp.tsx"));
+const ServerPage = lazy(() => import("@/layouts/website/pages/server.tsx"));
+const ErrorPage = lazy(() => import("@/layouts/website/pages/error.tsx"));
+const ExplorePage = lazy(() => import("@/features/website/pages/ExplorePage.tsx"));
+const AssetDetailPage = lazy(() => import("@/features/website/pages/AssetDetailPage.tsx"));
+
+const RouteLoadingFallback = () => (
+    <div className="min-h-[60vh] flex items-center justify-center bg-background text-on-surface">
+        <Spinner size="lg" />
+    </div>
+);
 
 export const AppRoutes: React.FC = () => {
     return (
         <BrowserRouter>
-            <Routes>
-                {/* Home / Index — has its own full layout shell */}
-                <Route path="/" element={<Index />} />
+            <Suspense fallback={<RouteLoadingFallback />}>
+                <Routes>
+                    {/* Home / Index — has its own full layout shell */}
+                    <Route element={<Index />}>
+                        <Route path="/" element={<HomePage />} />
+                    </Route>
 
-                {/* Standalone Auth Pages — no header, no footer */}
-                <Route path="/signin" element={<SignInPage />} />
-                <Route path="/signup" element={<SignUpPage />} />
+                    {/* Standalone Auth Pages — no header, no footer */}
+                    <Route path="/signin" element={<SignInPage />} />
+                    <Route path="/signup" element={<SignUpPage />} />
 
-                {/* Server Error page */}
-                <Route path="/server" element={<ServerPage />} />
+                    {/* Server Error page */}
+                    <Route path="/server" element={<ServerPage />} />
 
-                {/* 404 Not Found fallback — must be last */}
-                <Route path="*" element={<ErrorPage />} />
+                    {/* Website Pages share Page Layout (Header + Navbar + Footer) */}
+                    <Route element={<Page />}>
+                        <Route path="/explore" element={<ExplorePage />} />
+                        <Route path="/categories" element={<ExplorePage />} />
+                        <Route path="/featured" element={<ExplorePage />} />
+                        <Route path="/asset/:slug" element={<AssetDetailPage />} />
+                    </Route>
 
-                {/* All other pages share the Website Page Layout (Header + Navbar + Footer) */}
-                <Route element={<Page />}>
-                    {/* Static & Generic Pages */}
-                    {/* e.g. <Route path="/privacy" element={<PrivacyPage />} /> */}
-                    {/* e.g. <Route path="/terms" element={<TermsPage />} /> */}
-
-
-                </Route>
-            </Routes>
+                    {/* 404 Not Found fallback */}
+                    <Route path="*" element={<ErrorPage />} />
+                </Routes>
+            </Suspense>
         </BrowserRouter>
     );
 };
 
 export default AppRoutes;
+

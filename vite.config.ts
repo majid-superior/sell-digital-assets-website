@@ -11,4 +11,33 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  server: {
+    port: 5173,
+    proxy: {
+      "/api/v1": {
+        target: process.env.VITE_BACKEND_ORIGIN || "http://localhost:5000",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (id.includes("node_modules")) {
+            if (id.includes("react-router-dom") || id.includes("/react/") || id.includes("/react-dom/")) {
+              return "vendor-react";
+            }
+            if (id.includes("@tanstack")) {
+              return "vendor-query";
+            }
+            if (id.includes("lucide-react")) {
+              return "vendor-icons";
+            }
+          }
+        },
+      },
+    },
+  },
 });

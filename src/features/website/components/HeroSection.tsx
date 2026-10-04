@@ -2,6 +2,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Icons } from "@/lib/icons/index.ts";
+import { Badge, Button } from "@/components/ui/index.ts";
 
 export interface HeroSectionProps {
     title?: React.ReactNode;
@@ -30,16 +31,16 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     badgeText = "Next-Gen Digital Asset Marketplace",
     primaryCtaText = "Explore Marketplace",
     primaryCtaHref = "/explore",
-    secondaryCtaText = "Become a Creator",
-    secondaryCtaHref = "/seller",
+    secondaryCtaText = "Join Community",
+    secondaryCtaHref = "/signup",
 }) => {
     return (
         <section className="text-center space-y-6 max-w-3xl mx-auto pt-6 px-0">
             {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface-container-high border border-outline-variant/30 text-xs font-semibold text-primary">
+            <Badge variant="primary" size="md" className="gap-2 px-3.5 py-1.5 rounded-full">
                 <Icons.Magic size={14} />
                 <span>{badgeText}</span>
-            </div>
+            </Badge>
 
             {/*
                 Heading size scale:
@@ -60,18 +61,26 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
-                <Link
-                    to={primaryCtaHref}
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-on-primary text-sm font-semibold hover:opacity-90 active:scale-95 transition-all shadow-sm"
-                >
-                    <span>{primaryCtaText}</span>
-                    <Icons.Next size={16} />
+                <Link to={primaryCtaHref}>
+                    <Button
+                        type="button"
+                        variant="primary"
+                        size="lg"
+                        className="rounded-full gap-2 shadow-sm"
+                        rightIcon={<Icons.Next size={16} />}
+                    >
+                        {primaryCtaText}
+                    </Button>
                 </Link>
-                <Link
-                    to={secondaryCtaHref}
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-sm font-medium transition-all"
-                >
-                    <span>{secondaryCtaText}</span>
+                <Link to={secondaryCtaHref}>
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        size="lg"
+                        className="rounded-full"
+                    >
+                        {secondaryCtaText}
+                    </Button>
                 </Link>
             </div>
         </section>

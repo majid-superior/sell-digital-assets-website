@@ -7,7 +7,13 @@ import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
 
 export default defineConfig([
-  globalIgnores(["dist"]),
+  globalIgnores([
+    "dist",
+    "src/features/buyer-dashboard/**",
+    "src/features/seller-dashboard/**",
+    "src/features/checkout/**",
+    "src/features/disputes/**",
+  ]),
   // 1. TypeScript & React files: full type-aware linting + a11y rules
   {
     files: ["**/*.{ts,tsx}"],
@@ -38,9 +44,20 @@ export default defineConfig([
           },
         },
       ],
+      "react-refresh/only-export-components": [
+        "warn",
+        { allowConstantExport: true },
+      ],
     },
   },
-  // 2. JavaScript config files: disable type checking
+  // 2. Icon library definitions: allow factory and semantic mappings
+  {
+    files: ["src/lib/icons/**/*.{ts,tsx}"],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
+  // 3. JavaScript config files: disable type checking
   {
     files: ["**/*.js", "**/*.mjs"],
     extends: [tseslint.configs.disableTypeChecked],

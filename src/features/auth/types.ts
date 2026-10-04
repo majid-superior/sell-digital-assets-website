@@ -7,6 +7,13 @@ export interface SignInCredentials {
     rememberMe?: boolean;
 }
 
+export interface SignUpCredentials {
+    fullName: string;
+    email: string;
+    password: string;
+    role: "buyer" | "seller";
+}
+
 export interface AuthResponse {
     success: boolean;
     token: string;

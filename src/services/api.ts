@@ -1,28 +1,16 @@
-import { ENV } from "@/config/env.ts";
+import { buildRequestUrl, prepareRequestHeaders } from "./interceptors/requestInterceptor.ts";
+import {
+    ApiError,
+    handleResponseError,
+    parseResponseBody,
+} from "./interceptors/responseInterceptor.ts";
 
 export interface RequestOptions extends RequestInit {
     params?: Record<string, string | number | boolean>;
     timeoutMs?: number;
 }
 
-export class ApiError extends Error {
-    readonly status: number;
-    readonly statusText: string;
-    readonly data: unknown;
-
-    constructor(
-        status: number,
-        statusText: string,
-        data: unknown,
-        options?: { cause?: unknown }
-    ) {
-        super(`API Error ${status}: ${statusText}`, options);
-        this.name = "ApiError";
-        this.status = status;
-        this.statusText = statusText;
-        this.data = data;
-    }
-}
+export { ApiError };
 
 export class NetworkError extends Error {
     constructor(
@@ -47,22 +35,8 @@ export class TimeoutError extends Error {
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const { params, headers, timeoutMs = 15000, signal: customSignal, ...customConfig } = options;
 
-    const normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
-    let url = `${ENV.API_BASE_URL}${normalizedEndpoint}`;
-    if (params) {
-        const searchParams = new URLSearchParams();
-        Object.entries(params).forEach(([key, value]) => {
-            searchParams.append(key, String(value));
-        });
-        url += `?${searchParams.toString()}`;
-    }
-
-    const token = localStorage.getItem("auth_token");
-    const defaultHeaders: Record<string, string> = {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
+    const url = buildRequestUrl(endpoint, params);
+    const requestHeaders = prepareRequestHeaders(headers);
 
     // Timeout management via AbortController
     const controller = new AbortController();
@@ -86,20 +60,16 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     }
 
     const config: RequestInit = {
+        credentials: "same-origin",
         ...customConfig,
         signal: controller.signal,
-        headers: {
-            ...defaultHeaders,
-            ...headers,
-        },
+        headers: requestHeaders,
     };
 
     let response: Response;
     try {
         response = await fetch(url, config);
     } catch (error: unknown) {
-        clearTimeout(timeoutId);
-
         if (isTimedOut || (error instanceof DOMException && error.name === "TimeoutError")) {
             throw new TimeoutError("The server is taking too long to respond. Request timed out.", { cause: error });
         }
@@ -125,38 +95,10 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     }
 
     if (!response.ok) {
-        let errorData: unknown;
-        try {
-            errorData = (await response.json()) as unknown;
-        } catch {
-            try {
-                errorData = await response.text();
-            } catch {
-                errorData = null;
-            }
-        }
-        if (response.status === 401) {
-            // Trigger authentication expired event
-            window.dispatchEvent(new CustomEvent("auth:unauthorized"));
-        }
-        throw new ApiError(response.status, response.statusText, errorData);
+        await handleResponseError(response);
     }
 
-    // Handle 204 No Content
-    if (response.status === 204) {
-        return undefined as unknown as T;
-    }
-
-    try {
-        return (await response.json()) as T;
-    } catch (parseError: unknown) {
-        throw new ApiError(
-            response.status,
-            "Invalid JSON response",
-            "The server returned an unparseable response.",
-            { cause: parseError }
-        );
-    }
+    return parseResponseBody<T>(response);
 }
 
 export const apiClient = {

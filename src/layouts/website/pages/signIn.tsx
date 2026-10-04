@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { useTheme } from "@/hooks/useTheme.ts";
 import { Icons } from "@/lib/icons/index.ts";
+import { Button } from "@/components/ui/index.ts";
 import { signInSchema, type SignInFormData } from "@/features/auth/schemas/signInSchema.ts";
 import { useSignInMutation } from "@/features/auth/hooks/useSignInMutation.ts";
 import { AuthenticationError } from "@/features/auth/types.ts";
@@ -37,7 +38,7 @@ export const SignInPage: React.FC = () => {
 
     const onSubmit = async (data: SignInFormData) => {
         try {
-            const response = await signInMutation.mutateAsync(data);
+            await signInMutation.mutateAsync(data);
 
             // Determine redirect target:
             // 1. Previous route if redirected from protected route
@@ -46,8 +47,6 @@ export const SignInPage: React.FC = () => {
             const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname;
             if (from && from !== "/signin" && from !== "/signup") {
                 void navigate(from, { replace: true });
-            } else if (response.user.role === "seller") {
-                void navigate("/seller", { replace: true });
             } else {
                 void navigate("/", { replace: true });
             }
@@ -128,7 +127,7 @@ export const SignInPage: React.FC = () => {
                                 Welcome back
                             </h1>
                             <p className="text-xs sm:text-sm text-on-surface-variant">
-                                Sign in to access your digital assets, downloads, and creator dashboard.
+                                Sign in to access your digital assets, downloads, and account.
                             </p>
                         </div>
 
@@ -298,23 +297,16 @@ export const SignInPage: React.FC = () => {
                             </div>
 
                             {/* Submit Button */}
-                            <button
+                            <Button
                                 type="submit"
-                                disabled={isPending}
-                                className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-primary text-on-primary text-sm font-semibold hover:opacity-90 active:scale-95 transition-all shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+                                variant="primary"
+                                size="lg"
+                                isLoading={isPending}
+                                className="w-full justify-center"
+                                rightIcon={!isPending ? <Icons.Next size={16} /> : undefined}
                             >
-                                {isPending ? (
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-4 h-4 border-2 border-on-primary/30 border-t-on-primary rounded-full animate-spin" />
-                                        <span>Signing in...</span>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <span>Sign In</span>
-                                        <Icons.Next size={16} />
-                                    </>
-                                )}
-                            </button>
+                                Sign In
+                            </Button>
                         </form>
 
                         {/* Switch to Sign Up */}

@@ -2,6 +2,7 @@
 import React from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth.ts";
+import { Spinner } from "@/components/ui/Spinner.tsx";
 import type { UserRole } from "@/types/user.ts";
 
 export interface ProtectedRouteProps {
@@ -21,7 +22,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     if (isLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background text-on-surface">
-                <div className="w-8 h-8 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
+                <Spinner size="lg" aria-label="Authenticating session" />
             </div>
         );
     }

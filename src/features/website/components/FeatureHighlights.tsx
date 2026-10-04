@@ -1,6 +1,7 @@
 // src/features/website/components/FeatureHighlights.tsx
 import React from "react";
 import { Icons, type IconComponent } from "@/lib/icons/index.ts";
+import { Card, CardTitle, CardDescription } from "@/components/ui/index.ts";
 
 export interface FeatureItem {
     id: string;
@@ -52,20 +53,20 @@ export const FeatureHighlights: React.FC<FeatureHighlightsProps> = ({
             {features.map((feature) => {
                 const Icon = feature.icon;
                 return (
-                    <div
+                    <Card
                         key={feature.id}
-                        className="p-6 rounded-2xl bg-surface-container-low border border-outline-variant/30 space-y-3"
+                        className="p-6 space-y-3"
                     >
                         <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
                             <Icon size={20} />
                         </div>
-                        <h3 className="text-base font-semibold text-on-surface">
+                        <CardTitle as="h3" className="text-base font-semibold text-on-surface">
                             {feature.title}
-                        </h3>
-                        <p className="text-sm text-on-surface-variant leading-relaxed">
+                        </CardTitle>
+                        <CardDescription className="text-sm text-on-surface-variant leading-relaxed">
                             {feature.description}
-                        </p>
-                    </div>
+                        </CardDescription>
+                    </Card>
                 );
             })}
         </section>

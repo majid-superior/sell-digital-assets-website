@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Navbar, type NavbarProps } from "./Navbar.tsx";
 import { Icons } from "@/lib/icons/index.ts";
+import { Badge } from "@/components/ui/index.ts";
 
 export interface AnnouncementConfig {
     badge?: string;
@@ -56,10 +57,10 @@ export const Header: React.FC<HeaderProps> = ({
                         */}
                         <div className="flex-1 min-w-0 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center">
                             {announcement.badge && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary text-on-primary text-[11px] font-semibold shrink-0">
+                                <Badge variant="primary" size="sm" className="gap-1 shrink-0">
                                     <Icons.Magic size={12} />
                                     {announcement.badge}
-                                </span>
+                                </Badge>
                             )}
                             <span className="break-words">{announcement.text}</span>
                             {announcement.linkHref && (
