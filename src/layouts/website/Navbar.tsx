@@ -1,9 +1,9 @@
-// src/layouts/website/Navbar.tsx
 import React, { useState, useEffect, useRef } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { useTheme } from "@majid-superior/sell-digital-assets-theme/react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useTheme } from "@/hooks/useTheme.ts";
+import { useAuth } from "@/hooks/useAuth.ts";
 import { Icons, type IconComponent } from "@/lib/icons/index.ts";
-import { Badge } from "@majid-superior/sell-digital-assets-theme/components";
+import { Badge } from "@/components/ui/index.ts";
 
 export interface NavLinkItem {
     label: string;
@@ -24,7 +24,6 @@ const DEFAULT_NAV_ITEMS: NavLinkItem[] = [
     { label: "Explore", path: "/explore", icon: Icons.Explore },
     { label: "Categories", path: "/categories", icon: Icons.Categories },
     { label: "Featured", path: "/featured", icon: Icons.Magic, badge: "Hot" },
-    { label: "Sell Assets", path: "/seller", icon: Icons.Sell },
 ];
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -34,18 +33,15 @@ export const Navbar: React.FC<NavbarProps> = ({
     className = "",
 }) => {
     const { theme, toggleTheme } = useTheme();
+    const { isAuthenticated, user, signOut } = useAuth();
     const location = useLocation();
+    const navigate = useNavigate();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const mobileMenuRef = useRef<HTMLDivElement>(null);
     const menuButtonRef = useRef<HTMLButtonElement>(null);
 
-    // Close mobile menu on route change
-    const [prevPath, setPrevPath] = useState(location.pathname);
-    if (prevPath !== location.pathname) {
-        setPrevPath(location.pathname);
-        setMobileMenuOpen(false);
-    }
+    const closeMobileMenu = () => setMobileMenuOpen(false);
 
     // Close mobile menu on Escape key press; return focus to trigger button
     useEffect(() => {
@@ -62,7 +58,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     const handleSearchSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (searchQuery.trim()) {
-            window.location.href = `/explore?q=${encodeURIComponent(searchQuery.trim())}`;
+            closeMobileMenu();
+            void navigate(`/explore?q=${encodeURIComponent(searchQuery.trim())}`);
         }
     };
 
@@ -145,31 +142,39 @@ export const Navbar: React.FC<NavbarProps> = ({
                         {theme === "dark" ? <Icons.ThemeLight size={19} /> : <Icons.ThemeDark size={19} />}
                     </button>
 
-                    {/* Cart Indicator */}
-                    <Link
-                        to="/checkout"
-                        className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors relative"
-                        aria-label="Shopping Cart"
-                    >
-                        <Icons.Cart size={19} />
-                        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary ring-2 ring-surface" />
-                    </Link>
+                    {/* Auth Status & CTA */}
+                    {isAuthenticated && user ? (
+                        <div className="hidden sm:flex items-center gap-2">
+                            <span className="text-xs text-on-surface-variant font-medium">
+                                Hi, <strong className="text-on-surface">{user.displayName || user.username || "User"}</strong>
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => signOut()}
+                                className="px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium text-on-surface-variant hover:text-error hover:bg-surface-container-high transition-colors cursor-pointer"
+                            >
+                                Sign Out
+                            </button>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Sign In — hidden on very small screens, shown sm+ */}
+                            <Link
+                                to="/signin"
+                                className="hidden sm:inline-flex items-center justify-center px-3.5 py-1.5 rounded-full text-sm font-medium text-on-surface hover:bg-surface-container-high transition-colors"
+                            >
+                                Sign In
+                            </Link>
 
-                    {/* Sign In — hidden on very small screens, shown sm+ */}
-                    <Link
-                        to="/signin"
-                        className="hidden sm:inline-flex items-center justify-center px-3.5 py-1.5 rounded-full text-sm font-medium text-on-surface hover:bg-surface-container-high transition-colors"
-                    >
-                        Sign In
-                    </Link>
-
-                    {/* Start Selling CTA — hidden on very small screens */}
-                    <Link
-                        to="/seller"
-                        className="hidden sm:inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-primary text-on-primary text-sm font-semibold hover:opacity-90 active:scale-95 transition-all shadow-xs"
-                    >
-                        Start Selling
-                    </Link>
+                            {/* Create Account CTA */}
+                            <Link
+                                to="/signup"
+                                className="hidden sm:inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-primary text-on-primary text-sm font-semibold hover:opacity-90 active:scale-95 transition-all shadow-xs"
+                            >
+                                Get Started
+                            </Link>
+                        </>
+                    )}
 
                     {/* Mobile Menu Toggle Button */}
                     <button
@@ -225,6 +230,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                                 <Link
                                     key={path}
                                     to={path}
+                                    onClick={closeMobileMenu}
                                     className={`flex items-center justify-between px-3 py-3 rounded-lg text-sm font-medium transition-colors ${isActive
                                         ? "bg-surface-container-high text-primary font-semibold"
                                         : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
@@ -246,18 +252,40 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                     {/* Mobile Auth Actions — full-width buttons for touch friendliness */}
                     <div className="pt-3 border-t border-outline-variant/30 flex flex-col gap-2">
-                        <Link
-                            to="/signin"
-                            className="w-full py-3 text-center text-sm font-medium text-on-surface hover:bg-surface-container-high rounded-lg transition-colors"
-                        >
-                            Sign In
-                        </Link>
-                        <Link
-                            to="/signup"
-                            className="w-full py-3 text-center text-sm font-semibold rounded-lg bg-primary text-on-primary hover:opacity-90 transition-opacity shadow-xs"
-                        >
-                            Create Account
-                        </Link>
+                        {isAuthenticated && user ? (
+                            <>
+                                <div className="px-1 text-xs text-on-surface-variant">
+                                    Signed in as <strong className="text-on-surface">{user.email}</strong>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        closeMobileMenu();
+                                        signOut();
+                                    }}
+                                    className="w-full py-2.5 text-center text-sm font-medium text-error hover:bg-surface-container-high rounded-lg transition-colors cursor-pointer"
+                                >
+                                    Sign Out
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <Link
+                                    to="/signin"
+                                    onClick={closeMobileMenu}
+                                    className="w-full py-3 text-center text-sm font-medium text-on-surface hover:bg-surface-container-high rounded-lg transition-colors"
+                                >
+                                    Sign In
+                                </Link>
+                                <Link
+                                    to="/signup"
+                                    onClick={closeMobileMenu}
+                                    className="w-full py-3 text-center text-sm font-semibold rounded-lg bg-primary text-on-primary hover:opacity-90 transition-opacity shadow-xs"
+                                >
+                                    Create Account
+                                </Link>
+                            </>
+                        )}
                     </div>
                 </div>
             )}

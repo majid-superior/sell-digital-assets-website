@@ -2,7 +2,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Icons } from "@/lib/icons/index.ts";
-import { Badge, Button } from "@majid-superior/sell-digital-assets-theme/components";
+import { Badge, Button } from "@/components/ui/index.ts";
 
 export interface HeroSectionProps {
     title?: React.ReactNode;
@@ -31,8 +31,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     badgeText = "Next-Gen Digital Asset Marketplace",
     primaryCtaText = "Explore Marketplace",
     primaryCtaHref = "/explore",
-    secondaryCtaText = "Become a Creator",
-    secondaryCtaHref = "/seller",
+    secondaryCtaText = "Join Community",
+    secondaryCtaHref = "/signup",
 }) => {
     return (
         <section className="text-center space-y-6 max-w-3xl mx-auto pt-6 px-0">

@@ -3,7 +3,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { Icons } from "@/lib/icons/index.ts";
-import { Button } from "@majid-superior/sell-digital-assets-theme/components";
+import { Button } from "@/components/ui/index.ts";
 
 export const ErrorPage: React.FC = () => {
     return (

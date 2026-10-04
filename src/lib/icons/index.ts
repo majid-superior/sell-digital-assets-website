@@ -1,12 +1,16 @@
-import * as themeIcons from '@majid-superior/sell-digital-assets-theme/icons';
+import * as brands from "./brands.tsx";
+import * as semantic from "./semantic.tsx";
 
-export type { IconProps, IconComponent } from '@majid-superior/sell-digital-assets-theme/icons';
-export * from '@majid-superior/sell-digital-assets-theme/icons';
+export type { IconProps, IconComponent } from "./types.ts";
+export * from "./brands.tsx";
+export * from "./semantic.tsx";
 
 /**
  * Unified Icons namespace exposing semantic and brand icons for the application.
- * All icons are sourced directly from @majid-superior/sell-digital-assets-theme/icons.
  */
-export const Icons = themeIcons;
+export const Icons = {
+  ...brands,
+  ...semantic,
+};
 
 export type IconName = keyof typeof Icons;

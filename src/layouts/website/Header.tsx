@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Navbar, type NavbarProps } from "./Navbar.tsx";
 import { Icons } from "@/lib/icons/index.ts";
-import { Badge } from "@majid-superior/sell-digital-assets-theme/components";
+import { Badge } from "@/components/ui/index.ts";
 
 export interface AnnouncementConfig {
     badge?: string;

@@ -4,9 +4,9 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { useTheme } from "@majid-superior/sell-digital-assets-theme/react";
+import { useTheme } from "@/hooks/useTheme.ts";
 import { Icons } from "@/lib/icons/index.ts";
-import { Button } from "@majid-superior/sell-digital-assets-theme/components";
+import { Button } from "@/components/ui/index.ts";
 import { signInSchema, type SignInFormData } from "@/features/auth/schemas/signInSchema.ts";
 import { useSignInMutation } from "@/features/auth/hooks/useSignInMutation.ts";
 import { AuthenticationError } from "@/features/auth/types.ts";
@@ -38,7 +38,7 @@ export const SignInPage: React.FC = () => {
 
     const onSubmit = async (data: SignInFormData) => {
         try {
-            const response = await signInMutation.mutateAsync(data);
+            await signInMutation.mutateAsync(data);
 
             // Determine redirect target:
             // 1. Previous route if redirected from protected route
@@ -47,8 +47,6 @@ export const SignInPage: React.FC = () => {
             const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname;
             if (from && from !== "/signin" && from !== "/signup") {
                 void navigate(from, { replace: true });
-            } else if (response.user.role === "seller") {
-                void navigate("/seller", { replace: true });
             } else {
                 void navigate("/", { replace: true });
             }
@@ -129,7 +127,7 @@ export const SignInPage: React.FC = () => {
                                 Welcome back
                             </h1>
                             <p className="text-xs sm:text-sm text-on-surface-variant">
-                                Sign in to access your digital assets, downloads, and creator dashboard.
+                                Sign in to access your digital assets, downloads, and account.
                             </p>
                         </div>
 

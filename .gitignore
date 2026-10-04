@@ -71,3 +71,5 @@ desktop.ini
 *.sln
 *.swp
 *.swo
+temp_empty/
+test_dir/

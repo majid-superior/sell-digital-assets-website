@@ -1,23 +1,45 @@
 // src/layouts/website/pages/signUp.tsx
 import React, { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { useTheme } from "@majid-superior/sell-digital-assets-theme/react";
+import { useTheme } from "@/hooks/useTheme.ts";
 import { Icons } from "@/lib/icons/index.ts";
-import { Button } from "@majid-superior/sell-digital-assets-theme/components";
+import { Button } from "@/components/ui/index.ts";
+import { signUpSchema, type SignUpFormData } from "@/features/auth/schemas/signUpSchema.ts";
+import { useSignUpMutation } from "@/features/auth/hooks/useSignUpMutation.ts";
+import { AuthenticationError } from "@/features/auth/types.ts";
 
 export const SignUpPage: React.FC = () => {
     const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
-
-    const [accountType, setAccountType] = useState<"buyer" | "creator">("buyer");
-    const [fullName, setFullName] = useState("");
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [agreeTerms, setAgreeTerms] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
-    const [authError, setAuthError] = useState<string | null>(null);
+
+    const signUpMutation = useSignUpMutation();
+
+    const {
+        register,
+        handleSubmit,
+        control,
+        setValue,
+        setError,
+        formState: { errors, isSubmitting },
+    } = useForm<SignUpFormData>({
+        resolver: zodResolver(signUpSchema),
+        defaultValues: {
+            fullName: "",
+            email: "",
+            password: "",
+            role: "buyer",
+            agreeTerms: false,
+        },
+        mode: "onBlur",
+    });
+
+    const role = useWatch({ control, name: "role" });
+    const password = useWatch({ control, name: "password" }) || "";
+    const isPending = isSubmitting || signUpMutation.isPending;
 
     // Password strength score (0-4)
     const passwordStrength = useMemo(() => {
@@ -45,42 +67,29 @@ export const SignUpPage: React.FC = () => {
         }
     }, [passwordStrength]);
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        setAuthError(null);
-
-        if (!fullName.trim() || !email.trim() || !password.trim()) {
-            const errorMsg = "Please fill in all required fields.";
-            setAuthError(errorMsg);
-            toast.error("Registration Failed", { description: errorMsg });
-            return;
-        }
-
-        if (password.length < 8) {
-            const errorMsg = "Password must be at least 8 characters long.";
-            setAuthError(errorMsg);
-            toast.error("Weak Password", { description: errorMsg });
-            return;
-        }
-
-        if (!agreeTerms) {
-            const errorMsg = "Please accept the Terms of Service to continue.";
-            setAuthError(errorMsg);
-            toast.error("Terms Required", { description: errorMsg });
-            return;
-        }
-
-        setIsLoading(true);
-
-        // Simulated sign-up workflow
-        setTimeout(() => {
-            setIsLoading(false);
-            toast.success("Account Created Successfully!", {
-                description: `Welcome to AssetDrop, ${fullName}!`,
+    const onSubmit = async (data: SignUpFormData) => {
+        try {
+            await signUpMutation.mutateAsync({
+                fullName: data.fullName,
+                email: data.email,
+                password: data.password,
+                role: data.role,
             });
-            // Navigate back to marketplace or welcome flow
-            void navigate("/");
-        }, 900);
+
+            void navigate("/", { replace: true });
+        } catch (error: unknown) {
+            if (error instanceof AuthenticationError && error.fieldErrors) {
+                for (const [field, messages] of Object.entries(error.fieldErrors)) {
+                    if (messages && messages.length > 0) {
+                        const formField = field as keyof SignUpFormData;
+                        setError(formField, {
+                            type: "server",
+                            message: messages[0],
+                        });
+                    }
+                }
+            }
+        }
     };
 
     return (
@@ -152,8 +161,8 @@ export const SignUpPage: React.FC = () => {
                         <div className="grid grid-cols-2 p-1 rounded-xl bg-surface border border-outline-variant/40">
                             <button
                                 type="button"
-                                onClick={() => setAccountType("buyer")}
-                                className={`py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${accountType === "buyer"
+                                onClick={() => setValue("role", "buyer")}
+                                className={`py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${role === "buyer"
                                     ? "bg-primary text-on-primary shadow-xs"
                                     : "text-on-surface-variant hover:text-on-surface"
                                     }`}
@@ -162,8 +171,8 @@ export const SignUpPage: React.FC = () => {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => setAccountType("creator")}
-                                className={`py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${accountType === "creator"
+                                onClick={() => setValue("role", "seller")}
+                                className={`py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${role === "seller"
                                     ? "bg-primary text-on-primary shadow-xs"
                                     : "text-on-surface-variant hover:text-on-surface"
                                     }`}
@@ -172,10 +181,14 @@ export const SignUpPage: React.FC = () => {
                             </button>
                         </div>
 
-                        {/* Error Alert */}
-                        {authError && (
-                            <div className="p-3 rounded-xl bg-error/10 border border-error/30 text-error text-xs sm:text-sm">
-                                {authError}
+                        {/* Mutation Error Alert */}
+                        {signUpMutation.isError && (
+                            <div
+                                role="alert"
+                                className="p-3.5 rounded-xl bg-error/10 border border-error/30 text-error text-xs sm:text-sm flex items-start gap-2.5"
+                            >
+                                <span className="font-bold shrink-0">Registration Error:</span>
+                                <span>{signUpMutation.error?.message || "Sign up failed. Please check your details."}</span>
                             </div>
                         )}
 
@@ -223,7 +236,7 @@ export const SignUpPage: React.FC = () => {
                         </div>
 
                         {/* Form Fields */}
-                        <form onSubmit={handleSubmit} className="space-y-4">
+                        <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-4" noValidate>
                             {/* Full Name */}
                             <div className="space-y-1.5">
                                 <label
@@ -239,14 +252,23 @@ export const SignUpPage: React.FC = () => {
                                     <input
                                         id="signup-name"
                                         type="text"
-                                        required
                                         autoComplete="name"
                                         placeholder="Alex Rivera"
-                                        value={fullName}
-                                        onChange={(e) => setFullName(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl bg-surface border border-outline-variant/40 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-hidden focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                                        disabled={isPending}
+                                        aria-invalid={!!errors.fullName}
+                                        aria-describedby={errors.fullName ? "name-error" : undefined}
+                                        {...register("fullName")}
+                                        className={`w-full pl-10 pr-4 py-2.5 text-sm rounded-xl bg-surface border text-on-surface placeholder:text-on-surface-variant/50 focus:outline-hidden transition-all disabled:opacity-50 ${errors.fullName
+                                            ? "border-error focus:border-error focus:ring-1 focus:ring-error"
+                                            : "border-outline-variant/40 focus:border-primary focus:ring-1 focus:ring-primary"
+                                            }`}
                                     />
                                 </div>
+                                {errors.fullName && (
+                                    <p id="name-error" role="alert" className="text-xs text-error font-medium mt-1">
+                                        {errors.fullName.message}
+                                    </p>
+                                )}
                             </div>
 
                             {/* Email */}
@@ -264,14 +286,23 @@ export const SignUpPage: React.FC = () => {
                                     <input
                                         id="signup-email"
                                         type="email"
-                                        required
                                         autoComplete="email"
                                         placeholder="you@example.com"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl bg-surface border border-outline-variant/40 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-hidden focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                                        disabled={isPending}
+                                        aria-invalid={!!errors.email}
+                                        aria-describedby={errors.email ? "email-error" : undefined}
+                                        {...register("email")}
+                                        className={`w-full pl-10 pr-4 py-2.5 text-sm rounded-xl bg-surface border text-on-surface placeholder:text-on-surface-variant/50 focus:outline-hidden transition-all disabled:opacity-50 ${errors.email
+                                            ? "border-error focus:border-error focus:ring-1 focus:ring-error"
+                                            : "border-outline-variant/40 focus:border-primary focus:ring-1 focus:ring-primary"
+                                            }`}
                                     />
                                 </div>
+                                {errors.email && (
+                                    <p id="email-error" role="alert" className="text-xs text-error font-medium mt-1">
+                                        {errors.email.message}
+                                    </p>
+                                )}
                             </div>
 
                             {/* Password */}
@@ -289,12 +320,16 @@ export const SignUpPage: React.FC = () => {
                                     <input
                                         id="signup-password"
                                         type={showPassword ? "text" : "password"}
-                                        required
                                         autoComplete="new-password"
                                         placeholder="Minimum 8 characters"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        className="w-full pl-10 pr-10 py-2.5 text-sm rounded-xl bg-surface border border-outline-variant/40 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-hidden focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                                        disabled={isPending}
+                                        aria-invalid={!!errors.password}
+                                        aria-describedby={errors.password ? "password-error" : undefined}
+                                        {...register("password")}
+                                        className={`w-full pl-10 pr-10 py-2.5 text-sm rounded-xl bg-surface border text-on-surface placeholder:text-on-surface-variant/50 focus:outline-hidden transition-all disabled:opacity-50 ${errors.password
+                                            ? "border-error focus:border-error focus:ring-1 focus:ring-error"
+                                            : "border-outline-variant/40 focus:border-primary focus:ring-1 focus:ring-primary"
+                                            }`}
                                     />
                                     <button
                                         type="button"
@@ -305,6 +340,12 @@ export const SignUpPage: React.FC = () => {
                                         {showPassword ? <Icons.EyeOff size={16} /> : <Icons.Eye size={16} />}
                                     </button>
                                 </div>
+
+                                {errors.password && (
+                                    <p id="password-error" role="alert" className="text-xs text-error font-medium mt-1">
+                                        {errors.password.message}
+                                    </p>
+                                )}
 
                                 {/* Dynamic Password Strength Indicator */}
                                 {password && (
@@ -333,9 +374,9 @@ export const SignUpPage: React.FC = () => {
                                 <label className="flex items-start gap-2.5 cursor-pointer select-none">
                                     <input
                                         type="checkbox"
-                                        checked={agreeTerms}
-                                        onChange={(e) => setAgreeTerms(e.target.checked)}
-                                        className="mt-0.5 w-4 h-4 rounded-sm border-outline-variant text-primary focus:ring-primary accent-primary cursor-pointer"
+                                        disabled={isPending}
+                                        {...register("agreeTerms")}
+                                        className="mt-0.5 w-4 h-4 rounded-sm border-outline-variant text-primary focus:ring-primary accent-primary cursor-pointer disabled:opacity-50"
                                     />
                                     <span className="text-xs text-on-surface-variant leading-tight">
                                         I agree to the{" "}
@@ -344,6 +385,11 @@ export const SignUpPage: React.FC = () => {
                                         <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>.
                                     </span>
                                 </label>
+                                {errors.agreeTerms && (
+                                    <p role="alert" className="text-xs text-error font-medium mt-1">
+                                        {errors.agreeTerms.message}
+                                    </p>
+                                )}
                             </div>
 
                             {/* Submit Button */}
@@ -351,9 +397,9 @@ export const SignUpPage: React.FC = () => {
                                 type="submit"
                                 variant="primary"
                                 size="lg"
-                                isLoading={isLoading}
+                                isLoading={isPending}
                                 className="w-full justify-center"
-                                rightIcon={!isLoading ? <Icons.Next size={16} /> : undefined}
+                                rightIcon={!isPending ? <Icons.Next size={16} /> : undefined}
                             >
                                 Create Account
                             </Button>

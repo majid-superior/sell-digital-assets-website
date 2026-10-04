@@ -2,6 +2,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { authService } from "@/services/v1/authService.ts";
+import { queryKeys } from "@/services/queryKeys.ts";
 import { useAuth } from "@/hooks/useAuth.ts";
 import {
     AuthenticationError,
@@ -20,7 +21,7 @@ export const useSignInMutation = () => {
             setSession(data.user, data.token);
 
             // Invalidate user queries to ensure cached profile data updates
-            void queryClient.invalidateQueries({ queryKey: ["auth", "currentUser"] });
+            void queryClient.invalidateQueries({ queryKey: queryKeys.auth.currentUser() });
 
             toast.success("Welcome back!", {
                 description: `Signed in as ${data.user.displayName || data.user.email}`,

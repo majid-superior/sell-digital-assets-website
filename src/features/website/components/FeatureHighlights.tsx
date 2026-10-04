@@ -1,7 +1,7 @@
 // src/features/website/components/FeatureHighlights.tsx
 import React from "react";
 import { Icons, type IconComponent } from "@/lib/icons/index.ts";
-import { Card, CardTitle, CardDescription } from "@majid-superior/sell-digital-assets-theme/components";
+import { Card, CardTitle, CardDescription } from "@/components/ui/index.ts";
 
 export interface FeatureItem {
     id: string;

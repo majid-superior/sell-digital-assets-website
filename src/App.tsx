@@ -2,7 +2,7 @@
 import React from "react";
 import { AppRoutes } from "@/routes/AppRoutes.tsx";
 import { Toaster } from "sonner";
-import { useTheme } from "@majid-superior/sell-digital-assets-theme/react";
+import { useTheme } from "@/hooks/useTheme.ts";
 
 export default function App(): React.JSX.Element {
   const { theme } = useTheme();

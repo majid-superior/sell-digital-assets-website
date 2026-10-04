@@ -5,7 +5,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import './index.css';
 import App from './App.tsx';
 import { queryClient } from './lib/queryClient.ts';
-import { ThemeProvider } from '@majid-superior/sell-digital-assets-theme/react';
+import { ThemeProvider } from './provider/ThemeProvider.tsx';
 import { AuthProvider } from './provider/AuthProvider.tsx';
 
 createRoot(document.getElementById('root')!).render(
@@ -16,7 +16,7 @@ createRoot(document.getElementById('root')!).render(
           <App />
         </AuthProvider>
       </ThemeProvider>
-      <ReactQueryDevtools initialIsOpen={false} />
+      {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>
   </StrictMode>,
 );

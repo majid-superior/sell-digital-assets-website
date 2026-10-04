@@ -1,3 +1,5 @@
 @import "tailwindcss";
 
-@import "@majid-superior/sell-digital-assets-theme/css";
+@import "./theme/styles/fonts.css";
+@import "./theme/styles/reset.css";
+@import "./theme/styles/theme.css";

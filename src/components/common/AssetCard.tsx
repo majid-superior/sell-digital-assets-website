@@ -2,17 +2,16 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import type { DigitalAsset } from "@/types/asset.ts";
-import { MOCK_SELLERS } from "@/data/mockAssets.ts";
 import { formatCurrency } from "@/utils/currency.ts";
 import { Icons } from "@/lib/icons/index.ts";
-import { Card, Badge, Button } from "@majid-superior/sell-digital-assets-theme/components";
+import { Card, Badge, Button } from "@/components/ui/index.ts";
 
 interface AssetCardProps {
   asset: DigitalAsset;
 }
 
 export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
-  const seller = MOCK_SELLERS[asset.sellerId];
+  const seller = asset.seller || asset.sellerProfile;
 
   const categoryLabels: Record<string, string> = {
     ui_kit: "UI Kit",
@@ -31,8 +30,13 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
       >
         <img
           src={asset.thumbnailUrl}
+          srcSet={`${asset.thumbnailUrl}&w=400 400w, ${asset.thumbnailUrl}&w=800 800w`}
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           alt={asset.title}
           loading="lazy"
+          decoding="async"
+          width={640}
+          height={400}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
         />
         {/* Category Pill */}
@@ -54,6 +58,10 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
               <img
                 src={seller.avatarUrl}
                 alt={seller.storeName}
+                loading="lazy"
+                decoding="async"
+                width={20}
+                height={20}
                 className="w-5 h-5 rounded-full object-cover"
               />
               <span className="font-medium truncate">{seller.storeName}</span>

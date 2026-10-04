@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Icons } from "@/lib/icons/index.ts";
-import { Button, Badge } from "@majid-superior/sell-digital-assets-theme/components";
+import { Button, Badge } from "@/components/ui/index.ts";
 
 export interface FooterLink {
     label: string;
@@ -38,7 +38,7 @@ const DEFAULT_SECTIONS: FooterSection[] = [
     {
         title: "For Creators",
         links: [
-            { label: "Start Selling", href: "/seller" },
+            { label: "Become a Creator", href: "/signup" },
             { label: "Creator Guidelines", href: "/creator-guidelines" },
             { label: "Fee Structure & Payouts", href: "/payouts" },
             { label: "Asset Quality Standards", href: "/standards" },
