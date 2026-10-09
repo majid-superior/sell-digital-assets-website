@@ -22,7 +22,10 @@ export class ApiError extends Error {
 /**
  * Handle non-ok HTTP responses, dispatching auth expiration and packaging server error payloads.
  */
-export async function handleResponseError(response: Response): Promise<never> {
+export async function handleResponseError(
+    response: Response,
+    options: { suppressUnauthorizedEvent?: boolean } = {}
+): Promise<never> {
     let errorData: unknown;
     try {
         errorData = (await response.json()) as unknown;
@@ -34,7 +37,7 @@ export async function handleResponseError(response: Response): Promise<never> {
         }
     }
 
-    if (response.status === 401) {
+    if (response.status === 401 && !options.suppressUnauthorizedEvent) {
         if (typeof window !== "undefined") {
             window.dispatchEvent(new CustomEvent("auth:unauthorized"));
         }

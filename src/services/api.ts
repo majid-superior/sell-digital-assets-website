@@ -8,6 +8,7 @@ import {
 export interface RequestOptions extends RequestInit {
     params?: Record<string, string | number | boolean>;
     timeoutMs?: number;
+    suppressUnauthorizedEvent?: boolean;
 }
 
 export { ApiError };
@@ -33,7 +34,14 @@ export class TimeoutError extends Error {
 }
 
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-    const { params, headers, timeoutMs = 15000, signal: customSignal, ...customConfig } = options;
+    const {
+        params,
+        headers,
+        timeoutMs = 15000,
+        signal: customSignal,
+        suppressUnauthorizedEvent,
+        ...customConfig
+    } = options;
 
     const url = buildRequestUrl(endpoint, params);
     const requestHeaders = prepareRequestHeaders(headers);
@@ -95,7 +103,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     }
 
     if (!response.ok) {
-        await handleResponseError(response);
+        await handleResponseError(response, { suppressUnauthorizedEvent });
     }
 
     return parseResponseBody<T>(response);

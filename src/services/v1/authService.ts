@@ -12,21 +12,97 @@ const TOKEN_KEY = "auth_token";
 const REFRESH_TOKEN_KEY = "auth_refresh_token";
 const USER_KEY = "auth_user";
 
+interface ApiUser {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    created_at?: string;
+}
+
+interface ApiTokens {
+    accessToken: string;
+    refreshToken: string;
+}
+
+interface ApiAuthResponse {
+    success: boolean;
+    message?: string;
+    user: ApiUser;
+    tokens: ApiTokens;
+}
+
+interface ApiRefreshResponse {
+    success: boolean;
+    tokens: ApiTokens;
+}
+
+interface ApiCurrentUserResponse {
+    success: boolean;
+    data: ApiUser;
+}
+
+function toAppUser(user: ApiUser): User {
+    if (!user || !user.id || !user.email || !user.name || !user.role) {
+        throw new AuthenticationError(
+            "The authentication server returned an incomplete user profile.",
+            { code: "INVALID_SERVER_RESPONSE" }
+        );
+    }
+
+    const role = user.role === "customer" || user.role === "buyer" || user.role === "user"
+        ? "buyer"
+        : user.role === "seller" || user.role === "creator"
+            ? "seller"
+            : user.role === "admin"
+                ? "admin"
+                : null;
+
+    if (!role) {
+        throw new AuthenticationError(
+            `The authentication server returned an unsupported user role: ${user.role}.`,
+            { code: "INVALID_SERVER_RESPONSE" }
+        );
+    }
+
+    return {
+        id: user.id,
+        email: user.email,
+        displayName: user.name,
+        role,
+        ...(user.created_at ? { createdAt: user.created_at } : {}),
+    };
+}
+
+function toAuthResponse(response: ApiAuthResponse): AuthResponse {
+    if (!response?.tokens?.accessToken || !response.user) {
+        throw new AuthenticationError(
+            "The authentication server returned an incomplete response. Missing authentication token or user identity.",
+            { code: "INVALID_SERVER_RESPONSE" }
+        );
+    }
+
+    return {
+        success: response.success,
+        message: response.message,
+        token: response.tokens.accessToken,
+        refreshToken: response.tokens.refreshToken,
+        user: toAppUser(response.user),
+    };
+}
+
 class AuthService {
     /**
-     * Submit login request to backend endpoint /auth/signin.
+     * Submit login request to backend endpoint /auth/login.
      * Pure production implementation communicating directly with the backend API.
      */
     async signIn(credentials: SignInCredentials): Promise<AuthResponse> {
         try {
-            const response = await apiClient.post<AuthResponse>("/auth/signin", credentials);
-
-            if (!response || !response.token || !response.user) {
-                throw new AuthenticationError(
-                    "The authentication server returned an incomplete response. Missing authentication token or user identity.",
-                    { code: "INVALID_SERVER_RESPONSE" }
-                );
-            }
+            const apiResponse = await apiClient.post<ApiAuthResponse>("/auth/login", {
+                email: credentials.email,
+                password: credentials.password,
+            });
+            const response = toAuthResponse(apiResponse);
 
             this.saveSession(response.token, response.user, credentials.rememberMe, response.refreshToken);
             return response;
@@ -36,18 +112,23 @@ class AuthService {
     }
 
     /**
-     * Submit registration request to backend endpoint /auth/signup.
+     * Submit registration request to backend endpoint /auth/register.
      */
     async signUp(credentials: SignUpCredentials): Promise<AuthResponse> {
         try {
-            const response = await apiClient.post<AuthResponse>("/auth/signup", credentials);
-
-            if (!response || !response.token || !response.user) {
+            if (credentials.role === "seller") {
                 throw new AuthenticationError(
-                    "The registration server returned an incomplete response. Missing authentication token or user identity.",
-                    { code: "INVALID_SERVER_RESPONSE" }
+                    "The live backend currently creates buyer accounts only. Seller registration is not supported yet.",
+                    { code: "ROLE_NOT_SUPPORTED" }
                 );
             }
+
+            const apiResponse = await apiClient.post<ApiAuthResponse>("/auth/register", {
+                name: credentials.fullName,
+                email: credentials.email,
+                password: credentials.password,
+            });
+            const response = toAuthResponse(apiResponse);
 
             // Save new user session
             this.saveSession(response.token, response.user, false, response.refreshToken);
@@ -58,15 +139,31 @@ class AuthService {
     }
 
     /**
-     * Fetch authenticated user identity from backend endpoint /auth/me.
+     * Fetch authenticated user identity from backend endpoint /users/me.
      */
     async getCurrentUser(): Promise<User> {
-        const user = await apiClient.get<User>("/auth/me");
+        const user = await this.fetchCurrentUser();
         if (user) {
             const storage = localStorage.getItem(TOKEN_KEY) ? localStorage : sessionStorage;
             storage.setItem(USER_KEY, JSON.stringify(user));
         }
         return user;
+    }
+
+    private async fetchCurrentUser(token?: string): Promise<User> {
+        const response = await apiClient.get<ApiCurrentUserResponse>("/users/me", {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            suppressUnauthorizedEvent: true,
+        });
+
+        if (!response?.data) {
+            throw new AuthenticationError(
+                "The authentication server returned an incomplete user profile.",
+                { code: "INVALID_SERVER_RESPONSE" }
+            );
+        }
+
+        return toAppUser(response.data);
     }
 
     /**
@@ -97,6 +194,7 @@ class AuthService {
                     message?: string;
                     error?: string;
                     fieldErrors?: Record<string, string[]>;
+                    details?: { fieldErrors?: Record<string, string[]> };
                 };
                 if (data.message) {
                     message = data.message;
@@ -104,9 +202,7 @@ class AuthService {
                     message = data.error;
                 }
 
-                if (data.fieldErrors) {
-                    fieldErrors = data.fieldErrors;
-                }
+                fieldErrors = data.fieldErrors || data.details?.fieldErrors;
             } else if (typeof error.data === "string" && error.data.trim()) {
                 message = error.data;
             }
@@ -211,21 +307,22 @@ class AuthService {
         }
 
         try {
-            const response = await apiClient.post<AuthResponse>("/auth/refresh", {
+            const response = await apiClient.post<ApiRefreshResponse>("/auth/refresh", {
                 refreshToken,
             });
 
-            if (response?.token && response?.user) {
+            if (response?.tokens?.accessToken) {
+                const user = await this.fetchCurrentUser(response.tokens.accessToken);
                 const isRemembered = Boolean(
                     localStorage.getItem(TOKEN_KEY) || localStorage.getItem(REFRESH_TOKEN_KEY)
                 );
-                this.saveSession(
-                    response.token,
-                    response.user,
-                    isRemembered,
-                    response.refreshToken || refreshToken
-                );
-                return response;
+                this.saveSession(response.tokens.accessToken, user, isRemembered, response.tokens.refreshToken);
+                return {
+                    success: response.success,
+                    token: response.tokens.accessToken,
+                    refreshToken: response.tokens.refreshToken,
+                    user,
+                };
             }
             return null;
         } catch {

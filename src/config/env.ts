@@ -13,15 +13,15 @@ function normalizeUrl(url?: string): string {
  * Single source of truth for base URLs and deployment variables.
  * 
  * To change backend URL on deployment (Vercel, Netlify, Render, Railway, AWS):
- * Set the environment variable: VITE_API_BASE_URL=https://api.yourdomain.com/api/v1
+ * Set the environment variable: VITE_API_BASE_URL=https://api.yourdomain.com/api
  */
 export const ENV = {
     /**
      * Primary Backend API Base URL.
-     * In development: defaults to "/api/v1" or value of VITE_API_BASE_URL in .env
+     * In development: defaults to "/api" or value of VITE_API_BASE_URL in .env
      * In production: set VITE_API_BASE_URL in your hosting platform dashboard
      */
-    API_BASE_URL: normalizeUrl(import.meta.env.VITE_API_BASE_URL) || "/api/v1",
+    API_BASE_URL: normalizeUrl(import.meta.env.VITE_API_BASE_URL) || "/api",
 
     /**
      * Application environment flags.

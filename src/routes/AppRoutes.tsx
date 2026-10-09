@@ -1,7 +1,7 @@
 // src/routes/AppRoutes.tsx
 import React, { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "@/layouts/website/index.tsx";
+import Index, { type IndexProps } from "@/layouts/website/index.tsx";
 import Page from "@/layouts/website/page.tsx";
 import { Spinner } from "@/components/ui/Spinner.tsx";
 
@@ -12,6 +12,13 @@ const ServerPage = lazy(() => import("@/layouts/website/pages/server.tsx"));
 const ErrorPage = lazy(() => import("@/layouts/website/pages/error.tsx"));
 const ExplorePage = lazy(() => import("@/features/website/pages/ExplorePage.tsx"));
 const AssetDetailPage = lazy(() => import("@/features/website/pages/AssetDetailPage.tsx"));
+
+/** Landing page: edge-to-edge content with the header floating over the hero. */
+const LANDING_LAYOUT_PROPS: IndexProps = {
+    headerProps: { variant: "overlay" },
+    navbarProps: { fullWidth: true },
+    bodyProps: { containerSize: "full", disablePadding: true, withBackgroundDecorations: false },
+};
 
 const RouteLoadingFallback = () => (
     <div className="min-h-[60vh] flex items-center justify-center bg-background text-on-surface">
@@ -25,7 +32,7 @@ export const AppRoutes: React.FC = () => {
             <Suspense fallback={<RouteLoadingFallback />}>
                 <Routes>
                     {/* Home / Index — has its own full layout shell */}
-                    <Route element={<Index />}>
+                    <Route element={<Index {...LANDING_LAYOUT_PROPS} />}>
                         <Route path="/" element={<HomePage />} />
                     </Route>
 

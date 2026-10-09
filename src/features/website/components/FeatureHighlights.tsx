@@ -1,7 +1,7 @@
 // src/features/website/components/FeatureHighlights.tsx
 import React from "react";
 import { Icons, type IconComponent } from "@/lib/icons/index.ts";
-import { Card, CardTitle, CardDescription } from "@/components/ui/index.ts";
+import { GRADIENT_TEXT_THEME, SectionHeading } from "./CinematicPanel.tsx";
 
 export interface FeatureItem {
     id: string;
@@ -12,22 +12,28 @@ export interface FeatureItem {
 
 const DEFAULT_FEATURES: FeatureItem[] = [
     {
+        id: "royalty-free",
+        icon: Icons.Security,
+        title: "Royalty-free licensing",
+        description: "Pay once and use everywhere — ads, social, film, and client work. No attribution, no surprise renewals.",
+    },
+    {
+        id: "pro-quality",
+        icon: Icons.Verified,
+        title: "Reviewed by editors",
+        description: "Every photo and clip is checked for sharpness, exposure, and model releases before it goes live.",
+    },
+    {
         id: "instant-delivery",
         icon: Icons.Performance,
-        title: "Instant Delivery",
-        description: "Download source files, licenses, and documentation immediately upon verified checkout.",
+        title: "Instant full-res downloads",
+        description: "Original RAW-quality photos and 4K masters land in your library the moment checkout clears.",
     },
     {
-        id: "verified-quality",
-        icon: Icons.Security,
-        title: "Verified Quality",
-        description: "Every asset is strictly vetted for code cleanliness, design standards, and commercial licensing.",
-    },
-    {
-        id: "zero-fees",
-        icon: Icons.Categories,
-        title: "0% Creator Launch Fees",
-        description: "Keep 100% of your earnings during your first 30 days selling your templates and kits.",
+        id: "fair-payouts",
+        icon: Icons.Sell,
+        title: "Fair creator payouts",
+        description: "Creators keep up to 70% of every sale, so the people behind the lens keep shooting.",
     },
 ];
 
@@ -35,42 +41,43 @@ export interface FeatureHighlightsProps {
     features?: FeatureItem[];
 }
 
-export const FeatureHighlights: React.FC<FeatureHighlightsProps> = ({
-    features = DEFAULT_FEATURES,
-}) => {
-    return (
-        /*
-            Breakpoint strategy:
-              1 column  → <sm  (mobile: ≤639px)
-              2 columns → sm   (640–1023px) — was sm:grid-cols-3 which caused
-                          3 very cramped ~150px-wide cards at 480–640px viewports
-              3 columns → lg   (1024px+)
+export const FeatureHighlights: React.FC<FeatureHighlightsProps> = ({ features = DEFAULT_FEATURES }) => (
+    <section aria-labelledby="features-heading" className="space-y-10">
+        <SectionHeading
+            id="features-heading"
+            eyebrow="Why creators & buyers choose us"
+            eyebrowIcon={<Icons.Sparkles size={14} className="text-primary" />}
+            title={
+                <>
+                    Built for people who <span className={GRADIENT_TEXT_THEME}>make things</span>
+                </>
+            }
+        />
 
-            This ensures each card has enough horizontal breathing room at every
-            intermediate viewport size between mobile and desktop.
-        */
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
-            {features.map((feature) => {
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {features.map((feature, index) => {
                 const Icon = feature.icon;
                 return (
-                    <Card
+                    <article
                         key={feature.id}
-                        className="p-6 space-y-3"
+                        className="group relative overflow-hidden rounded-3xl border border-outline-variant/30 bg-surface-container-low p-6 transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5"
                     >
-                        <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                            <Icon size={20} />
+                        <div aria-hidden="true" className="pointer-events-none absolute -right-10 -top-10 size-32 rounded-full bg-primary/10 opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100" />
+                        <div className="flex items-center justify-between">
+                            <span className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                                <Icon size={20} />
+                            </span>
+                            <span aria-hidden="true" className="text-sm font-bold tabular-nums text-on-surface-variant/40">
+                                0{index + 1}
+                            </span>
                         </div>
-                        <CardTitle as="h3" className="text-base font-semibold text-on-surface">
-                            {feature.title}
-                        </CardTitle>
-                        <CardDescription className="text-sm text-on-surface-variant leading-relaxed">
-                            {feature.description}
-                        </CardDescription>
-                    </Card>
+                        <h3 className="mt-6 text-base font-bold text-on-surface">{feature.title}</h3>
+                        <p className="mt-2 text-sm leading-relaxed text-on-surface-variant">{feature.description}</p>
+                    </article>
                 );
             })}
-        </section>
-    );
-};
+        </div>
+    </section>
+);
 
 export default FeatureHighlights;

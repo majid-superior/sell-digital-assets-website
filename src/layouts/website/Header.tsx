@@ -1,5 +1,5 @@
 // src/layouts/website/Header.tsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Navbar, type NavbarProps } from "./Navbar.tsx";
 import { Icons } from "@/lib/icons/index.ts";
@@ -14,6 +14,11 @@ export interface AnnouncementConfig {
 
 export interface HeaderProps {
     sticky?: boolean;
+    /**
+     * "solid" — theme-aware glass bar in normal flow.
+     * "overlay" — fixed and transparent over a dark hero, turning to dark glass once the page scrolls.
+     */
+    variant?: "solid" | "overlay";
     showAnnouncement?: boolean;
     announcement?: AnnouncementConfig;
     navbarProps?: NavbarProps;
@@ -30,6 +35,7 @@ const DEFAULT_ANNOUNCEMENT: AnnouncementConfig = {
 
 export const Header: React.FC<HeaderProps> = ({
     sticky = true,
+    variant = "solid",
     showAnnouncement = false,
     announcement = DEFAULT_ANNOUNCEMENT,
     navbarProps,
@@ -37,11 +43,27 @@ export const Header: React.FC<HeaderProps> = ({
     children,
 }) => {
     const [bannerVisible, setBannerVisible] = useState(showAnnouncement);
+    const [scrolled, setScrolled] = useState(false);
+    const isOverlay = variant === "overlay";
+
+    useEffect(() => {
+        if (!isOverlay) return;
+        const onScroll = () => setScrolled(window.scrollY > 24);
+        onScroll();
+        window.addEventListener("scroll", onScroll, { passive: true });
+        return () => window.removeEventListener("scroll", onScroll);
+    }, [isOverlay]);
+
+    const positionClass = isOverlay ? "fixed inset-x-0 top-0" : sticky ? "sticky top-0" : "relative";
+    const surfaceClass = isOverlay
+        ? scrolled
+            ? "border-b border-white/10 bg-neutral-950/75 shadow-lg shadow-black/20 backdrop-blur-xl"
+            : "border-b border-transparent bg-gradient-to-b from-black/50 to-transparent"
+        : "border-b border-outline-variant/30 bg-surface/80 backdrop-blur-xl";
 
     return (
         <header
-            className={`w-full z-50 transition-all ${sticky ? "sticky top-0" : "relative"
-                } border-b border-outline-variant/30 bg-surface/85 backdrop-blur-md ${className}`}
+            className={`w-full z-50 transition-[background-color,border-color,box-shadow] duration-300 ${positionClass} ${surfaceClass} ${className}`}
         >
             {/* Top Announcement Bar */}
             {bannerVisible && (
@@ -88,7 +110,7 @@ export const Header: React.FC<HeaderProps> = ({
             )}
 
             {/* Navbar or Custom Content */}
-            {children ? children : <Navbar {...navbarProps} />}
+            {children ? children : <Navbar tone={isOverlay ? "dark" : "theme"} {...navbarProps} />}
         </header>
     );
 };

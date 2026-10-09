@@ -16,10 +16,10 @@ export interface SellerProfile {
 export interface User {
     id: string;
     email: string;
-    username: string;
+    username?: string;
     displayName: string;
     role: UserRole;
     avatarUrl?: string;
     sellerProfile?: SellerProfile;
-    createdAt: string;
+    createdAt?: string;
 }

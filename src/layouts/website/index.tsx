@@ -24,7 +24,7 @@ export const Index: React.FC<IndexProps> = ({
         <div className="min-h-screen flex flex-col bg-background text-on-surface transition-colors duration-200">
             {/* Header with Navbar */}
             <Header {...headerProps}>
-                <Navbar {...navbarProps} />
+                <Navbar tone={headerProps?.variant === "overlay" ? "dark" : "theme"} {...navbarProps} />
             </Header>
 
             {/* Main Content Body */}

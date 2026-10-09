@@ -3,3 +3,8 @@
 @import "./theme/styles/fonts.css";
 @import "./theme/styles/reset.css";
 @import "./theme/styles/theme.css";
+/* Homepage hero media wall: content is duplicated, so -50% (minus half the gap) loops seamlessly. */
+@keyframes hero-marquee-y {
+  from { transform: translateY(0); }
+  to { transform: translateY(calc(-50% - 0.375rem)); }
+}

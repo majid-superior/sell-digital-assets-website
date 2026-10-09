@@ -3,7 +3,7 @@
 interface ImportMetaEnv {
     /**
      * The base URL for the backend API endpoints.
-     * e.g. "https://api.yourdomain.com/api/v1" or "http://localhost:5000/api/v1"
+     * e.g. "https://api.yourdomain.com/api" or "/api" when using the Vite proxy
      */
     readonly VITE_API_BASE_URL?: string;
 }

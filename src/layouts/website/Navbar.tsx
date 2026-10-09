@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTheme } from "@/hooks/useTheme.ts";
 import { useAuth } from "@/hooks/useAuth.ts";
 import { Icons, type IconComponent } from "@/lib/icons/index.ts";
-import { Badge } from "@/components/ui/index.ts";
+import { cn } from "@/components/ui/index.ts";
 
 export interface NavLinkItem {
     label: string;
@@ -12,24 +12,77 @@ export interface NavLinkItem {
     badge?: string;
 }
 
+/** "theme" follows light/dark mode; "dark" is for sitting on top of dark, cinematic surfaces. */
+export type NavbarTone = "theme" | "dark";
+
 export interface NavbarProps {
     brandName?: string;
     brandSubtitle?: string;
     navItems?: NavLinkItem[];
     showSearch?: boolean;
+    tone?: NavbarTone;
+    /** Stretch to the full viewport width instead of the default 7xl container. */
+    fullWidth?: boolean;
     className?: string;
 }
 
 const DEFAULT_NAV_ITEMS: NavLinkItem[] = [
-    { label: "Explore", path: "/explore", icon: Icons.Explore },
-    { label: "Categories", path: "/categories", icon: Icons.Categories },
+    { label: "Photos", path: "/explore?type=photos", icon: Icons.Explore },
+    { label: "Videos", path: "/explore?type=videos", icon: Icons.Performance },
+    { label: "Collections", path: "/categories", icon: Icons.Categories },
     { label: "Featured", path: "/featured", icon: Icons.Magic, badge: "Hot" },
 ];
+
+const TONE_CLASSES: Record<NavbarTone, {
+    brand: string;
+    link: string;
+    linkActive: string;
+    search: string;
+    searchIcon: string;
+    iconButton: string;
+    ghost: string;
+    divider: string;
+    drawer: string;
+    drawerLink: string;
+    muted: string;
+    strong: string;
+}> = {
+    theme: {
+        brand: "text-on-surface",
+        link: "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/70",
+        linkActive: "text-on-surface bg-surface-container-high",
+        search: "bg-surface-container-low border-outline-variant/40 text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:bg-surface",
+        searchIcon: "text-on-surface-variant/70",
+        iconButton: "text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface",
+        ghost: "text-on-surface hover:bg-surface-container-high",
+        divider: "bg-outline-variant/40",
+        drawer: "border-outline-variant/30 bg-surface/95",
+        drawerLink: "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface",
+        muted: "text-on-surface-variant",
+        strong: "text-on-surface",
+    },
+    dark: {
+        brand: "text-white",
+        link: "text-white/70 hover:text-white hover:bg-white/10",
+        linkActive: "text-white bg-white/15",
+        search: "bg-white/10 border-white/15 text-white placeholder:text-white/50 focus:border-white/40 focus:bg-white/15",
+        searchIcon: "text-white/60",
+        iconButton: "text-white/75 hover:bg-white/10 hover:text-white",
+        ghost: "text-white hover:bg-white/10",
+        divider: "bg-white/15",
+        drawer: "border-white/10 bg-neutral-950/95 text-white",
+        drawerLink: "text-white/75 hover:bg-white/10 hover:text-white",
+        muted: "text-white/60",
+        strong: "text-white",
+    },
+};
 
 export const Navbar: React.FC<NavbarProps> = ({
     brandName = "AssetDrop",
     navItems = DEFAULT_NAV_ITEMS,
     showSearch = true,
+    tone = "theme",
+    fullWidth = false,
     className = "",
 }) => {
     const { theme, toggleTheme } = useTheme();
@@ -40,8 +93,11 @@ export const Navbar: React.FC<NavbarProps> = ({
     const [searchQuery, setSearchQuery] = useState("");
     const mobileMenuRef = useRef<HTMLDivElement>(null);
     const menuButtonRef = useRef<HTMLButtonElement>(null);
+    const t = TONE_CLASSES[tone];
 
     const closeMobileMenu = () => setMobileMenuOpen(false);
+    const isActivePath = (path: string) =>
+        path.includes("?") ? `${location.pathname}${location.search}` === path : location.pathname === path;
 
     // Close mobile menu on Escape key press; return focus to trigger button
     useEffect(() => {
@@ -69,109 +125,129 @@ export const Navbar: React.FC<NavbarProps> = ({
             aria-label="Main Navigation"
             className={`w-full ${className}`}
         >
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+            <div
+                className={cn(
+                    "mx-auto flex h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:h-[4.5rem]",
+                    fullWidth ? "max-w-screen-2xl lg:px-10" : "max-w-7xl lg:px-8",
+                )}
+            >
                 {/* Left: Brand Logo + Desktop Nav */}
-                <div className="flex items-center gap-6 min-w-0">
+                <div className="flex min-w-0 items-center gap-8">
                     <Link
                         to="/"
-                        className="flex items-center gap-2.5 font-bold text-lg sm:text-xl tracking-tight text-on-surface hover:opacity-90 transition-opacity focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary rounded-lg shrink-0"
+                        className={cn(
+                            "flex shrink-0 items-center gap-2.5 rounded-lg text-lg font-bold tracking-tight transition-opacity hover:opacity-90 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary sm:text-xl",
+                            t.brand,
+                        )}
                     >
-                        <div className="w-9 h-9 rounded-xl bg-primary text-on-primary flex items-center justify-center shadow-xs">
+                        <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-container text-on-primary shadow-lg shadow-primary/25">
                             <Icons.Brand size={20} />
                         </div>
                         <span className="flex items-center">
                             {brandName.replace("Drop", "")}
-                            <span className="text-primary-container font-extrabold">Drop</span>
+                            <span className="font-extrabold text-primary-container">Drop</span>
                         </span>
                     </Link>
 
                     {/* Desktop Navigation Links */}
-                    <div className="hidden lg:flex items-center gap-1">
-                        {navItems.map(({ label, path, icon: Icon, badge }) => {
-                            const isActive = location.pathname === path;
-                            return (
-                                <Link
-                                    key={path}
-                                    to={path}
-                                    className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors relative ${isActive
-                                        ? "bg-surface-container-high text-primary"
-                                        : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
-                                        }`}
-                                >
-                                    {Icon && <Icon size={16} />}
-                                    <span>{label}</span>
-                                    {badge && (
-                                        <Badge variant="primary" size="sm" className="text-[10px]">
-                                            {badge}
-                                        </Badge>
-                                    )}
-                                </Link>
-                            );
-                        })}
+                    <div className="hidden items-center gap-1 lg:flex">
+                        {navItems.map(({ label, path, badge }) => (
+                            <Link
+                                key={path}
+                                to={path}
+                                aria-current={isActivePath(path) ? "page" : undefined}
+                                className={cn(
+                                    "relative inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-medium transition-colors",
+                                    isActivePath(path) ? t.linkActive : t.link,
+                                )}
+                            >
+                                <span>{label}</span>
+                                {badge && (
+                                    <span className="rounded-full bg-primary px-1.5 py-px text-[9px] font-bold uppercase tracking-wider text-on-primary">
+                                        {badge}
+                                    </span>
+                                )}
+                            </Link>
+                        ))}
                     </div>
                 </div>
 
                 {/* Center: Search Input (Desktop md+) */}
                 {showSearch && (
                     <form
+                        role="search"
                         onSubmit={handleSearchSubmit}
-                        className="hidden md:flex items-center flex-1 max-w-xs xl:max-w-sm relative"
+                        className="relative hidden max-w-xs flex-1 items-center md:flex xl:max-w-md"
                     >
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant/70">
+                        <div className={cn("pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5", t.searchIcon)}>
                             <Icons.Search size={16} />
                         </div>
+                        <label htmlFor="navbar-search" className="sr-only">
+                            Search photos and videos
+                        </label>
                         <input
-                            type="text"
-                            placeholder="Search assets, 3D, code..."
+                            id="navbar-search"
+                            type="search"
+                            placeholder="Search photos & videos…"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-9 pr-4 py-1.5 text-xs sm:text-sm rounded-full bg-surface-container-low border border-outline-variant/40 text-on-surface placeholder:text-on-surface-variant/60 focus:outline-hidden focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                            className={cn(
+                                "w-full rounded-full border py-2 pl-10 pr-4 text-sm backdrop-blur transition-all focus:outline-hidden focus:ring-2 focus:ring-primary/30",
+                                t.search,
+                            )}
                         />
                     </form>
                 )}
 
                 {/* Right: Actions */}
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex shrink-0 items-center gap-1.5">
+                    <Link
+                        to="/signup"
+                        className={cn("hidden rounded-full px-3.5 py-2 text-sm font-medium transition-colors xl:inline-flex", t.ghost)}
+                    >
+                        Sell your work
+                    </Link>
+
                     {/* Theme Toggle */}
                     <button
                         type="button"
                         onClick={toggleTheme}
                         aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-                        className="p-2 rounded-full text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer"
+                        className={cn("cursor-pointer rounded-full p-2 transition-colors", t.iconButton)}
                     >
                         {theme === "dark" ? <Icons.ThemeLight size={19} /> : <Icons.ThemeDark size={19} />}
                     </button>
 
+                    <span aria-hidden="true" className={cn("mx-1 hidden h-6 w-px sm:block", t.divider)} />
+
                     {/* Auth Status & CTA */}
                     {isAuthenticated && user ? (
-                        <div className="hidden sm:flex items-center gap-2">
-                            <span className="text-xs text-on-surface-variant font-medium">
-                                Hi, <strong className="text-on-surface">{user.displayName || user.username || "User"}</strong>
+                        <div className="hidden items-center gap-2 sm:flex">
+                            <span className={cn("text-xs font-medium", t.muted)}>
+                                Hi, <strong className={t.strong}>{user.displayName || user.username || "User"}</strong>
                             </span>
                             <button
                                 type="button"
                                 onClick={() => signOut()}
-                                className="px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium text-on-surface-variant hover:text-error hover:bg-surface-container-high transition-colors cursor-pointer"
+                                className={cn("cursor-pointer rounded-full px-3 py-1.5 text-xs font-medium transition-colors hover:text-error sm:text-sm", t.iconButton)}
                             >
                                 Sign Out
                             </button>
                         </div>
                     ) : (
                         <>
-                            {/* Sign In — hidden on very small screens, shown sm+ */}
                             <Link
                                 to="/signin"
-                                className="hidden sm:inline-flex items-center justify-center px-3.5 py-1.5 rounded-full text-sm font-medium text-on-surface hover:bg-surface-container-high transition-colors"
+                                className={cn("hidden items-center justify-center rounded-full px-3.5 py-2 text-sm font-medium transition-colors sm:inline-flex", t.ghost)}
                             >
                                 Sign In
                             </Link>
-
-                            {/* Create Account CTA */}
                             <Link
                                 to="/signup"
-                                className="hidden sm:inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-primary text-on-primary text-sm font-semibold hover:opacity-90 active:scale-95 transition-all shadow-xs"
+                                className="hidden items-center justify-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-on-primary shadow-lg shadow-primary/25 transition-all hover:brightness-110 active:scale-95 sm:inline-flex"
                             >
                                 Get Started
+                                <Icons.Next size={14} />
                             </Link>
                         </>
                     )}
@@ -184,17 +260,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                         aria-expanded={mobileMenuOpen}
                         aria-controls="mobile-nav-drawer"
                         aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
-                        className="lg:hidden p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer"
+                        className={cn("cursor-pointer rounded-full p-2 transition-colors lg:hidden", t.iconButton)}
                     >
                         {mobileMenuOpen ? <Icons.Close size={22} /> : <Icons.Menu size={22} />}
                     </button>
                 </div>
             </div>
 
-            {/* Mobile Dropdown Menu Drawer
-                role="dialog" + aria-modal so screen-readers treat this as a modal panel.
-                id matches aria-controls on the trigger button above.
-            */}
+            {/* Mobile Dropdown Menu Drawer */}
             {mobileMenuOpen && (
                 <div
                     id="mobile-nav-drawer"
@@ -202,60 +275,67 @@ export const Navbar: React.FC<NavbarProps> = ({
                     role="dialog"
                     aria-modal="true"
                     aria-label="Navigation menu"
-                    className="lg:hidden border-t border-outline-variant/30 bg-surface/95 backdrop-blur-lg px-4 pt-3 pb-6 space-y-3"
+                    className={cn("space-y-3 border-t px-4 pb-6 pt-3 backdrop-blur-xl lg:hidden", t.drawer)}
                 >
-                    {/* Mobile Search — w-full prevents any overflow on 320px */}
                     {showSearch && (
-                        <form onSubmit={handleSearchSubmit} className="relative w-full">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant/70">
+                        <form role="search" onSubmit={handleSearchSubmit} className="relative w-full">
+                            <div className={cn("pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5", t.searchIcon)}>
                                 <Icons.Search size={16} />
                             </div>
+                            <label htmlFor="mobile-navbar-search" className="sr-only">
+                                Search photos and videos
+                            </label>
                             <input
-                                type="text"
-                                placeholder="Search digital assets..."
+                                id="mobile-navbar-search"
+                                type="search"
+                                placeholder="Search photos & videos…"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-9 pr-4 py-2 text-sm rounded-lg bg-surface-container-low border border-outline-variant/40 text-on-surface placeholder:text-on-surface-variant/60 focus:outline-hidden focus:border-primary"
+                                className={cn("w-full rounded-xl border py-2.5 pl-10 pr-4 text-sm focus:outline-hidden", t.search)}
                             />
                         </form>
                     )}
 
-                    {/* Navigation Items
-                        py-3 ensures minimum 44px touch target height (12px × 2 = 24px padding + ~20px text = 44px).
-                    */}
+                    {/* py-3 keeps each touch target at least 44px tall */}
                     <div className="flex flex-col space-y-1">
-                        {navItems.map(({ label, path, icon: Icon, badge }) => {
-                            const isActive = location.pathname === path;
-                            return (
-                                <Link
-                                    key={path}
-                                    to={path}
-                                    onClick={closeMobileMenu}
-                                    className={`flex items-center justify-between px-3 py-3 rounded-lg text-sm font-medium transition-colors ${isActive
-                                        ? "bg-surface-container-high text-primary font-semibold"
-                                        : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"
-                                        }`}
-                                >
-                                    <div className="flex items-center gap-2.5">
-                                        {Icon && <Icon size={18} />}
-                                        <span>{label}</span>
-                                    </div>
-                                    {badge && (
-                                        <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                                            {badge}
-                                        </span>
-                                    )}
-                                </Link>
-                            );
-                        })}
+                        {navItems.map(({ label, path, icon: Icon, badge }) => (
+                            <Link
+                                key={path}
+                                to={path}
+                                onClick={closeMobileMenu}
+                                aria-current={isActivePath(path) ? "page" : undefined}
+                                className={cn(
+                                    "flex items-center justify-between rounded-xl px-3 py-3 text-sm font-medium transition-colors",
+                                    isActivePath(path) ? t.linkActive : t.drawerLink,
+                                )}
+                            >
+                                <div className="flex items-center gap-2.5">
+                                    {Icon && <Icon size={18} />}
+                                    <span>{label}</span>
+                                </div>
+                                {badge && (
+                                    <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold uppercase text-on-primary">
+                                        {badge}
+                                    </span>
+                                )}
+                            </Link>
+                        ))}
+                        <Link
+                            to="/signup"
+                            onClick={closeMobileMenu}
+                            className={cn("flex items-center gap-2.5 rounded-xl px-3 py-3 text-sm font-medium transition-colors", t.drawerLink)}
+                        >
+                            <Icons.Sell size={18} />
+                            <span>Sell your work</span>
+                        </Link>
                     </div>
 
                     {/* Mobile Auth Actions — full-width buttons for touch friendliness */}
-                    <div className="pt-3 border-t border-outline-variant/30 flex flex-col gap-2">
+                    <div className={cn("flex flex-col gap-2 border-t pt-3", tone === "dark" ? "border-white/10" : "border-outline-variant/30")}>
                         {isAuthenticated && user ? (
                             <>
-                                <div className="px-1 text-xs text-on-surface-variant">
-                                    Signed in as <strong className="text-on-surface">{user.email}</strong>
+                                <div className={cn("px-1 text-xs", t.muted)}>
+                                    Signed in as <strong className={t.strong}>{user.email}</strong>
                                 </div>
                                 <button
                                     type="button"
@@ -263,7 +343,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                                         closeMobileMenu();
                                         signOut();
                                     }}
-                                    className="w-full py-2.5 text-center text-sm font-medium text-error hover:bg-surface-container-high rounded-lg transition-colors cursor-pointer"
+                                    className="w-full cursor-pointer rounded-xl py-2.5 text-center text-sm font-medium text-error transition-colors hover:bg-error/10"
                                 >
                                     Sign Out
                                 </button>
@@ -273,14 +353,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                                 <Link
                                     to="/signin"
                                     onClick={closeMobileMenu}
-                                    className="w-full py-3 text-center text-sm font-medium text-on-surface hover:bg-surface-container-high rounded-lg transition-colors"
+                                    className={cn("w-full rounded-xl py-3 text-center text-sm font-medium transition-colors", t.ghost)}
                                 >
                                     Sign In
                                 </Link>
                                 <Link
                                     to="/signup"
                                     onClick={closeMobileMenu}
-                                    className="w-full py-3 text-center text-sm font-semibold rounded-lg bg-primary text-on-primary hover:opacity-90 transition-opacity shadow-xs"
+                                    className="w-full rounded-xl bg-primary py-3 text-center text-sm font-semibold text-on-primary shadow-lg shadow-primary/25 transition hover:brightness-110"
                                 >
                                     Create Account
                                 </Link>
