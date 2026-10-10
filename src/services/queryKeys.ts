@@ -22,6 +22,10 @@ export const queryKeys = {
         bySeller: (sellerId: string) =>
             [...queryKeys.assets.all, "seller", sellerId] as const,
     },
+    categories: {
+        all: ["categories"] as const,
+        tree: () => [...queryKeys.categories.all, "tree"] as const,
+    },
 } as const;
 
 export default queryKeys;

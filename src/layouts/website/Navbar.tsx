@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth.ts";
 import { useOrganization } from "@/hooks/useOrganization.ts";
 import { Icons, type IconComponent } from "@/lib/icons/index.ts";
 import { Badge } from "@/components/ui/index.ts";
+import { CategoryMegaMenu, MobileCategoryMenu } from "./CategoryMegaMenu.tsx";
 
 export interface NavLinkItem {
     label: string;
@@ -21,9 +22,15 @@ export interface NavbarProps {
     className?: string;
 }
 
+/**
+ * Path that acts as a slot for the dynamic category mega menu.
+ * Its contents are loaded live from `GET /api/categories?tree=true` (active categories only).
+ */
+const CATEGORIES_PATH = "/categories";
+
 const DEFAULT_NAV_ITEMS: NavLinkItem[] = [
     { label: "Explore", path: "/explore", icon: Icons.Explore },
-    { label: "Categories", path: "/categories", icon: Icons.Categories },
+    { label: "Categories", path: CATEGORIES_PATH },
     { label: "Featured", path: "/featured", icon: Icons.Magic, badge: "Hot" },
 ];
 
@@ -38,6 +45,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     const { theme, toggleTheme } = useTheme();
     const { isAuthenticated, user, signOut } = useAuth();
     const location = useLocation();
+    const hasCategoryFilter = new URLSearchParams(location.search).has("category");
     const navigate = useNavigate();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -70,7 +78,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <nav
             role="navigation"
             aria-label="Main Navigation"
-            className={`w-full ${className}`}
+            className={`relative w-full ${className}`}
         >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
                 {/* Left: Brand Logo + Desktop Nav */}
@@ -93,7 +101,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {/* Desktop Navigation Links */}
                     <div className="hidden lg:flex items-center gap-1">
                         {navItems.map(({ label, path, icon: Icon, badge }) => {
-                            const isActive = location.pathname === path;
+                            if (path === CATEGORIES_PATH) {
+                                return (
+                                    <CategoryMegaMenu
+                                        key={path}
+                                        isRouteActive={location.pathname === CATEGORIES_PATH}
+                                    />
+                                );
+                            }
+                            const isActive = location.pathname === path && !hasCategoryFilter;
                             return (
                                 <Link
                                     key={path}
@@ -230,7 +246,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                     */}
                     <div className="flex flex-col space-y-1">
                         {navItems.map(({ label, path, icon: Icon, badge }) => {
-                            const isActive = location.pathname === path;
+                            if (path === CATEGORIES_PATH) {
+                                return <MobileCategoryMenu key={path} onNavigate={closeMobileMenu} />;
+                            }
+                            const isActive = location.pathname === path && !hasCategoryFilter;
                             return (
                                 <Link
                                     key={path}

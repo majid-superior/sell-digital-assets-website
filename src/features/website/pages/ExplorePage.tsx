@@ -4,20 +4,15 @@ import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { AssetCard } from "@/components/common/AssetCard.tsx";
 import { Icons } from "@/lib/icons/index.ts";
-import { Button, EmptyState, Spinner } from "@/components/ui/index.ts";
+import { Button, EmptyState, Skeleton, Spinner } from "@/components/ui/index.ts";
 import { useDebounce } from "@/hooks/useDebounce.ts";
+import { useCategories } from "@/hooks/useCategories.ts";
 import { assetService } from "@/services/v1/assetService.ts";
+import { findCategoryBySlug } from "@/services/v1/categoryService.ts";
 import { queryKeys } from "@/services/queryKeys.ts";
-import type { AssetCategory, DigitalAsset } from "@/types/asset.ts";
+import type { DigitalAsset } from "@/types/asset.ts";
 
-const CATEGORIES: { label: string; value: "all" | AssetCategory }[] = [
-    { label: "All Assets", value: "all" },
-    { label: "UI Kits", value: "ui_kit" },
-    { label: "Fonts & Typography", value: "font" },
-    { label: "3D Graphics", value: "3d_model" },
-    { label: "Icon Sets", value: "icon_set" },
-    { label: "Templates", value: "template" },
-];
+const ALL_CATEGORIES = "all";
 
 const SORT_OPTIONS = [
     { label: "Most Popular", value: "popular" },
@@ -29,17 +24,40 @@ const SORT_OPTIONS = [
 export const ExplorePage: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const queryParam = searchParams.get("q") || "";
-    const categoryParam = (searchParams.get("category") as AssetCategory | "all") || "all";
-    const sortParam = searchParams.get("sort") || "popular";
+    // Category & sort are read straight from the URL so navbar links always re-filter
+    const selectedCategory = searchParams.get("category") || ALL_CATEGORIES;
+    const sortBy = searchParams.get("sort") || "popular";
 
     const [searchQuery, setSearchQuery] = useState(queryParam);
     const debouncedSearchQuery = useDebounce(searchQuery, 300);
-    const [selectedCategory, setSelectedCategory] = useState<"all" | AssetCategory>(categoryParam);
-    const [sortBy, setSortBy] = useState(sortParam);
+
+    const { categories, isLoading: categoriesLoading } = useCategories();
+    const categoryMatch = useMemo(
+        () => (selectedCategory === ALL_CATEGORIES ? null : findCategoryBySlug(categories, selectedCategory)),
+        [categories, selectedCategory]
+    );
+    const activeRoot = categoryMatch ? (categoryMatch.ancestors[0] ?? categoryMatch.node) : null;
+    const activeSub = categoryMatch ? (categoryMatch.ancestors[1] ?? (categoryMatch.node.depth >= 1 ? categoryMatch.node : null)) : null;
+
+    const updateParam = (key: string, value: string | null) => {
+        setSearchParams(
+            (prev) => {
+                const next = new URLSearchParams(prev);
+                if (value) next.set(key, value);
+                else next.delete(key);
+                return next;
+            },
+            { replace: true }
+        );
+    };
+
+    const setSelectedCategory = (slug: string) =>
+        updateParam("category", slug === ALL_CATEGORIES ? null : slug);
+    const setSortBy = (value: string) => updateParam("sort", value === "popular" ? null : value);
 
     // Live query via AssetService with Query Key Factory
     const filterParams = useMemo(() => ({
-        category: selectedCategory === "all" ? undefined : selectedCategory,
+        category: selectedCategory === ALL_CATEGORIES ? undefined : selectedCategory,
         q: debouncedSearchQuery.trim() || undefined,
         sort: sortBy as "popular" | "newest" | "price_asc" | "price_desc",
     }), [selectedCategory, debouncedSearchQuery, sortBy]);
@@ -54,14 +72,20 @@ export const ExplorePage: React.FC = () => {
         staleTime: 1000 * 60 * 5,
     });
 
-    // Synchronize URL parameters when filters change
+    // Synchronize the debounced keyword into the URL (other params are preserved)
     useEffect(() => {
-        const nextParams = new URLSearchParams();
-        if (debouncedSearchQuery.trim()) nextParams.set("q", debouncedSearchQuery.trim());
-        if (selectedCategory !== "all") nextParams.set("category", selectedCategory);
-        if (sortBy !== "popular") nextParams.set("sort", sortBy);
-        setSearchParams(nextParams, { replace: true });
-    }, [debouncedSearchQuery, selectedCategory, sortBy, setSearchParams]);
+        const trimmed = debouncedSearchQuery.trim();
+        setSearchParams(
+            (prev) => {
+                if ((prev.get("q") || "") === trimmed) return prev;
+                const next = new URLSearchParams(prev);
+                if (trimmed) next.set("q", trimmed);
+                else next.delete("q");
+                return next;
+            },
+            { replace: true }
+        );
+    }, [debouncedSearchQuery, setSearchParams]);
 
     // Live API results with no mock fallback
     const filteredAssets: DigitalAsset[] = useMemo(() => {
@@ -70,8 +94,7 @@ export const ExplorePage: React.FC = () => {
 
     const handleResetFilters = () => {
         setSearchQuery("");
-        setSelectedCategory("all");
-        setSortBy("popular");
+        setSearchParams(new URLSearchParams(), { replace: true });
     };
 
     return (
@@ -79,10 +102,13 @@ export const ExplorePage: React.FC = () => {
             {/* Header Title */}
             <div>
                 <h1 className="text-3xl font-extrabold tracking-tight text-on-surface sm:text-4xl">
-                    Explore Marketplace Assets
+                    {categoryMatch ? categoryMatch.node.name : "Explore Marketplace Assets"}
                 </h1>
                 <p className="mt-2 text-sm text-on-surface-variant max-w-2xl">
-                    Discover enterprise-grade UI kits, bespoke variable fonts, modular 3D models, and developer templates built by top creators worldwide.
+                    {categoryMatch?.node.description ||
+                        (categoryMatch
+                            ? `Browse digital assets in ${[...categoryMatch.ancestors.map((a) => a.name), categoryMatch.node.name].join(" › ")}.`
+                            : "Discover enterprise-grade UI kits, bespoke variable fonts, modular 3D models, and developer templates built by top creators worldwide.")}
                 </p>
             </div>
 
@@ -131,25 +157,61 @@ export const ExplorePage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Category Filter Pills */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-                {CATEGORIES.map((cat) => {
-                    const isSelected = selectedCategory === cat.value;
-                    return (
-                        <button
-                            key={cat.value}
-                            type="button"
-                            onClick={() => setSelectedCategory(cat.value)}
-                            className={`px-4 py-2 rounded-full text-xs font-semibold tracking-wide whitespace-nowrap transition-all cursor-pointer ${
-                                isSelected
-                                    ? "bg-primary text-on-primary shadow-xs"
-                                    : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface"
-                            }`}
-                        >
-                            {cat.label}
-                        </button>
-                    );
-                })}
+            {/* Category Filter Pills (live active root categories) */}
+            <div className="space-y-3">
+                <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+                    {categoriesLoading ? (
+                        Array.from({ length: 6 }, (_, i) => (
+                            <Skeleton key={i} variant="circular" width={i === 0 ? 88 : 120} height={32} />
+                        ))
+                    ) : (
+                        [{ id: 0, name: "All Assets", slug: ALL_CATEGORIES }, ...categories].map((cat) => {
+                            const isSelected =
+                                cat.slug === ALL_CATEGORIES
+                                    ? selectedCategory === ALL_CATEGORIES
+                                    : activeRoot?.id === cat.id;
+                            return (
+                                <button
+                                    key={cat.slug}
+                                    type="button"
+                                    aria-pressed={isSelected}
+                                    onClick={() => setSelectedCategory(cat.slug)}
+                                    className={`px-4 py-2 rounded-full text-xs font-semibold tracking-wide whitespace-nowrap transition-all cursor-pointer ${
+                                        isSelected
+                                            ? "bg-primary text-on-primary shadow-xs"
+                                            : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface"
+                                    }`}
+                                >
+                                    {cat.name}
+                                </button>
+                            );
+                        })
+                    )}
+                </div>
+
+                {/* Subcategory pills for the selected root */}
+                {activeRoot && activeRoot.children.length > 0 && (
+                    <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+                        {activeRoot.children.map((sub) => {
+                            const isSelected = activeSub?.id === sub.id;
+                            return (
+                                <button
+                                    key={sub.id}
+                                    type="button"
+                                    aria-pressed={isSelected}
+                                    onClick={() => setSelectedCategory(isSelected ? activeRoot.slug : sub.slug)}
+                                    className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition-all cursor-pointer ${
+                                        isSelected
+                                            ? "border-primary text-primary bg-primary/10"
+                                            : "border-outline-variant/40 text-on-surface-variant hover:text-on-surface hover:border-outline-variant"
+                                    }`}
+                                >
+                                    {sub.name}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
 
             {/* Active Filters Summary */}
@@ -159,7 +221,7 @@ export const ExplorePage: React.FC = () => {
                     {filteredAssets.length === 1 ? "asset" : "assets"}
                 </span>
 
-                {(searchQuery || selectedCategory !== "all" || sortBy !== "popular") && (
+                {(searchQuery || selectedCategory !== ALL_CATEGORIES || sortBy !== "popular") && (
                     <Button variant="ghost" size="sm" onClick={handleResetFilters} className="text-xs">
                         Reset All Filters
                     </Button>
