@@ -21,13 +21,29 @@ const envObj =
         ? import.meta.env
         : proc?.env ?? {};
 
+function resolveApiBaseUrl(): string {
+    const candidate =
+        (envObj?.VITE_API_BASE_URL as string | undefined) ||
+        (envObj?.VITE_API_URL as string | undefined) ||
+        (envObj?.API_BASE_URL as string | undefined) ||
+        (proc?.env?.VITE_API_BASE_URL as string | undefined) ||
+        (proc?.env?.VITE_API_URL as string | undefined) ||
+        (proc?.env?.API_BASE_URL as string | undefined);
+
+    if (candidate && !candidate.includes("yourdomain.com")) {
+        return normalizeUrl(candidate);
+    }
+
+    return "/api/v1";
+}
+
 export const ENV = {
     /**
      * Primary Backend API Base URL.
-     * In development: defaults to "/api/v1" or value of VITE_API_BASE_URL in .env
-     * In production: set VITE_API_BASE_URL in your hosting platform dashboard
+     * In development: defaults to "/api/v1" or value of VITE_API_BASE_URL/VITE_API_URL in .env
+     * In production: set VITE_API_BASE_URL or VITE_API_URL in your hosting platform dashboard
      */
-    API_BASE_URL: normalizeUrl(envObj?.VITE_API_BASE_URL) || "/api/v1",
+    API_BASE_URL: resolveApiBaseUrl(),
 
     /**
      * Application environment flags.

@@ -36,9 +36,25 @@ export default defineConfig(({ mode }) => {
     process.env.VITE_APP_ORGANIZATION_TITLE ||
     env.VITE_APP_ORGANIZATION_TITLE ||
     "AssetDrop";
+  const apiBaseUrl =
+    process.env.VITE_API_BASE_URL ||
+    env.VITE_API_BASE_URL ||
+    process.env.VITE_API_URL ||
+    env.VITE_API_URL ||
+    process.env.API_BASE_URL ||
+    env.API_BASE_URL ||
+    "";
 
   return {
     plugins: [react(), tailwindcss(), htmlTemplatePlugin(orgTitle)],
+    define: {
+      ...(apiBaseUrl && !apiBaseUrl.includes("yourdomain.com")
+        ? {
+            "import.meta.env.VITE_API_BASE_URL": JSON.stringify(apiBaseUrl),
+            "import.meta.env.VITE_API_URL": JSON.stringify(apiBaseUrl),
+          }
+        : {}),
+    },
     resolve: {
       alias: {
         "@": fileURLToPath(new URL("./src", import.meta.url)),

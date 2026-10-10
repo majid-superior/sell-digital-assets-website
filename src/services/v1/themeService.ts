@@ -347,23 +347,15 @@ export const themeService = {
     signal?: AbortSignal;
   }): Promise<ActiveThemeData> {
     try {
-      const storedEtag = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY_ETAG) : null;
-      const headers: Record<string, string> = {};
-      if (storedEtag) {
-        headers["If-None-Match"] = storedEtag;
-      }
-
-      // Request active theme with fallbacks across endpoints
+      // Request active theme with fallbacks across endpoints (consistent with Admin project)
       const res = await apiClient
         .get<unknown>("/api/theme/active", {
           signal: options?.signal,
-          headers,
         })
         .catch(async (err: unknown) => {
           if (err instanceof ApiError && (err.status === 404 || err.status === 0)) {
             return apiClient.get<unknown>("/api/theme", {
               signal: options?.signal,
-              headers,
             });
           }
           throw err;
@@ -371,13 +363,11 @@ export const themeService = {
         .catch(async () => {
           return apiClient.get<unknown>("/theme/active", {
             signal: options?.signal,
-            headers,
           });
         })
         .catch(async () => {
           return apiClient.get<unknown>("/theme", {
             signal: options?.signal,
-            headers,
           });
         });
 
@@ -399,9 +389,27 @@ export const themeService = {
       if (err instanceof Error && err.name === "AbortError") {
         throw err;
       }
+
+      if (!options?.silent) {
+        console.warn("[ThemeService] Unable to fetch theme from backend. Preserving cached theme.", err);
+      }
+
       if (cachedTheme) return cachedTheme;
 
-      // Fallback to default design tokens if API is unreachable
+      try {
+        const stored = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY_ACTIVE) : null;
+        if (stored) {
+          const parsed = JSON.parse(stored) as unknown;
+          const normalized = unwrapThemeResponse(parsed);
+          cachedTheme = normalized;
+          applyThemeToDom(normalized.colorHexMap);
+          return normalized;
+        }
+      } catch {
+        // Ignore JSON parse errors
+      }
+
+      // Fallback to default design tokens if API is unreachable and no cache exists
       const fallback: ActiveThemeData = {
         id: 1,
         name: "Default Theme",
