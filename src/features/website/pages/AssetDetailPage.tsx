@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { useOrganization } from "@/hooks/useOrganization.ts";
 import { formatCurrency } from "@/utils/currency.ts";
 import { formatBytes } from "@/utils/file.ts";
 import { formatDate } from "@/utils/date.ts";
@@ -23,6 +24,14 @@ export const AssetDetailPage: React.FC = () => {
     });
 
     const asset = apiAsset;
+    const { organization } = useOrganization();
+
+    useEffect(() => {
+        if (asset?.title) {
+            const orgTitle = organization?.title || organization?.shortName || "AssetDrop";
+            document.title = `${asset.title} | ${orgTitle} | Marketplace`;
+        }
+    }, [asset?.title, organization?.title, organization?.shortName]);
 
     const [selectedImage, setSelectedImage] = useState<string>("");
     const [selectedLicense, setSelectedLicense] = useState<LicenseType>("commercial");

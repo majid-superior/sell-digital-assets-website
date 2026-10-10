@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useTheme } from "@/hooks/useTheme.ts";
 import { useAuth } from "@/hooks/useAuth.ts";
+import { useOrganization } from "@/hooks/useOrganization.ts";
 import { Icons, type IconComponent } from "@/lib/icons/index.ts";
 import { Badge } from "@/components/ui/index.ts";
 
@@ -27,11 +28,13 @@ const DEFAULT_NAV_ITEMS: NavLinkItem[] = [
 ];
 
 export const Navbar: React.FC<NavbarProps> = ({
-    brandName = "AssetDrop",
+    brandName: customBrandName,
     navItems = DEFAULT_NAV_ITEMS,
     showSearch = true,
     className = "",
 }) => {
+    const { organization } = useOrganization();
+    const brandName = customBrandName ?? organization?.shortName ?? organization?.name ?? "AssetDrop";
     const { theme, toggleTheme } = useTheme();
     const { isAuthenticated, user, signOut } = useAuth();
     const location = useLocation();

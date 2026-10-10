@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { useOrganization } from "@/hooks/useOrganization.ts";
 import { Icons } from "@/lib/icons/index.ts";
 import { Button, Badge } from "@/components/ui/index.ts";
 
@@ -56,7 +57,7 @@ const DEFAULT_SECTIONS: FooterSection[] = [
         ],
     },
     {
-        title: "Company",
+        title: "Organization",
         links: [
             { label: "About Us", href: "/about" },
             { label: "Careers", href: "/careers" },
@@ -70,11 +71,14 @@ const DEFAULT_SECTIONS: FooterSection[] = [
 ];
 
 export const Footer: React.FC<FooterProps> = ({
-    brandName = "AssetDrop",
-    brandTagline = "The decentralized marketplace for high-performance UI kits, 3D graphics, code templates, and creative digital assets.",
+    brandName: customBrandName,
+    brandTagline: customTagline,
     showNewsletter = true,
     className = "",
 }) => {
+    const { organization } = useOrganization();
+    const brandName = customBrandName ?? organization?.shortName ?? organization?.name ?? "AssetDrop";
+    const brandTagline = customTagline ?? organization?.tagline ?? "The decentralized marketplace for high-performance UI kits, 3D graphics, code templates, and creative digital assets.";
     const [newsletterEmail, setNewsletterEmail] = useState("");
     const [subscribed, setSubscribed] = useState(false);
 

@@ -44,6 +44,16 @@
             }
             styleEl.textContent = cached;
           }
+
+          var cachedOrgTitle = localStorage.getItem("organization_title");
+          if (cachedOrgTitle) {
+            document.title = cachedOrgTitle + " | Marketplace";
+          }
+          var cachedFavicon = localStorage.getItem("organization_favicon");
+          if (cachedFavicon) {
+            var favEl = document.querySelector("link[rel*='icon']");
+            if (favEl) favEl.href = cachedFavicon;
+          }
         } catch (e) {
           console.warn("Theme pre-paint error:", e);
         }
