@@ -76,12 +76,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                         to="/"
                         className="flex items-center gap-2.5 font-bold text-lg sm:text-xl tracking-tight text-on-surface hover:opacity-90 transition-opacity focus:outline-hidden focus-visible:ring-2 focus-visible:ring-primary rounded-lg shrink-0"
                     >
-                        <div className="w-9 h-9 rounded-xl bg-primary text-on-primary flex items-center justify-center shadow-xs">
-                            <Icons.Brand size={20} />
-                        </div>
+                        <img
+                            src="/logo.png"
+                            alt="AssetDrop"
+                            className="w-9 h-9 rounded-xl object-contain shadow-xs shrink-0"
+                        />
                         <span className="flex items-center">
                             {brandName.replace("Drop", "")}
-                            <span className="text-primary-container font-extrabold">Drop</span>
+                            <span className="text-primary font-extrabold">Drop</span>
                         </span>
                     </Link>
 

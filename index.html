@@ -12,15 +12,15 @@
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sell Digital Assets - Marketplace</title>
-    <!-- Synchronous theme detection to prevent FOUC -->
+    <!-- Dynamic Theme Pre-paint Injector: 0ms Flash Prevention -->
     <script>
       (function () {
         try {
-          const stored = localStorage.getItem("theme");
-          const prefersDark = window.matchMedia(
+          var stored = localStorage.getItem("theme");
+          var prefersDark = window.matchMedia(
             "(prefers-color-scheme: dark)",
           ).matches;
-          const theme =
+          var theme =
             stored === "dark" || stored === "light"
               ? stored
               : prefersDark
@@ -33,7 +33,20 @@
             document.documentElement.classList.remove("dark");
             document.documentElement.setAttribute("data-theme", "light");
           }
-        } catch (_) {}
+
+          var cached = localStorage.getItem("theme_css");
+          if (cached) {
+            var styleEl = document.getElementById("dynamic-theme-vars");
+            if (!styleEl) {
+              styleEl = document.createElement("style");
+              styleEl.id = "dynamic-theme-vars";
+              document.head.appendChild(styleEl);
+            }
+            styleEl.textContent = cached;
+          }
+        } catch (e) {
+          console.warn("Theme pre-paint error:", e);
+        }
       })();
     </script>
   </head>

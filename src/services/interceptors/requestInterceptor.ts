@@ -1,5 +1,5 @@
 // src/services/interceptors/requestInterceptor.ts
-import { ENV } from "@/config/env.ts";
+import { ENV } from "../../config/env.ts";
 
 export interface RequestInterceptorOptions {
     params?: Record<string, string | number | boolean>;
@@ -30,7 +30,24 @@ export function buildRequestUrl(
     params?: Record<string, string | number | boolean>
 ): string {
     const normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
-    let url = `${ENV.API_BASE_URL}${normalizedEndpoint}`;
+    let url: string;
+
+    if (endpoint.startsWith("http://") || endpoint.startsWith("https://")) {
+        url = endpoint;
+    } else if (normalizedEndpoint.startsWith("/api/") || normalizedEndpoint === "/api") {
+        if (ENV.API_BASE_URL.startsWith("http://") || ENV.API_BASE_URL.startsWith("https://")) {
+            try {
+                const baseOrigin = new URL(ENV.API_BASE_URL).origin;
+                url = `${baseOrigin}${normalizedEndpoint}`;
+            } catch {
+                url = normalizedEndpoint;
+            }
+        } else {
+            url = normalizedEndpoint;
+        }
+    } else {
+        url = `${ENV.API_BASE_URL}${normalizedEndpoint}`;
+    }
 
     if (params && Object.keys(params).length > 0) {
         const searchParams = new URLSearchParams();

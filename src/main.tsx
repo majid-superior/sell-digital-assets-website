@@ -7,6 +7,10 @@ import App from './App.tsx';
 import { queryClient } from './lib/queryClient.ts';
 import { ThemeProvider } from './provider/ThemeProvider.tsx';
 import { AuthProvider } from './provider/AuthProvider.tsx';
+import { websiteThemeService } from './services/index.ts';
+
+// Bootstrap dynamic database theme tokens (0ms cached paint + background sync)
+websiteThemeService.initThemeBootstrap();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
