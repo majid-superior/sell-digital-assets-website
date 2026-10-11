@@ -28,6 +28,18 @@ import {
   Lock as LucideLock,
   Mail as LucideMail,
   User as LucideUser,
+  LayoutDashboard as LucideLayoutDashboard,
+  Download as LucideDownload,
+  Package as LucidePackage,
+  TrendingUp as LucideTrendingUp,
+  CreditCard as LucideCreditCard,
+  Settings as LucideSettings,
+  Heart as LucideHeart,
+  Bell as LucideBell,
+  LogOut as LucideLogOut,
+  ExternalLink as LucideExternalLink,
+  FileText as LucideFileText,
+  Plus as LucidePlus,
 } from "lucide-react";
 
 import type { LucideProps } from "lucide-react";
@@ -77,6 +89,22 @@ export const EyeOff: IconComponent = createSemanticIcon(LucideEyeOff);
 export const Lock: IconComponent = createSemanticIcon(LucideLock);
 export const Mail: IconComponent = createSemanticIcon(LucideMail);
 export const User: IconComponent = createSemanticIcon(LucideUser);
+export const LayoutDashboard: IconComponent = createSemanticIcon(LucideLayoutDashboard);
+export const Dashboard: IconComponent = LayoutDashboard;
+export const Download: IconComponent = createSemanticIcon(LucideDownload);
+export const Package: IconComponent = createSemanticIcon(LucidePackage);
+export const TrendingUp: IconComponent = createSemanticIcon(LucideTrendingUp);
+export const Analytics: IconComponent = TrendingUp;
+export const CreditCard: IconComponent = createSemanticIcon(LucideCreditCard);
+export const Settings: IconComponent = createSemanticIcon(LucideSettings);
+export const Heart: IconComponent = createSemanticIcon(LucideHeart);
+export const Bell: IconComponent = createSemanticIcon(LucideBell);
+export const LogOut: IconComponent = createSemanticIcon(LucideLogOut);
+export const SignOut: IconComponent = LogOut;
+export const Signout: IconComponent = LogOut;
+export const ExternalLink: IconComponent = createSemanticIcon(LucideExternalLink);
+export const FileText: IconComponent = createSemanticIcon(LucideFileText);
+export const Plus: IconComponent = createSemanticIcon(LucidePlus);
 
 // Friendly aliases
 export const Sun: IconComponent = ThemeLight;

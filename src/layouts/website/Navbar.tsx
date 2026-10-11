@@ -165,7 +165,14 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                     {/* Auth Status & CTA */}
                     {isAuthenticated && user ? (
-                        <div className="hidden sm:flex items-center gap-2">
+                        <div className="hidden sm:flex items-center gap-2.5">
+                            <Link
+                                to="/dashboard"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold bg-primary/10 text-primary hover:bg-primary hover:text-on-primary transition-all border border-primary/20 shadow-2xs"
+                            >
+                                <Icons.LayoutDashboard size={15} />
+                                <span>Dashboard</span>
+                            </Link>
                             <span className="text-xs text-on-surface-variant font-medium">
                                 Hi, <strong className="text-on-surface">{user.displayName || user.username || "User"}</strong>
                             </span>
@@ -281,6 +288,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                                 <div className="px-1 text-xs text-on-surface-variant">
                                     Signed in as <strong className="text-on-surface">{user.email}</strong>
                                 </div>
+                                <Link
+                                    to="/dashboard"
+                                    onClick={closeMobileMenu}
+                                    className="w-full py-2.5 px-3 flex items-center justify-center gap-2 text-sm font-semibold rounded-lg bg-primary text-on-primary hover:opacity-90 transition-opacity shadow-xs"
+                                >
+                                    <Icons.LayoutDashboard size={17} />
+                                    <span>Go to Dashboard</span>
+                                </Link>
                                 <button
                                     type="button"
                                     onClick={() => {

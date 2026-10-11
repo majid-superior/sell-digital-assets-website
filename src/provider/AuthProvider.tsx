@@ -93,18 +93,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             signOut();
         };
 
-        const handleLogout = () => {
+        const handleSignOut = () => {
             authService.clearSession();
             setUser(null);
             setToken(null);
         };
 
         window.addEventListener("auth:unauthorized", handleUnauthorized);
-        window.addEventListener("auth:logout", handleLogout);
+        window.addEventListener("auth:signout", handleSignOut);
 
         return () => {
             window.removeEventListener("auth:unauthorized", handleUnauthorized);
-            window.removeEventListener("auth:logout", handleLogout);
+            window.removeEventListener("auth:signout", handleSignOut);
         };
     }, [signOut]);
 

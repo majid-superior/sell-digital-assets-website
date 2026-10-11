@@ -5,6 +5,8 @@ import Index from "@/layouts/website/index.tsx";
 import Page from "@/layouts/website/page.tsx";
 import { Spinner } from "@/components/ui/Spinner.tsx";
 
+import ProtectedRoute from "@/routes/ProtectedRoute.tsx";
+
 const HomePage = lazy(() => import("@/features/website/pages/HomePage.tsx"));
 const SignInPage = lazy(() => import("@/layouts/website/pages/signIn.tsx"));
 const SignUpPage = lazy(() => import("@/layouts/website/pages/signUp.tsx"));
@@ -12,6 +14,15 @@ const ServerPage = lazy(() => import("@/layouts/website/pages/server.tsx"));
 const ErrorPage = lazy(() => import("@/layouts/website/pages/error.tsx"));
 const ExplorePage = lazy(() => import("@/features/website/pages/ExplorePage.tsx"));
 const AssetDetailPage = lazy(() => import("@/features/website/pages/AssetDetailPage.tsx"));
+
+// Dashboard feature routes
+const DashboardLayout = lazy(() => import("@/features/dashboard/layouts/DashboardLayout.tsx"));
+const DashboardOverviewPage = lazy(() => import("@/features/dashboard/pages/DashboardOverviewPage.tsx"));
+const PurchasesPage = lazy(() => import("@/features/dashboard/pages/PurchasesPage.tsx"));
+const ProductsPage = lazy(() => import("@/features/dashboard/pages/ProductsPage.tsx"));
+const OrdersPage = lazy(() => import("@/features/dashboard/pages/OrdersPage.tsx"));
+const SalesPage = lazy(() => import("@/features/dashboard/pages/SalesPage.tsx"));
+const SettingsPage = lazy(() => import("@/features/dashboard/pages/SettingsPage.tsx"));
 
 const RouteLoadingFallback = () => (
     <div className="min-h-[60vh] flex items-center justify-center bg-background text-on-surface">
@@ -32,6 +43,18 @@ export const AppRoutes: React.FC = () => {
                     {/* Standalone Auth Pages — no header, no footer */}
                     <Route path="/signin" element={<SignInPage />} />
                     <Route path="/signup" element={<SignUpPage />} />
+
+                    {/* Authenticated Dashboard Routes (Both Seller & Buyer) */}
+                    <Route element={<ProtectedRoute />}>
+                        <Route path="/dashboard" element={<DashboardLayout />}>
+                            <Route index element={<DashboardOverviewPage />} />
+                            <Route path="purchases" element={<PurchasesPage />} />
+                            <Route path="products" element={<ProductsPage />} />
+                            <Route path="orders" element={<OrdersPage />} />
+                            <Route path="sales" element={<SalesPage />} />
+                            <Route path="settings" element={<SettingsPage />} />
+                        </Route>
+                    </Route>
 
                     {/* Server Error page */}
                     <Route path="/server" element={<ServerPage />} />

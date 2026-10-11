@@ -35,7 +35,7 @@ class AuthService {
     }
 
     /**
-     * Submit login request to backend endpoint /api/v1/auth/signin.
+     * Submit sign in request to backend endpoint /api/v1/auth/signin.
      * Pure production implementation communicating directly with the backend API.
      */
     async signIn(credentials: SignInCredentials): Promise<AuthResponse> {
@@ -205,8 +205,9 @@ class AuthService {
      * Terminate user session and remove tokens from storage.
      */
     signOut(): void {
+        apiClient.post("/api/v1/auth/signout", {}).catch(() => {});
         this.clearSession();
-        window.dispatchEvent(new CustomEvent("auth:logout"));
+        window.dispatchEvent(new CustomEvent("auth:signout"));
     }
 
     /**

@@ -9,8 +9,6 @@ import { defineConfig, globalIgnores } from "eslint/config";
 export default defineConfig([
   globalIgnores([
     "dist",
-    "src/features/buyer-dashboard/**",
-    "src/features/seller-dashboard/**",
     "src/features/checkout/**",
     "src/features/disputes/**",
   ]),

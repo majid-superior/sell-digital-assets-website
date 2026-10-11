@@ -26,6 +26,11 @@ export const queryKeys = {
         all: ["categories"] as const,
         tree: () => [...queryKeys.categories.all, "tree"] as const,
     },
+    dashboard: {
+        all: ["dashboard"] as const,
+        navigation: (role?: string, userId?: string) =>
+            [...queryKeys.dashboard.all, "navigation", role ?? "user", userId ?? "me"] as const,
+    },
 } as const;
 
 export default queryKeys;
