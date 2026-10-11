@@ -47,7 +47,7 @@ graph TB
 ## 3. Cross-Repository Data Contracts & Flows
 
 ### A. Authentication & Role Segregation
-* **Unified JWT Standard**: Both client portals consume JSON Web Tokens issued by `sell-digital-assets-api` (`POST /api/auth/login` or `POST /api/auth/register`).
+* **Unified JWT Standard**: Both client portals consume JSON Web Tokens issued by `sell-digital-assets-api` (`POST /api/v1/auth/signin` or `POST /api/v1/auth/signup`).
 * **Token Lifecycle**: Short-lived access tokens (15m) paired with long-lived refresh tokens (7d).
 * **Storage Strategy**:
   * **Remember Me Enabled**: Persistent storage in `localStorage`.

@@ -8,7 +8,7 @@ export interface SignInCredentials {
 }
 
 export interface SignUpCredentials {
-    fullName: string;
+    name: string;
     email: string;
     password: string;
     role: "buyer" | "seller";
@@ -18,6 +18,10 @@ export interface AuthResponse {
     success: boolean;
     token: string;
     refreshToken?: string;
+    tokens?: {
+        accessToken: string;
+        refreshToken?: string;
+    };
     user: User;
     message?: string;
 }

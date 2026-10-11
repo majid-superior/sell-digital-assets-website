@@ -36,6 +36,7 @@ export const ExplorePage: React.FC = () => {
         () => (selectedCategory === ALL_CATEGORIES ? null : findCategoryBySlug(categories, selectedCategory)),
         [categories, selectedCategory]
     );
+    const isCategoryInactive = Boolean(selectedCategory !== ALL_CATEGORIES && !categoryMatch && !categoriesLoading);
     const activeRoot = categoryMatch ? (categoryMatch.ancestors[0] ?? categoryMatch.node) : null;
     const activeSub = categoryMatch ? (categoryMatch.ancestors[1] ?? (categoryMatch.node.depth >= 1 ? categoryMatch.node : null)) : null;
 
@@ -102,12 +103,18 @@ export const ExplorePage: React.FC = () => {
             {/* Header Title */}
             <div>
                 <h1 className="text-3xl font-extrabold tracking-tight text-on-surface sm:text-4xl">
-                    {categoryMatch ? categoryMatch.node.name : "Explore Marketplace Assets"}
+                    {categoryMatch
+                        ? categoryMatch.node.name
+                        : isCategoryInactive
+                        ? "Category Not Found"
+                        : "Explore Marketplace Assets"}
                 </h1>
                 <p className="mt-2 text-sm text-on-surface-variant max-w-2xl">
                     {categoryMatch?.node.description ||
                         (categoryMatch
                             ? `Browse digital assets in ${[...categoryMatch.ancestors.map((a) => a.name), categoryMatch.node.name].join(" › ")}.`
+                            : isCategoryInactive
+                            ? "The selected category is currently inactive or does not exist. Browse other categories or view all assets below."
                             : "Discover enterprise-grade UI kits, bespoke variable fonts, modular 3D models, and developer templates built by top creators worldwide.")}
                 </p>
             </div>
@@ -242,8 +249,14 @@ export const ExplorePage: React.FC = () => {
             ) : (
                 <div className="rounded-3xl border border-outline-variant/30 bg-surface-container-lowest p-12 text-center">
                     <EmptyState
-                        title="No matching assets found"
-                        description={searchQuery ? `We couldn't find any assets matching your criteria "${searchQuery}". Try searching for different terms or reset your filters.` : "There are currently no assets listed in this category."}
+                        title={isCategoryInactive ? "Category not found" : "No matching assets found"}
+                        description={
+                            searchQuery
+                                ? `We couldn't find any assets matching your criteria "${searchQuery}". Try searching for different terms or reset your filters.`
+                                : isCategoryInactive
+                                ? "This category is currently inactive or does not exist."
+                                : "There are currently no assets listed in this category."
+                        }
                         icon={<Icons.Search size={36} />}
                         action={
                             <Button variant="primary" size="md" onClick={handleResetFilters}>

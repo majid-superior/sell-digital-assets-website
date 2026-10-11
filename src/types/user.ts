@@ -1,5 +1,5 @@
 // src/types/user.ts
-export type UserRole = "buyer" | "seller" | "admin";
+export type UserRole = "buyer" | "seller" | "admin" | "guest" | "customer";
 
 export interface SellerProfile {
     storeName: string;
@@ -18,8 +18,10 @@ export interface User {
     email: string;
     username: string;
     displayName: string;
+    name?: string;
     role: UserRole;
     avatarUrl?: string;
     sellerProfile?: SellerProfile;
     createdAt: string;
+    status?: string;
 }

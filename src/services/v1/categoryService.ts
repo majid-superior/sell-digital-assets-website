@@ -29,7 +29,7 @@ class CategoryService {
      */
     async getCategoryTree(signal?: AbortSignal): Promise<CategoryNode[]> {
         const response = await apiClient.get<CategoryTreeResponse | CategoryNode[]>(
-            "/api/categories",
+            "/api/v1/categories",
             { params: { tree: true }, signal }
         );
         const nodes = Array.isArray(response) ? response : response?.data;

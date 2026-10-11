@@ -347,28 +347,18 @@ export const themeService = {
     signal?: AbortSignal;
   }): Promise<ActiveThemeData> {
     try {
-      // Request active theme with fallbacks across endpoints (consistent with Admin project)
+      // Request active theme with fallbacks across /api/v1 endpoints
       const res = await apiClient
-        .get<unknown>("/api/theme/active", {
+        .get<unknown>("/api/v1/theme/active", {
           signal: options?.signal,
         })
         .catch(async (err: unknown) => {
           if (err instanceof ApiError && (err.status === 404 || err.status === 0)) {
-            return apiClient.get<unknown>("/api/theme", {
+            return apiClient.get<unknown>("/api/v1/theme", {
               signal: options?.signal,
             });
           }
           throw err;
-        })
-        .catch(async () => {
-          return apiClient.get<unknown>("/theme/active", {
-            signal: options?.signal,
-          });
-        })
-        .catch(async () => {
-          return apiClient.get<unknown>("/theme", {
-            signal: options?.signal,
-          });
         });
 
       const themeData = unwrapThemeResponse(res);
@@ -436,7 +426,7 @@ export const themeService = {
     options?: { signal?: AbortSignal }
   ): Promise<ActiveThemeData> {
     try {
-      const res = await apiClient.put<unknown>("/api/theme", payload, {
+      const res = await apiClient.put<unknown>("/api/v1/theme", payload, {
         signal: options?.signal,
       });
 

@@ -215,7 +215,7 @@ export const organizationService = {
   }): Promise<OrganizationInfo> {
     try {
       const raw = await apiClient.get<BackendOrganizationPayload>(
-        "/api/organizations",
+        "/api/v1/organizations",
         {
           signal: options?.signal,
         },

@@ -28,7 +28,7 @@ export const SignUpPage: React.FC = () => {
     } = useForm<SignUpFormData>({
         resolver: zodResolver(signUpSchema),
         defaultValues: {
-            fullName: "",
+            name: "",
             email: "",
             password: "",
             role: "buyer",
@@ -70,7 +70,7 @@ export const SignUpPage: React.FC = () => {
     const onSubmit = async (data: SignUpFormData) => {
         try {
             await signUpMutation.mutateAsync({
-                fullName: data.fullName,
+                name: data.name,
                 email: data.email,
                 password: data.password,
                 role: data.role,
@@ -256,18 +256,18 @@ export const SignUpPage: React.FC = () => {
                                         autoComplete="name"
                                         placeholder="Alex Rivera"
                                         disabled={isPending}
-                                        aria-invalid={!!errors.fullName}
-                                        aria-describedby={errors.fullName ? "name-error" : undefined}
-                                        {...register("fullName")}
-                                        className={`w-full pl-10 pr-4 py-2.5 text-sm rounded-xl bg-surface border text-on-surface placeholder:text-on-surface-variant/50 focus:outline-hidden transition-all disabled:opacity-50 ${errors.fullName
+                                        aria-invalid={!!errors.name}
+                                        aria-describedby={errors.name ? "name-error" : undefined}
+                                        {...register("name")}
+                                        className={`w-full pl-10 pr-4 py-2.5 text-sm rounded-xl bg-surface border text-on-surface placeholder:text-on-surface-variant/50 focus:outline-hidden transition-all disabled:opacity-50 ${errors.name
                                             ? "border-error focus:border-error focus:ring-1 focus:ring-error"
                                             : "border-outline-variant/40 focus:border-primary focus:ring-1 focus:ring-primary"
                                             }`}
                                     />
                                 </div>
-                                {errors.fullName && (
+                                {errors.name && (
                                     <p id="name-error" role="alert" className="text-xs text-error font-medium mt-1">
-                                        {errors.fullName.message}
+                                        {errors.name.message}
                                     </p>
                                 )}
                             </div>

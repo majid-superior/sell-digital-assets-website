@@ -30,7 +30,7 @@ class AssetService {
             if (params.limit !== undefined) cleanParams.limit = params.limit;
             if (params.page !== undefined) cleanParams.page = params.page;
         }
-        return apiClient.get<AssetListResponse>("/assets", {
+        return apiClient.get<AssetListResponse>("/api/v1/assets", {
             params: cleanParams,
         });
     }
@@ -39,21 +39,21 @@ class AssetService {
      * Retrieve single digital asset by unique URL slug.
      */
     async getAssetBySlug(slug: string): Promise<DigitalAsset> {
-        return apiClient.get<DigitalAsset>(`/assets/${encodeURIComponent(slug)}`);
+        return apiClient.get<DigitalAsset>(`/api/v1/assets/${encodeURIComponent(slug)}`);
     }
 
     /**
      * Retrieve curated featured assets for homepage showcase.
      */
     async getFeaturedAssets(): Promise<DigitalAsset[]> {
-        return apiClient.get<DigitalAsset[]>("/assets/featured");
+        return apiClient.get<DigitalAsset[]>("/api/v1/assets/featured");
     }
 
     /**
      * Create a new digital asset (Seller role required).
      */
     async createAsset(assetData: Partial<DigitalAsset>): Promise<DigitalAsset> {
-        return apiClient.post<DigitalAsset>("/assets", assetData);
+        return apiClient.post<DigitalAsset>("/api/v1/assets", assetData);
     }
 }
 

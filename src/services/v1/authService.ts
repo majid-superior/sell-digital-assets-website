@@ -6,7 +6,7 @@ import {
     type SignUpCredentials,
     type AuthResponse,
 } from "@/features/auth/types.ts";
-import type { User } from "@/types/user.ts";
+import type { User, UserRole } from "@/types/user.ts";
 
 const TOKEN_KEY = "auth_token";
 const REFRESH_TOKEN_KEY = "auth_refresh_token";
@@ -14,58 +14,106 @@ const USER_KEY = "auth_user";
 
 class AuthService {
     /**
-     * Submit login request to backend endpoint /auth/signin.
+     * Normalizes backend user representation to marketplace User interface.
+     */
+    normalizeUser(user: Partial<User> & { name?: string; role?: string }): User {
+        const displayName = user.displayName || user.name || user.email?.split("@")[0] || "User";
+        const username = user.username || user.name?.toLowerCase().replace(/\s+/g, "") || user.email?.split("@")[0] || "user";
+        const role = (user.role === "seller" ? "seller" : user.role === "admin" ? "admin" : "buyer") as UserRole;
+        return {
+            id: String(user.id || ""),
+            email: user.email || "",
+            username,
+            displayName,
+            name: user.name || displayName,
+            role,
+            avatarUrl: user.avatarUrl,
+            sellerProfile: user.sellerProfile,
+            createdAt: user.createdAt || new Date().toISOString(),
+            status: user.status || "active",
+        };
+    }
+
+    /**
+     * Submit login request to backend endpoint /api/v1/auth/signin.
      * Pure production implementation communicating directly with the backend API.
      */
     async signIn(credentials: SignInCredentials): Promise<AuthResponse> {
         try {
-            const response = await apiClient.post<AuthResponse>("/auth/signin", credentials);
+            const response = await apiClient.post<AuthResponse>("/api/v1/auth/signin", credentials);
+            const token = response?.token || response?.tokens?.accessToken;
+            const refreshToken = response?.refreshToken || response?.tokens?.refreshToken;
 
-            if (!response || !response.token || !response.user) {
+            if (!response || !token || !response.user) {
                 throw new AuthenticationError(
                     "The authentication server returned an incomplete response. Missing authentication token or user identity.",
                     { code: "INVALID_SERVER_RESPONSE" }
                 );
             }
 
-            this.saveSession(response.token, response.user, credentials.rememberMe, response.refreshToken);
-            return response;
+            const normalizedUser = this.normalizeUser(response.user);
+            const authResponse: AuthResponse = {
+                ...response,
+                token,
+                refreshToken,
+                user: normalizedUser,
+            };
+
+            this.saveSession(token, normalizedUser, credentials.rememberMe, refreshToken);
+            return authResponse;
         } catch (error: unknown) {
             return this.handleAuthError(error, "signing in");
         }
     }
 
     /**
-     * Submit registration request to backend endpoint /auth/signup.
+     * Submit registration request to backend endpoint /api/v1/auth/signup.
      */
     async signUp(credentials: SignUpCredentials): Promise<AuthResponse> {
         try {
-            const response = await apiClient.post<AuthResponse>("/auth/signup", credentials);
+            const payload = {
+                name: credentials.name,
+                email: credentials.email,
+                password: credentials.password,
+                role: credentials.role,
+            };
 
-            if (!response || !response.token || !response.user) {
+            const response = await apiClient.post<AuthResponse>("/api/v1/auth/signup", payload);
+            const token = response?.token || response?.tokens?.accessToken;
+            const refreshToken = response?.refreshToken || response?.tokens?.refreshToken;
+
+            if (!response || !token || !response.user) {
                 throw new AuthenticationError(
                     "The registration server returned an incomplete response. Missing authentication token or user identity.",
                     { code: "INVALID_SERVER_RESPONSE" }
                 );
             }
 
+            const normalizedUser = this.normalizeUser(response.user);
+            const authResponse: AuthResponse = {
+                ...response,
+                token,
+                refreshToken,
+                user: normalizedUser,
+            };
+
             // Save new user session
-            this.saveSession(response.token, response.user, false, response.refreshToken);
-            return response;
+            this.saveSession(token, normalizedUser, false, refreshToken);
+            return authResponse;
         } catch (error: unknown) {
             return this.handleAuthError(error, "registering");
         }
     }
 
     /**
-     * Fetch authenticated user identity from backend endpoint /auth/me.
+     * Fetch authenticated user identity from backend endpoint /api/v1/auth/me.
      */
     async getCurrentUser(): Promise<User> {
-        const user = await apiClient.get<User>("/auth/me");
-        if (user) {
-            const storage = localStorage.getItem(TOKEN_KEY) ? localStorage : sessionStorage;
-            storage.setItem(USER_KEY, JSON.stringify(user));
-        }
+        const response = await apiClient.get<User | { data: User }>("/api/v1/auth/me");
+        const rawUser: User = (response && "data" in response && response.data) ? response.data : (response as User);
+        const user = this.normalizeUser(rawUser);
+        const storage = localStorage.getItem(TOKEN_KEY) ? localStorage : sessionStorage;
+        storage.setItem(USER_KEY, JSON.stringify(user));
         return user;
     }
 
@@ -211,21 +259,29 @@ class AuthService {
         }
 
         try {
-            const response = await apiClient.post<AuthResponse>("/auth/refresh", {
+            const response = await apiClient.post<AuthResponse>("/api/v1/auth/refresh", {
                 refreshToken,
             });
 
-            if (response?.token && response?.user) {
+            const token = response?.token || response?.tokens?.accessToken;
+            if (token && response?.user) {
+                const normalizedUser = this.normalizeUser(response.user);
                 const isRemembered = Boolean(
                     localStorage.getItem(TOKEN_KEY) || localStorage.getItem(REFRESH_TOKEN_KEY)
                 );
+                const newRefreshToken = response.refreshToken || response?.tokens?.refreshToken || refreshToken;
                 this.saveSession(
-                    response.token,
-                    response.user,
+                    token,
+                    normalizedUser,
                     isRemembered,
-                    response.refreshToken || refreshToken
+                    newRefreshToken
                 );
-                return response;
+                return {
+                    ...response,
+                    token,
+                    refreshToken: newRefreshToken,
+                    user: normalizedUser,
+                };
             }
             return null;
         } catch {

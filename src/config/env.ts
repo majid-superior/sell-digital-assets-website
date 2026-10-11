@@ -16,19 +16,19 @@ function normalizeUrl(url?: string): string {
  * Set the environment variable: VITE_API_BASE_URL=https://api.yourdomain.com/api/v1
  */
 const proc = (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process;
-const envObj =
+const envObj: Record<string, string | undefined> =
     typeof import.meta !== "undefined" && import.meta.env
         ? import.meta.env
         : proc?.env ?? {};
 
 function resolveApiBaseUrl(): string {
     const candidate =
-        (envObj?.VITE_API_BASE_URL as string | undefined) ||
-        (envObj?.VITE_API_URL as string | undefined) ||
-        (envObj?.API_BASE_URL as string | undefined) ||
-        (proc?.env?.VITE_API_BASE_URL as string | undefined) ||
-        (proc?.env?.VITE_API_URL as string | undefined) ||
-        (proc?.env?.API_BASE_URL as string | undefined);
+        envObj.VITE_API_BASE_URL ||
+        envObj.VITE_API_URL ||
+        envObj.API_BASE_URL ||
+        proc?.env?.VITE_API_BASE_URL ||
+        proc?.env?.VITE_API_URL ||
+        proc?.env?.API_BASE_URL;
 
     if (candidate && !candidate.includes("yourdomain.com")) {
         return normalizeUrl(candidate);
