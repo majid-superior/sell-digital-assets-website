@@ -1,0 +1,102 @@
+// src/features/dashboard/utils/navigationHelper.ts
+import type { DashboardNavItem, BreadcrumbTrailItem } from "../types/index.ts";
+import type { User } from "@/types/user.ts";
+
+export interface UserPortalAccess {
+    hasBothRoles: boolean;
+    canAccessSeller: boolean;
+    canAccessBuyer: boolean;
+    defaultPortal: "seller" | "buyer";
+    primaryRole: string;
+}
+
+/**
+ * Evaluates user permissions based on database role / roles array.
+ * - hasBothRoles: true if user is an admin, or has both seller and buyer roles.
+ * - If hasBothRoles is true, side navigation displays both portal switcher tabs.
+ * - If hasBothRoles is false, the tabs are hidden and only the navigation for their role is rendered.
+ */
+export function getUserPortalAccess(user: User | null, currentPath = ""): UserPortalAccess {
+    if (!user) {
+        // Fallback for unauthenticated dev view: adapt based on current path preview
+        const isSellerPath = currentPath.includes("/seller");
+        return {
+            hasBothRoles: false,
+            canAccessSeller: isSellerPath,
+            canAccessBuyer: !isSellerPath,
+            defaultPortal: isSellerPath ? "seller" : "buyer",
+            primaryRole: "guest",
+        };
+    }
+
+    const rawRoles: string[] = [];
+    if (user.role) {
+        rawRoles.push(String(user.role).toLowerCase().trim());
+    }
+    if (Array.isArray(user.roles)) {
+        user.roles.forEach((r) => {
+            if (r) rawRoles.push(String(r).toLowerCase().trim());
+        });
+    }
+
+    const rolesSet = new Set(rawRoles);
+
+    // Database role IDs: 1 = admin, 2 = seller, 3 = buyer/customer
+    const isAdmin = rolesSet.has("admin") || user.role_id === 1;
+    const isSeller = isAdmin || rolesSet.has("seller") || user.role_id === 2 || Boolean(user.sellerProfile);
+    const isBuyer = isAdmin || rolesSet.has("buyer") || rolesSet.has("customer") || user.role_id === 3;
+
+    // Both roles condition:
+    // User is admin OR has explicit multi-role containing both seller and buyer OR has "both"/"all"
+    const hasBothRoles =
+        isAdmin ||
+        (rolesSet.has("seller") && (rolesSet.has("buyer") || rolesSet.has("customer"))) ||
+        rolesSet.has("both") ||
+        rolesSet.has("all");
+
+    const canAccessSeller = hasBothRoles || isSeller;
+    const canAccessBuyer = hasBothRoles || isBuyer || !isSeller;
+
+    let defaultPortal: "seller" | "buyer" = "buyer";
+    if (canAccessSeller && !canAccessBuyer) {
+        defaultPortal = "seller";
+    } else if (canAccessBuyer && !canAccessSeller) {
+        defaultPortal = "buyer";
+    } else {
+        defaultPortal = isSeller ? "seller" : "buyer";
+    }
+
+    return {
+        hasBothRoles,
+        canAccessSeller,
+        canAccessBuyer,
+        defaultPortal,
+        primaryRole: user.role || (canAccessSeller ? "seller" : "buyer"),
+    };
+}
+
+export function findNavTrail(
+    items: DashboardNavItem[],
+    pathname: string,
+    ancestors: { label: string; path: string; id: string }[] = []
+): { item: DashboardNavItem; breadcrumbs: BreadcrumbTrailItem[]; parentIds: string[] } | null {
+    for (const item of items) {
+        const currentTrail = [...ancestors, { label: item.label, path: item.path, id: item.id }];
+
+        if (item.children && item.children.length > 0) {
+            const childResult = findNavTrail(item.children, pathname, currentTrail);
+            if (childResult) {
+                return childResult;
+            }
+        }
+
+        if (item.path === pathname) {
+            return {
+                item,
+                breadcrumbs: currentTrail.map((b) => ({ label: b.label, path: b.path })),
+                parentIds: ancestors.map((a) => a.id),
+            };
+        }
+    }
+    return null;
+}

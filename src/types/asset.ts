@@ -1,31 +1,99 @@
 // src/types/asset.ts
-export type AssetCategory = "ui_kit" | "font" | "3d_model" | "template" | "icon_set";
 
-export type AssetStatus = "draft" | "published" | "archived";
+export type TierType = "personal" | "commercial" | "extended";
+export type AssetStatus = "draft" | "under_review" | "published" | "archived";
+export type MediaType = "thumbnail" | "screenshot" | "preview_audio" | "preview_video";
 
-export type LicenseType = "personal" | "commercial" | "extended";
+export interface AssetTier {
+  id: string;
+  asset_id?: string;
+  tier_type: TierType;
+  price: number | string;
+  license_terms_summary?: string;
+}
+
+export interface AssetMedia {
+  id: string;
+  asset_id: string;
+  media_type: MediaType;
+  storage_key: string;
+  display_order: number;
+  file_name?: string;
+  file_size_bytes?: number;
+  mime_type?: string;
+  url?: string;
+}
+
+export interface AssetFile {
+  id: string;
+  asset_id: string;
+  version: string;
+  file_name: string;
+  file_size_bytes?: number;
+  file_checksum_sha256?: string;
+  manifest_tree?: unknown[];
+  created_at?: string;
+}
 
 export interface DigitalAsset {
-    id: string;
-    sellerId: string;
-    title: string;
+  id: string;
+  seller_id: string;
+  category_id: number;
+  title: string;
+  slug: string;
+  short_description: string;
+  full_description: string;
+  status: AssetStatus;
+  tags: string[];
+  technical_specs: Record<string, unknown>;
+  view_count: number;
+  download_count: number;
+  created_at: string;
+  updated_at: string;
+  category?: {
+    id: number;
+    name: string;
     slug: string;
-    description: string;
-    priceCents: number;
-    currency: string;
-    category: AssetCategory;
-    tags: string[];
-    thumbnailUrl: string;
-    previewUrls: string[];
-    fileSizeInBytes: number;
-    fileFormat: string;
-    version: string;
-    ratingAverage: number;
-    reviewsCount: number;
-    salesCount: number;
-    status: AssetStatus;
-    createdAt: string;
-    updatedAt: string;
-    seller?: import("@/types/user.ts").SellerProfile;
-    sellerProfile?: import("@/types/user.ts").SellerProfile;
+  };
+  seller?: {
+    id: string;
+    name: string;
+    email: string;
+    avatarUrl?: string;
+    storeName?: string;
+    headline?: string;
+    rating?: number;
+    totalSales?: number;
+    verified?: boolean;
+  };
+  tiers: AssetTier[];
+  media?: AssetMedia[];
+  files?: AssetFile[];
+  min_price?: number;
+
+  // Compatibility helpers
+  sellerProfile?: import("@/types/user.ts").SellerProfile;
+  thumbnailUrl?: string;
+  previewUrls?: string[];
+  priceCents?: number;
+  currency?: string;
+  description?: string;
+  ratingAverage?: number;
+  reviewsCount?: number;
+  salesCount?: number;
+  fileFormat?: string;
+  fileSizeInBytes?: number;
+  version?: string;
 }
+
+export interface AssetListResponse {
+  items: DigitalAsset[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+// Aliases for backward compatibility
+export type LicenseType = TierType;
+export type AssetCategory = string;

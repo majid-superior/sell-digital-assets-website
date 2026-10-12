@@ -179,7 +179,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                             <button
                                 type="button"
                                 onClick={() => signOut()}
-                                className="px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium text-on-surface-variant hover:text-error hover:bg-surface-container-high transition-colors cursor-pointer"
+                                className="px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer"
                             >
                                 Sign Out
                             </button>
@@ -302,7 +302,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                                         closeMobileMenu();
                                         signOut();
                                     }}
-                                    className="w-full py-2.5 text-center text-sm font-medium text-error hover:bg-surface-container-high rounded-lg transition-colors cursor-pointer"
+                                    className="w-full py-2.5 text-center text-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-colors cursor-pointer"
                                 >
                                     Sign Out
                                 </button>

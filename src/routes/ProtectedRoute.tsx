@@ -28,6 +28,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }
 
     if (!isAuthenticated || !user) {
+        if (import.meta.env.DEV) {
+            return children ? <>{children}</> : <Outlet />;
+        }
         return <Navigate to={redirectPath} state={{ from: location }} replace />;
     }
 

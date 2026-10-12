@@ -4,7 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { AssetCard } from "@/components/common/AssetCard.tsx";
 import { Icons } from "@/lib/icons/index.ts";
-import { Button, EmptyState, Skeleton, Spinner } from "@/components/ui/index.ts";
+import { Button, EmptyState, Skeleton } from "@/components/ui/index.ts";
 import { useDebounce } from "@/hooks/useDebounce.ts";
 import { useCategories } from "@/hooks/useCategories.ts";
 import { assetService } from "@/services/v1/assetService.ts";
@@ -15,8 +15,8 @@ import type { DigitalAsset } from "@/types/asset.ts";
 const ALL_CATEGORIES = "all";
 
 const SORT_OPTIONS = [
-    { label: "Most Popular", value: "popular" },
     { label: "Newest First", value: "newest" },
+    { label: "Most Popular", value: "popular" },
     { label: "Price: Low to High", value: "price_asc" },
     { label: "Price: High to Low", value: "price_desc" },
 ];
@@ -24,12 +24,22 @@ const SORT_OPTIONS = [
 export const ExplorePage: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const queryParam = searchParams.get("q") || "";
-    // Category & sort are read straight from the URL so navbar links always re-filter
     const selectedCategory = searchParams.get("category") || ALL_CATEGORIES;
-    const sortBy = searchParams.get("sort") || "popular";
+    const sortBy = searchParams.get("sort") || "newest";
+    const pageParam = parseInt(searchParams.get("page") || "1", 10);
+    const priceMinParam = searchParams.get("priceMin") || "";
+    const priceMaxParam = searchParams.get("priceMax") || "";
 
     const [searchQuery, setSearchQuery] = useState(queryParam);
     const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+    const [priceMin, setPriceMin] = useState(priceMinParam);
+    const [priceMax, setPriceMax] = useState(priceMaxParam);
+    const debouncedPriceMin = useDebounce(priceMin, 400);
+    const debouncedPriceMax = useDebounce(priceMax, 400);
+
+    const currentPage = isNaN(pageParam) || pageParam < 1 ? 1 : pageParam;
+    const limit = 12;
 
     const { categories, isLoading: categoriesLoading } = useCategories();
     const categoryMatch = useMemo(
@@ -40,61 +50,82 @@ export const ExplorePage: React.FC = () => {
     const activeRoot = categoryMatch ? (categoryMatch.ancestors[0] ?? categoryMatch.node) : null;
     const activeSub = categoryMatch ? (categoryMatch.ancestors[1] ?? (categoryMatch.node.depth >= 1 ? categoryMatch.node : null)) : null;
 
-    const updateParam = (key: string, value: string | null) => {
+    const updateParam = React.useCallback((updates: Record<string, string | null>) => {
         setSearchParams(
             (prev) => {
                 const next = new URLSearchParams(prev);
-                if (value) next.set(key, value);
-                else next.delete(key);
+                for (const [key, value] of Object.entries(updates)) {
+                    if (value !== null && value !== "") {
+                        next.set(key, value);
+                    } else {
+                        next.delete(key);
+                    }
+                }
                 return next;
             },
             { replace: true }
         );
+    }, [setSearchParams]);
+
+    const setSelectedCategory = (slug: string) => {
+        updateParam({ category: slug === ALL_CATEGORIES ? null : slug, page: "1" });
     };
 
-    const setSelectedCategory = (slug: string) =>
-        updateParam("category", slug === ALL_CATEGORIES ? null : slug);
-    const setSortBy = (value: string) => updateParam("sort", value === "popular" ? null : value);
+    const setSortBy = (value: string) => {
+        updateParam({ sort: value === "newest" ? null : value, page: "1" });
+    };
 
-    // Live query via AssetService with Query Key Factory
+    const handlePageChange = (newPage: number) => {
+        updateParam({ page: newPage === 1 ? null : String(newPage) });
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    // Synchronize debounced filters to URL
+    useEffect(() => {
+        const trimmed = debouncedSearchQuery.trim();
+        updateParam({
+            q: trimmed || null,
+            priceMin: debouncedPriceMin ? debouncedPriceMin : null,
+            priceMax: debouncedPriceMax ? debouncedPriceMax : null,
+        });
+    }, [debouncedSearchQuery, debouncedPriceMin, debouncedPriceMax, updateParam]);
+
+    // Live query via AssetService
     const filterParams = useMemo(() => ({
-        category: selectedCategory === ALL_CATEGORIES ? undefined : selectedCategory,
+        categorySlug: selectedCategory === ALL_CATEGORIES ? undefined : selectedCategory,
         q: debouncedSearchQuery.trim() || undefined,
+        priceMin: debouncedPriceMin ? Number(debouncedPriceMin) : undefined,
+        priceMax: debouncedPriceMax ? Number(debouncedPriceMax) : undefined,
         sort: sortBy as "popular" | "newest" | "price_asc" | "price_desc",
-    }), [selectedCategory, debouncedSearchQuery, sortBy]);
+        page: currentPage,
+        limit,
+    }), [selectedCategory, debouncedSearchQuery, debouncedPriceMin, debouncedPriceMax, sortBy, currentPage]);
 
-    const { data: apiResponse, isLoading } = useQuery({
+    const { data: apiResponse, isLoading, isFetching } = useQuery({
         queryKey: queryKeys.assets.list({
             category: selectedCategory,
             q: debouncedSearchQuery,
+            priceMin: debouncedPriceMin,
+            priceMax: debouncedPriceMax,
             sort: sortBy,
+            page: currentPage,
+            limit,
         }),
         queryFn: () => assetService.getAssets(filterParams),
-        staleTime: 1000 * 60 * 5,
+        staleTime: 1000 * 60 * 3,
     });
 
-    // Synchronize the debounced keyword into the URL (other params are preserved)
-    useEffect(() => {
-        const trimmed = debouncedSearchQuery.trim();
-        setSearchParams(
-            (prev) => {
-                if ((prev.get("q") || "") === trimmed) return prev;
-                const next = new URLSearchParams(prev);
-                if (trimmed) next.set("q", trimmed);
-                else next.delete("q");
-                return next;
-            },
-            { replace: true }
-        );
-    }, [debouncedSearchQuery, setSearchParams]);
-
-    // Live API results with no mock fallback
-    const filteredAssets: DigitalAsset[] = useMemo(() => {
+    const assets: DigitalAsset[] = useMemo(() => {
         return apiResponse?.items || [];
     }, [apiResponse]);
 
+    const totalCount = apiResponse?.total ?? assets.length;
+    const totalPages = Math.max(1, apiResponse?.totalPages ?? Math.ceil(totalCount / limit));
+
     const handleResetFilters = () => {
         setSearchQuery("");
+        setPriceMin("");
+        setPriceMax("");
         setSearchParams(new URLSearchParams(), { replace: true });
     };
 
@@ -120,7 +151,7 @@ export const ExplorePage: React.FC = () => {
             </div>
 
             {/* Filter & Control Bar */}
-            <div className="flex flex-col md:flex-row gap-4 justify-between items-stretch md:items-center bg-surface-container-low p-4 rounded-2xl border border-outline-variant/30">
+            <div className="flex flex-col lg:flex-row gap-4 justify-between items-stretch lg:items-center bg-surface-container-low p-4 rounded-2xl border border-outline-variant/30">
                 {/* Search Input */}
                 <div className="relative flex-1 max-w-md">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-on-surface-variant">
@@ -144,6 +175,28 @@ export const ExplorePage: React.FC = () => {
                     )}
                 </div>
 
+                {/* Price Range Filter Inputs */}
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-on-surface-variant shrink-0">Price ($):</span>
+                    <input
+                        type="number"
+                        min="0"
+                        value={priceMin}
+                        onChange={(e) => setPriceMin(e.target.value)}
+                        placeholder="Min"
+                        className="w-16 px-2 py-1.5 text-xs rounded-lg bg-surface border border-outline-variant/40 text-on-surface focus:outline-hidden focus:border-primary text-center"
+                    />
+                    <span className="text-xs text-on-surface-variant">-</span>
+                    <input
+                        type="number"
+                        min="0"
+                        value={priceMax}
+                        onChange={(e) => setPriceMax(e.target.value)}
+                        placeholder="Max"
+                        className="w-16 px-2 py-1.5 text-xs rounded-lg bg-surface border border-outline-variant/40 text-on-surface focus:outline-hidden focus:border-primary text-center"
+                    />
+                </div>
+
                 {/* Sort Dropdown */}
                 <div className="flex items-center gap-2">
                     <label htmlFor="sort-select" className="text-xs font-semibold text-on-surface-variant shrink-0">
@@ -164,7 +217,7 @@ export const ExplorePage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Category Filter Pills (live active root categories) */}
+            {/* Category Filter Pills */}
             <div className="space-y-3">
                 <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
                     {categoriesLoading ? (
@@ -197,7 +250,7 @@ export const ExplorePage: React.FC = () => {
                 </div>
 
                 {/* Subcategory pills for the selected root */}
-                {activeRoot && activeRoot.children.length > 0 && (
+                {activeRoot && activeRoot.children && activeRoot.children.length > 0 && (
                     <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
                         {activeRoot.children.map((sub) => {
                             const isSelected = activeSub?.id === sub.id;
@@ -224,25 +277,40 @@ export const ExplorePage: React.FC = () => {
             {/* Active Filters Summary */}
             <div className="flex items-center justify-between text-xs text-on-surface-variant">
                 <span>
-                    Showing <strong className="text-on-surface">{filteredAssets.length}</strong>{" "}
-                    {filteredAssets.length === 1 ? "asset" : "assets"}
+                    Showing <strong className="text-on-surface">{assets.length}</strong> of{" "}
+                    <strong className="text-on-surface">{totalCount}</strong> assets (Page {currentPage} of {totalPages})
                 </span>
 
-                {(searchQuery || selectedCategory !== ALL_CATEGORIES || sortBy !== "popular") && (
-                    <Button variant="ghost" size="sm" onClick={handleResetFilters} className="text-xs">
+                {(searchQuery || selectedCategory !== ALL_CATEGORIES || sortBy !== "newest" || priceMin || priceMax) && (
+                    <Button variant="ghost" size="sm" onClick={handleResetFilters} className="text-xs cursor-pointer">
                         Reset All Filters
                     </Button>
                 )}
             </div>
 
-            {/* Assets Grid */}
+            {/* Assets Grid with Zero Layout Shift (CLS = 0) */}
             {isLoading ? (
-                <div className="flex justify-center py-16">
-                    <Spinner size="lg" aria-label="Loading marketplace assets" />
-                </div>
-            ) : filteredAssets.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredAssets.map((asset) => (
+                    {Array.from({ length: 6 }, (_, i) => (
+                        <div key={i} className="rounded-2xl border border-outline-variant/30 overflow-hidden bg-surface flex flex-col">
+                            <Skeleton variant="rectangular" className="aspect-16/10 w-full" />
+                            <div className="p-5 space-y-3 flex-1 flex flex-col justify-between">
+                                <div className="space-y-2">
+                                    <Skeleton variant="text" width="40%" height={14} />
+                                    <Skeleton variant="text" width="80%" height={20} />
+                                    <Skeleton variant="text" width="100%" height={14} />
+                                </div>
+                                <div className="pt-3 border-t border-outline-variant/20 flex justify-between items-center">
+                                    <Skeleton variant="text" width="25%" height={16} />
+                                    <Skeleton variant="rectangular" width={40} height={40} className="rounded-xl" />
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : assets.length > 0 ? (
+                <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 ${isFetching ? "opacity-75 transition-opacity" : ""}`}>
+                    {assets.map((asset) => (
                         <AssetCard key={asset.id} asset={asset} />
                     ))}
                 </div>
@@ -255,15 +323,42 @@ export const ExplorePage: React.FC = () => {
                                 ? `We couldn't find any assets matching your criteria "${searchQuery}". Try searching for different terms or reset your filters.`
                                 : isCategoryInactive
                                 ? "This category is currently inactive or does not exist."
-                                : "There are currently no assets listed in this category."
+                                : "There are currently no assets listed matching your selected criteria."
                         }
                         icon={<Icons.Search size={36} />}
                         action={
-                            <Button variant="primary" size="md" onClick={handleResetFilters}>
+                            <Button variant="primary" size="md" onClick={handleResetFilters} className="cursor-pointer">
                                 View All Assets
                             </Button>
                         }
                     />
+                </div>
+            )}
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 pt-6 border-t border-outline-variant/20">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage <= 1}
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        className="cursor-pointer"
+                    >
+                        <Icons.Back size={14} className="mr-1" /> Previous
+                    </Button>
+                    <div className="flex items-center gap-1 px-3 text-xs font-semibold text-on-surface">
+                        <span>Page {currentPage} of {totalPages}</span>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage >= totalPages}
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        className="cursor-pointer"
+                    >
+                        Next <Icons.Next size={14} className="ml-1" />
+                    </Button>
                 </div>
             )}
         </div>

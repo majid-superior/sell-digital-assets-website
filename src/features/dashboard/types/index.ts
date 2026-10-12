@@ -12,6 +12,7 @@ export interface DashboardNavItem {
     badgeVariant?: NavBadgeVariant;
     roles?: UserRole[];
     exact?: boolean;
+    children?: DashboardNavItem[];
 }
 
 export interface DashboardNavSection {
@@ -24,23 +25,7 @@ export interface DashboardNavigationResponse {
     sections: DashboardNavSection[];
 }
 
-export interface StatItem {
-    id: string;
+export interface BreadcrumbTrailItem {
     label: string;
-    value: string | number;
-    change?: string;
-    changeType?: "positive" | "negative" | "neutral";
-    icon: string;
-    description?: string;
+    path: string;
 }
-
-export interface RecentActivityItem {
-    id: string;
-    title: string;
-    subtitle: string;
-    date: string;
-    amount?: string;
-    status: "completed" | "pending" | "processing" | "refunded";
-    downloadUrl?: string;
-}
-

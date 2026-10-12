@@ -1,11 +1,13 @@
 // src/routes/AppRoutes.tsx
 import React, { Suspense, lazy } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "@/layouts/website/index.tsx";
 import Page from "@/layouts/website/page.tsx";
 import { Spinner } from "@/components/ui/Spinner.tsx";
 
 import ProtectedRoute from "@/routes/ProtectedRoute.tsx";
+import { useAuth } from "@/hooks/useAuth.ts";
+import { getUserPortalAccess } from "@/features/dashboard/utils/navigationHelper.ts";
 
 const HomePage = lazy(() => import("@/features/website/pages/HomePage.tsx"));
 const SignInPage = lazy(() => import("@/layouts/website/pages/signIn.tsx"));
@@ -17,12 +19,22 @@ const AssetDetailPage = lazy(() => import("@/features/website/pages/AssetDetailP
 
 // Dashboard feature routes
 const DashboardLayout = lazy(() => import("@/features/dashboard/layouts/DashboardLayout.tsx"));
-const DashboardOverviewPage = lazy(() => import("@/features/dashboard/pages/DashboardOverviewPage.tsx"));
-const PurchasesPage = lazy(() => import("@/features/dashboard/pages/PurchasesPage.tsx"));
-const ProductsPage = lazy(() => import("@/features/dashboard/pages/ProductsPage.tsx"));
-const OrdersPage = lazy(() => import("@/features/dashboard/pages/OrdersPage.tsx"));
-const SalesPage = lazy(() => import("@/features/dashboard/pages/SalesPage.tsx"));
-const SettingsPage = lazy(() => import("@/features/dashboard/pages/SettingsPage.tsx"));
+const EmptyDashboardPage = lazy(() => import("@/features/dashboard/pages/EmptyDashboardPage.tsx"));
+
+// Seller and Buyer Portal pages
+const SellerProductsPage = lazy(() => import("@/features/dashboard/pages/seller/SellerProductsPage.tsx"));
+const SellerProductWizardPage = lazy(() => import("@/features/dashboard/pages/seller/SellerProductWizardPage.tsx"));
+const BuyerDownloadsPage = lazy(() => import("@/features/dashboard/pages/buyer/BuyerDownloadsPage.tsx"));
+const BuyerLicensesPage = lazy(() => import("@/features/dashboard/pages/buyer/BuyerLicensesPage.tsx"));
+
+const DashboardIndexRedirect: React.FC = () => {
+    const { user } = useAuth();
+    const access = getUserPortalAccess(user);
+    const targetPath = access.defaultPortal === "seller"
+        ? "/dashboard/seller/overview"
+        : "/dashboard/buyer/library/downloads";
+    return <Navigate to={targetPath} replace />;
+};
 
 const RouteLoadingFallback = () => (
     <div className="min-h-[60vh] flex items-center justify-center bg-background text-on-surface">
@@ -47,12 +59,54 @@ export const AppRoutes: React.FC = () => {
                     {/* Authenticated Dashboard Routes (Both Seller & Buyer) */}
                     <Route element={<ProtectedRoute />}>
                         <Route path="/dashboard" element={<DashboardLayout />}>
-                            <Route index element={<DashboardOverviewPage />} />
-                            <Route path="purchases" element={<PurchasesPage />} />
-                            <Route path="products" element={<ProductsPage />} />
-                            <Route path="orders" element={<OrdersPage />} />
-                            <Route path="sales" element={<SalesPage />} />
-                            <Route path="settings" element={<SettingsPage />} />
+                            <Route index element={<DashboardIndexRedirect />} />
+
+                            {/* Seller Portal Routes */}
+                            <Route path="seller" element={<Navigate to="/dashboard/seller/overview" replace />} />
+                            <Route path="seller/overview" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Overview" />} />
+                            <Route path="seller/products" element={<Navigate to="/dashboard/seller/products/all" replace />} />
+                            <Route path="seller/products/all" element={<SellerProductsPage />} />
+                            <Route path="seller/products/new" element={<SellerProductWizardPage />} />
+                            <Route path="seller/products/upload" element={<Navigate to="/dashboard/seller/products/upload/files" replace />} />
+                            <Route path="seller/products/upload/files" element={<SellerProductWizardPage />} />
+                            <Route path="seller/products/edit/:id" element={<SellerProductWizardPage />} />
+                            <Route path="seller/products/upload/media" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Media" />} />
+                            <Route path="seller/products/upload/licenses" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Licenses" />} />
+                            <Route path="seller/products/bundles" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Bundles" />} />
+                            <Route path="seller/products/coupons" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Coupons" />} />
+                            <Route path="seller/sales" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Sales" />} />
+                            <Route path="seller/reviews" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Reviews" />} />
+                            <Route path="seller/disputes" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Disputes" />} />
+                            <Route path="seller/payouts" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Payouts" />} />
+                            <Route path="seller/analytics" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Analytics" />} />
+                            <Route path="seller/settings" element={<Navigate to="/dashboard/seller/settings/profile" replace />} />
+                            <Route path="seller/settings/profile" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Profile" />} />
+                            <Route path="seller/settings/alerts" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Alerts" />} />
+                            <Route path="seller/settings/payouts" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Payouts" />} />
+
+                            {/* Buyer Portal Routes */}
+                            <Route path="buyer" element={<Navigate to="/dashboard/buyer/library/downloads" replace />} />
+                            <Route path="buyer/library" element={<Navigate to="/dashboard/buyer/library/downloads" replace />} />
+                            <Route path="buyer/library/downloads" element={<BuyerDownloadsPage />} />
+                            <Route path="buyer/library/keys" element={<BuyerLicensesPage />} />
+                            <Route path="buyer/orders" element={<EmptyDashboardPage portalName="Buyer Portal" customTitle="Orders" />} />
+                            <Route path="buyer/invoices" element={<EmptyDashboardPage portalName="Buyer Portal" customTitle="Invoices" />} />
+                            <Route path="buyer/payments" element={<EmptyDashboardPage portalName="Buyer Portal" customTitle="Payments" />} />
+                            <Route path="buyer/reviews" element={<EmptyDashboardPage portalName="Buyer Portal" customTitle="Reviews" />} />
+                            <Route path="buyer/disputes" element={<EmptyDashboardPage portalName="Buyer Portal" customTitle="Disputes" />} />
+                            <Route path="buyer/refunds" element={<EmptyDashboardPage portalName="Buyer Portal" customTitle="Refunds" />} />
+                            <Route path="buyer/settings" element={<Navigate to="/dashboard/buyer/settings/profile" replace />} />
+                            <Route path="buyer/settings/profile" element={<EmptyDashboardPage portalName="Buyer Portal" customTitle="Profile" />} />
+                            <Route path="buyer/settings/security" element={<EmptyDashboardPage portalName="Buyer Portal" customTitle="Security" />} />
+                            <Route path="buyer/settings/alerts" element={<EmptyDashboardPage portalName="Buyer Portal" customTitle="Alerts" />} />
+
+                            {/* Direct Aliases */}
+                            <Route path="overview" element={<Navigate to="/dashboard/seller/overview" replace />} />
+                            <Route path="purchases" element={<Navigate to="/dashboard/buyer/library/downloads" replace />} />
+                            <Route path="products" element={<Navigate to="/dashboard/seller/products/all" replace />} />
+                            <Route path="orders" element={<Navigate to="/dashboard/buyer/orders" replace />} />
+                            <Route path="sales" element={<Navigate to="/dashboard/seller/sales" replace />} />
+                            <Route path="settings" element={<Navigate to="/dashboard/seller/settings/profile" replace />} />
                         </Route>
                     </Route>
 
@@ -76,4 +130,3 @@ export const AppRoutes: React.FC = () => {
 };
 
 export default AppRoutes;
-

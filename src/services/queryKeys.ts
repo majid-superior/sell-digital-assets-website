@@ -13,7 +13,7 @@ export const queryKeys = {
     assets: {
         all: ["assets"] as const,
         lists: () => [...queryKeys.assets.all, "list"] as const,
-        list: (filters: Record<string, string | number | boolean> = {}) =>
+        list: (filters: Record<string, string | number | boolean | undefined> = {}) =>
             [...queryKeys.assets.lists(), filters] as const,
         details: () => [...queryKeys.assets.all, "detail"] as const,
         detail: (idOrSlug: string) =>
@@ -21,10 +21,25 @@ export const queryKeys = {
         featured: () => [...queryKeys.assets.all, "featured"] as const,
         bySeller: (sellerId: string) =>
             [...queryKeys.assets.all, "seller", sellerId] as const,
+        sellerLists: () => [...queryKeys.assets.all, "seller-list"] as const,
+        sellerList: (params: Record<string, string | number | boolean | undefined> = {}) =>
+            [...queryKeys.assets.sellerLists(), params] as const,
+        sellerDetails: () => [...queryKeys.assets.all, "seller-detail"] as const,
+        sellerDetail: (id: string) =>
+            [...queryKeys.assets.sellerDetails(), id] as const,
     },
     categories: {
         all: ["categories"] as const,
         tree: () => [...queryKeys.categories.all, "tree"] as const,
+    },
+    licenses: {
+        all: ["licenses"] as const,
+        details: () => [...queryKeys.licenses.all, "detail"] as const,
+        detail: (key: string) => [...queryKeys.licenses.details(), key] as const,
+    },
+    downloads: {
+        all: ["downloads"] as const,
+        history: () => [...queryKeys.downloads.all, "history"] as const,
     },
     dashboard: {
         all: ["dashboard"] as const,

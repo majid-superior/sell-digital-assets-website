@@ -4,22 +4,23 @@ import { Link, useLocation } from "react-router-dom";
 import { Icons } from "@/lib/icons/index.ts";
 import { useTheme } from "@/hooks/useTheme.ts";
 import { useAuth } from "@/hooks/useAuth.ts";
+import { SELLER_NAV_ITEMS, BUYER_NAV_ITEMS } from "../services/dashboardNavigationService.ts";
+import { findNavTrail } from "../utils/navigationHelper.ts";
 
 export interface DashboardHeaderProps {
     onMenuClick: () => void;
     title?: string;
 }
 
-const getBreadcrumbTitle = (pathname: string, userRole?: string): string => {
-    if (pathname === "/dashboard" || pathname === "/dashboard/") {
-        return userRole === "seller" ? "Seller Dashboard" : "Buyer Dashboard";
-    }
-    if (pathname.includes("/purchases")) return "My Purchases & Downloads";
-    if (pathname.includes("/products")) return "My Digital Products";
-    if (pathname.includes("/sales")) return "Sales & Financial Analytics";
-    if (pathname.includes("/orders")) return "Orders & Invoices";
-    if (pathname.includes("/settings")) return "Account & Store Settings";
-    return "Dashboard";
+const getBreadcrumbTitle = (pathname: string): { portalLabel: string; pageTitle: string } => {
+    const isSeller = pathname.includes("/seller");
+    const portalLabel = isSeller ? "Seller Portal" : "Buyer Portal";
+    const items = isSeller ? SELLER_NAV_ITEMS : BUYER_NAV_ITEMS;
+
+    const navInfo = findNavTrail(items, pathname);
+    const pageTitle = navInfo?.item.label || (pathname === "/dashboard" ? "Portal Overview" : "Dashboard");
+
+    return { portalLabel, pageTitle };
 };
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
@@ -27,10 +28,11 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     title,
 }) => {
     const { theme, toggleTheme } = useTheme();
-    const { user } = useAuth();
+    const { user, signOut } = useAuth();
     const location = useLocation();
 
-    const displayTitle = title || getBreadcrumbTitle(location.pathname, user?.role);
+    const { portalLabel, pageTitle } = getBreadcrumbTitle(location.pathname);
+    const displayTitle = title || pageTitle;
     const userInitial = (user?.displayName || user?.name || user?.email || "U").charAt(0).toUpperCase();
 
     return (
@@ -47,12 +49,12 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                 </button>
 
                 <div className="min-w-0">
-                    <div className="flex items-center gap-2 text-xs text-on-surface-variant">
+                    <div className="flex items-center gap-1.5 text-xs text-on-surface-variant">
                         <Link to="/" className="hover:text-primary transition-colors">
                             Home
                         </Link>
                         <span>/</span>
-                        <span className="text-on-surface font-medium truncate">Dashboard</span>
+                        <span className="text-primary font-medium">{portalLabel}</span>
                     </div>
                     <h1 className="text-base sm:text-lg font-bold text-on-surface truncate">
                         {displayTitle}
@@ -103,6 +105,15 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                     <span className="hidden sm:inline-block text-xs font-medium text-on-surface max-w-[120px] truncate">
                         {user?.displayName || user?.name || "User"}
                     </span>
+                    <button
+                        type="button"
+                        onClick={() => signOut()}
+                        title="Sign Out"
+                        aria-label="Sign Out"
+                        className="px-2.5 py-1 rounded-full text-xs font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer"
+                    >
+                        Sign Out
+                    </button>
                 </div>
             </div>
         </header>
@@ -110,4 +121,3 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 };
 
 export default DashboardHeader;
-

@@ -20,6 +20,8 @@ export interface User {
     displayName: string;
     name?: string;
     role: UserRole;
+    roles?: string[];
+    role_id?: number;
     avatarUrl?: string;
     sellerProfile?: SellerProfile;
     createdAt: string;

@@ -1,10 +1,43 @@
-// src/features/dashboard/components/DashboardSidenav.tsx
-import React from "react";
-import { Link, NavLink, useLocation } from "react-router-dom";
-import { Icons, type IconComponent } from "@/lib/icons/index.ts";
-import { Badge, Skeleton } from "@/components/ui/index.ts";
+import React, { useState, useMemo } from "react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import {
+    LayoutDashboard,
+    Package,
+    Layers,
+    UploadCloud,
+    FileText,
+    Image as ImageIcon,
+    ShieldCheck,
+    Boxes,
+    Tag,
+    TrendingUp,
+    Star,
+    AlertCircle,
+    Wallet,
+    BarChart3,
+    Settings,
+    User,
+    Bell,
+    CreditCard,
+    Library,
+    Download,
+    KeyRound,
+    ShoppingBag,
+    Receipt,
+    RotateCcw,
+    Shield,
+    ChevronRight,
+    Store,
+    Compass,
+    LogOut,
+    X,
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.ts";
-import { useDashboardNavigation } from "../hooks/useDashboardNavigation.ts";
+import {
+    SELLER_NAV_ITEMS,
+    BUYER_NAV_ITEMS,
+} from "../services/dashboardNavigationService.ts";
+import { getUserPortalAccess } from "../utils/navigationHelper.ts";
 import type { DashboardNavItem } from "../types/index.ts";
 
 export interface DashboardSidenavProps {
@@ -13,35 +46,176 @@ export interface DashboardSidenavProps {
     className?: string;
 }
 
-const resolveNavIcon = (iconName: string): IconComponent => {
-    switch (iconName.toLowerCase()) {
-        case "dashboard":
-        case "layoutdashboard":
-            return Icons.Dashboard;
-        case "download":
-        case "purchases":
-            return Icons.Download;
-        case "package":
-        case "products":
-            return Icons.Package;
-        case "analytics":
-        case "trendingup":
-        case "sales":
-            return Icons.Analytics;
-        case "creditcard":
-        case "payouts":
-            return Icons.CreditCard;
-        case "settings":
-            return Icons.Settings;
-        case "filetext":
-        case "orders":
-            return Icons.FileText;
-        case "heart":
-        case "wishlist":
-            return Icons.Heart;
+const resolveIcon = (iconName: string): React.ComponentType<{ size?: number; className?: string }> => {
+    switch (iconName) {
+        case "LayoutDashboard":
+            return LayoutDashboard;
+        case "Package":
+            return Package;
+        case "Layers":
+            return Layers;
+        case "UploadCloud":
+            return UploadCloud;
+        case "FileText":
+            return FileText;
+        case "Image":
+            return ImageIcon;
+        case "ShieldCheck":
+            return ShieldCheck;
+        case "Boxes":
+            return Boxes;
+        case "Tag":
+            return Tag;
+        case "TrendingUp":
+            return TrendingUp;
+        case "Star":
+            return Star;
+        case "AlertCircle":
+            return AlertCircle;
+        case "Wallet":
+            return Wallet;
+        case "BarChart3":
+            return BarChart3;
+        case "Settings":
+            return Settings;
+        case "User":
+            return User;
+        case "Bell":
+            return Bell;
+        case "CreditCard":
+            return CreditCard;
+        case "Library":
+            return Library;
+        case "Download":
+            return Download;
+        case "KeyRound":
+            return KeyRound;
+        case "ShoppingBag":
+            return ShoppingBag;
+        case "Receipt":
+            return Receipt;
+        case "RotateCcw":
+            return RotateCcw;
+        case "Shield":
+            return Shield;
         default:
-            return Icons.Categories;
+            return Package;
     }
+};
+
+const SidenavIcon: React.FC<{ icon?: string; size?: number; className?: string }> = ({ icon, size = 16, className = "" }) =>
+    React.createElement(resolveIcon(icon || ""), { size, className });
+
+interface TreeRowProps {
+    item: DashboardNavItem;
+    depth?: number;
+    expandedKeys: Record<string, boolean>;
+    toggleExpanded: (id: string) => void;
+    onClose?: () => void;
+}
+
+const TreeRow: React.FC<TreeRowProps> = ({
+    item,
+    depth = 0,
+    expandedKeys,
+    toggleExpanded,
+    onClose,
+}) => {
+    const location = useLocation();
+    const hasChildren = Boolean(item.children && item.children.length > 0);
+    const isExpanded = Boolean(expandedKeys[item.id]);
+
+    const isChildActive = (children?: DashboardNavItem[]): boolean => {
+        if (!children) return false;
+        return children.some(
+            (child) => location.pathname === child.path || isChildActive(child.children)
+        );
+    };
+
+    const isActive = location.pathname === item.path;
+    const hasActiveChild = hasChildren && isChildActive(item.children);
+
+    const depthPadding = depth === 0 ? "pl-3" : depth === 1 ? "pl-7" : "pl-11";
+
+    if (hasChildren) {
+        return (
+            <div className="w-full select-none space-y-0.5">
+                <button
+                    type="button"
+                    onClick={() => toggleExpanded(item.id)}
+                    className={`w-full flex items-center justify-between py-2 pr-3 rounded-xl text-xs font-medium transition-colors cursor-pointer ${depthPadding} ${
+                        hasActiveChild
+                            ? "bg-surface-container-high text-on-surface font-semibold"
+                            : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60"
+                    }`}
+                >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                        <SidenavIcon
+                            icon={item.icon}
+                            size={16}
+                            className={`shrink-0 ${hasActiveChild ? "text-primary" : "text-on-surface-variant"}`}
+                        />
+                        <span className="truncate">{item.label}</span>
+                    </div>
+                    <ChevronRight
+                        size={14}
+                        className={`text-on-surface-variant shrink-0 transition-transform duration-200 ${
+                            isExpanded ? "rotate-90 text-on-surface" : ""
+                        }`}
+                    />
+                </button>
+
+                {isExpanded && (
+                    <div className="relative space-y-0.5 mt-0.5">
+                        <div
+                            className="absolute top-1 bottom-1 w-px bg-outline-variant/30"
+                            style={{ left: depth === 0 ? "19px" : depth === 1 ? "35px" : "51px" }}
+                        />
+                        {item.children!.map((child) => (
+                            <TreeRow
+                                key={child.id}
+                                depth={depth + 1}
+                                item={child}
+                                expandedKeys={expandedKeys}
+                                toggleExpanded={toggleExpanded}
+                                onClose={onClose}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    return (
+        <NavLink
+            to={item.path}
+            end={item.exact}
+            onClick={onClose}
+            className={({ isActive: navActive }) => {
+                const active = item.exact ? navActive : isActive || navActive;
+                return `flex items-center justify-between py-2 pr-3 rounded-xl text-xs font-medium transition-all ${depthPadding} ${
+                    active
+                        ? "bg-primary text-on-primary font-semibold shadow-xs"
+                        : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60"
+                }`;
+            }}
+        >
+            {({ isActive: navActive }) => {
+                const active = item.exact ? navActive : isActive || navActive;
+                return (
+                    <div className="flex items-center gap-2.5 min-w-0">
+                        <SidenavIcon
+                            icon={item.icon}
+                            size={16}
+                            className={`shrink-0 ${active ? "text-on-primary" : "text-on-surface-variant"}`}
+                        />
+                        <span className="truncate">{item.label}</span>
+                    </div>
+                );
+            }}
+        </NavLink>
+    );
 };
 
 export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
@@ -49,18 +223,52 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
     className = "",
 }) => {
     const { user, signOut } = useAuth();
-    const { data: navData, isLoading } = useDashboardNavigation();
     const location = useLocation();
+    const navigate = useNavigate();
 
-    const roleLabel = user?.role === "seller" ? "Seller / Creator" : "Buyer / Collector";
-    const roleBadgeVariant = user?.role === "seller" ? "primary" : "secondary";
+    // Determine user portal capabilities based on database/auth roles
+    const access = useMemo(() => getUserPortalAccess(user, location.pathname), [user, location.pathname]);
 
-    const userInitial = (user?.displayName || user?.name || user?.email || "U").charAt(0).toUpperCase();
+    // Derive portal mode based on route and permissions
+    const portal: "seller" | "buyer" = useMemo(() => {
+        if (!access.hasBothRoles) {
+            return access.defaultPortal;
+        }
+        if (location.pathname.includes("/seller")) return "seller";
+        if (location.pathname.includes("/buyer")) return "buyer";
+        return access.defaultPortal;
+    }, [access, location.pathname]);
+
+    const [expandedKeys, setExpandedKeys] = useState<Record<string, boolean>>({
+        "seller-products": true,
+        "seller-products-upload": true,
+        "seller-settings": true,
+        "buyer-library": true,
+        "buyer-settings": true,
+    });
+
+    const toggleExpanded = (id: string) => {
+        setExpandedKeys((prev) => ({
+            ...prev,
+            [id]: !prev[id],
+        }));
+    };
+
+    const currentItems = portal === "seller" ? SELLER_NAV_ITEMS : BUYER_NAV_ITEMS;
+
+    const handleSwitchPortal = (newPortal: "seller" | "buyer") => {
+        if (newPortal === "seller") {
+            void navigate("/dashboard/seller/overview");
+        } else {
+            void navigate("/dashboard/buyer/library/downloads");
+        }
+        if (onClose) onClose();
+    };
 
     return (
         <aside
-            aria-label="Dashboard Sidebar"
-            className={`flex flex-col h-full bg-surface border-r border-outline-variant/30 text-on-surface transition-colors duration-200 ${className}`}
+            aria-label="Portal Side Navigation"
+            className={`flex flex-col h-full bg-surface border-r border-outline-variant/30 text-on-surface transition-colors duration-200 select-none ${className}`}
         >
             {/* 1. Header / Brand Bar */}
             <div className="h-16 px-5 flex items-center justify-between border-b border-outline-variant/30 shrink-0">
@@ -81,7 +289,6 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
                     </span>
                 </Link>
 
-                {/* Close Button for mobile drawer */}
                 {onClose && (
                     <button
                         type="button"
@@ -89,123 +296,105 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
                         aria-label="Close navigation sidebar"
                         className="lg:hidden p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer"
                     >
-                        <Icons.Close size={20} />
+                        <X size={20} />
                     </button>
                 )}
             </div>
 
-            {/* 2. User Info Card */}
-            <div className="p-4 mx-3 my-3 rounded-2xl bg-surface-container-low border border-outline-variant/20 flex items-center gap-3 shrink-0">
-                <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-base shrink-0 overflow-hidden border border-primary/20">
-                    {user?.avatarUrl ? (
-                        <img src={user.avatarUrl} alt={user.displayName} className="w-full h-full object-cover" />
-                    ) : (
-                        <span>{userInitial}</span>
-                    )}
-                </div>
-                <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                        <p className="text-sm font-semibold text-on-surface truncate">
-                            {user?.displayName || user?.name || "User"}
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                        <Badge variant={roleBadgeVariant} size="sm" className="text-[10px] px-1.5 py-0">
-                            {roleLabel}
-                        </Badge>
-                    </div>
-                </div>
-            </div>
+            {/* 2. Portal Header or Dual-Portal Switcher */}
+            {access.hasBothRoles ? (
+                <div className="p-3 border-b border-outline-variant/30 shrink-0">
+                    <div className="grid grid-cols-2 p-1 rounded-2xl bg-surface-container-low border border-outline-variant/30 gap-1">
+                        <button
+                            type="button"
+                            onClick={() => handleSwitchPortal("seller")}
+                            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                                portal === "seller"
+                                    ? "bg-primary text-on-primary shadow-xs"
+                                    : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60"
+                            }`}
+                        >
+                            <Store size={14} />
+                            <span>Seller Portal</span>
+                        </button>
 
-            {/* 3. Navigation Links List */}
-            <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-6">
-                {isLoading ? (
-                    <div className="space-y-3 px-1 py-2">
-                        <Skeleton className="h-3 w-20 mb-3" />
-                        <Skeleton className="h-10 w-full rounded-xl" />
-                        <Skeleton className="h-10 w-full rounded-xl" />
-                        <Skeleton className="h-10 w-full rounded-xl" />
-                        <Skeleton className="h-3 w-16 my-3" />
-                        <Skeleton className="h-10 w-full rounded-xl" />
+                        <button
+                            type="button"
+                            onClick={() => handleSwitchPortal("buyer")}
+                            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                                portal === "buyer"
+                                    ? "bg-primary text-on-primary shadow-xs"
+                                    : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60"
+                            }`}
+                        >
+                            <ShoppingBag size={14} />
+                            <span>Buyer Portal</span>
+                        </button>
                     </div>
-                ) : (
-                    navData?.sections.map((section) => (
-                        <div key={section.id} className="space-y-1">
-                            {section.title && (
-                                <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant/70 mb-2">
-                                    {section.title}
-                                </p>
-                            )}
-                            <div className="space-y-1">
-                                {section.items.map((item: DashboardNavItem) => {
-                                    const IconComp = resolveNavIcon(item.icon);
-                                    const isActive = item.exact
-                                        ? location.pathname === item.path
-                                        : location.pathname.startsWith(item.path);
-
-                                    return (
-                                        <NavLink
-                                            key={item.id}
-                                            to={item.path}
-                                            end={item.exact}
-                                            onClick={onClose}
-                                            className={({ isActive: navActive }) => {
-                                                const active = item.exact ? navActive : isActive;
-                                                return `flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all group ${
-                                                    active
-                                                        ? "bg-primary text-on-primary shadow-xs font-semibold"
-                                                        : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high"
-                                                }`;
-                                            }}
-                                        >
-                                            <div className="flex items-center gap-3 min-w-0">
-                                                <IconComp
-                                                    size={18}
-                                                    className={`shrink-0 transition-transform group-hover:scale-105 ${
-                                                        isActive ? "text-on-primary" : "text-on-surface-variant"
-                                                    }`}
-                                                />
-                                                <span className="truncate">{item.label}</span>
-                                            </div>
-                                            {item.badge && (
-                                                <span
-                                                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                                        isActive
-                                                            ? "bg-on-primary text-primary"
-                                                            : "bg-surface-container-highest text-on-surface"
-                                                    }`}
-                                                >
-                                                    {item.badge}
-                                                </span>
-                                            )}
-                                        </NavLink>
-                                    );
-                                })}
+                </div>
+            ) : (
+                <div className="px-4 py-3 border-b border-outline-variant/30 shrink-0 flex items-center justify-between bg-surface-container-low/40">
+                    <div className="flex items-center gap-2">
+                        {portal === "seller" ? (
+                            <div className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                                <Store size={14} />
                             </div>
-                        </div>
-                    ))
-                )}
+                        ) : (
+                            <div className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                                <ShoppingBag size={14} />
+                            </div>
+                        )}
+                        <span className="text-xs font-bold text-on-surface">
+                            {portal === "seller" ? "Seller Portal" : "Buyer Portal"}
+                        </span>
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-surface-container-high text-on-surface-variant">
+                        {portal}
+                    </span>
+                </div>
+            )}
+
+            {/* 3. Navigation Tree List */}
+            <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
+                <div className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/70 flex items-center justify-between">
+                    <span>{portal === "seller" ? "Seller Navigation" : "Buyer Navigation"}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant">
+                        {currentItems.length} Sections
+                    </span>
+                </div>
+
+                {currentItems.map((item) => (
+                    <TreeRow
+                        key={item.id}
+                        item={item}
+                        depth={0}
+                        expandedKeys={expandedKeys}
+                        toggleExpanded={toggleExpanded}
+                        onClose={onClose}
+                    />
+                ))}
             </nav>
 
-            {/* 4. Bottom Actions Bar */}
+            {/* 4. Bottom Actions */}
             <div className="p-3 border-t border-outline-variant/30 space-y-1 shrink-0">
                 <Link
                     to="/explore"
                     onClick={onClose}
-                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
                 >
-                    <Icons.Explore size={16} className="text-on-surface-variant" />
+                    <Compass size={16} />
                     <span>Browse Marketplace</span>
                 </Link>
+
                 <button
                     type="button"
                     onClick={() => {
                         if (onClose) onClose();
                         signOut();
                     }}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-error hover:bg-error/10 transition-colors cursor-pointer text-left"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-error hover:bg-error/10 transition-colors cursor-pointer text-left"
                 >
-                    <Icons.SignOut size={16} />
+                    <LogOut size={16} />
                     <span>Sign Out</span>
                 </button>
             </div>
@@ -214,4 +403,3 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
 };
 
 export default DashboardSidenav;
-

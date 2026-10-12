@@ -1,12 +1,30 @@
 // src/features/dashboard/layouts/DashboardLayout.tsx
 import React, { useState, useEffect } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth.ts";
 import { DashboardSidenav } from "../components/DashboardSidenav.tsx";
 import { DashboardHeader } from "../components/DashboardHeader.tsx";
 import { DashboardFooter } from "../components/DashboardFooter.tsx";
+import { getUserPortalAccess } from "../utils/navigationHelper.ts";
 
 export const DashboardLayout: React.FC = () => {
+    const { user } = useAuth();
+    const location = useLocation();
+    const navigate = useNavigate();
     const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+
+    // Guard single-role users from accessing unauthorized portal routes
+    useEffect(() => {
+        if (!user) return;
+        const access = getUserPortalAccess(user, location.pathname);
+        if (!access.hasBothRoles) {
+            if (!access.canAccessSeller && location.pathname.startsWith("/dashboard/seller")) {
+                void navigate("/dashboard/buyer/library/downloads", { replace: true });
+            } else if (!access.canAccessBuyer && location.pathname.startsWith("/dashboard/buyer")) {
+                void navigate("/dashboard/seller/overview", { replace: true });
+            }
+        }
+    }, [user, location.pathname, navigate]);
 
     // Close mobile drawer on Escape key press
     useEffect(() => {

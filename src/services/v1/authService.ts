@@ -16,10 +16,24 @@ class AuthService {
     /**
      * Normalizes backend user representation to marketplace User interface.
      */
-    normalizeUser(user: Partial<User> & { name?: string; role?: string }): User {
+    normalizeUser(user: Partial<User> & { name?: string; role?: string; roles?: string[]; role_id?: number }): User {
         const displayName = user.displayName || user.name || user.email?.split("@")[0] || "User";
         const username = user.username || user.name?.toLowerCase().replace(/\s+/g, "") || user.email?.split("@")[0] || "user";
-        const role = (user.role === "seller" ? "seller" : user.role === "admin" ? "admin" : "buyer") as UserRole;
+        
+        let role: UserRole = "buyer";
+        const rawRole = (user.role || "").toLowerCase().trim();
+        if (user.role_id === 1 || rawRole === "admin") {
+            role = "admin";
+        } else if (user.role_id === 2 || rawRole === "seller") {
+            role = "seller";
+        } else if (user.role_id === 3 || rawRole === "buyer" || rawRole === "customer") {
+            role = "buyer";
+        }
+
+        const rolesList: string[] = Array.isArray(user.roles) && user.roles.length > 0
+            ? user.roles
+            : [role];
+
         return {
             id: String(user.id || ""),
             email: user.email || "",
@@ -27,6 +41,8 @@ class AuthService {
             displayName,
             name: user.name || displayName,
             role,
+            roles: rolesList,
+            role_id: user.role_id,
             avatarUrl: user.avatarUrl,
             sellerProfile: user.sellerProfile,
             createdAt: user.createdAt || new Date().toISOString(),

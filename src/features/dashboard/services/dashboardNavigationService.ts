@@ -1,124 +1,224 @@
 // src/features/dashboard/services/dashboardNavigationService.ts
-import { apiClient } from "@/services/api.ts";
-import type { DashboardNavigationResponse, DashboardNavSection } from "../types/index.ts";
+import type { DashboardNavItem, DashboardNavigationResponse } from "../types/index.ts";
 import type { UserRole } from "@/types/user.ts";
 
-/**
- * Fallback navigation schema tailored for Seller accounts.
- */
-const SELLER_NAV_SECTIONS: DashboardNavSection[] = [
+export const SELLER_NAV_ITEMS: DashboardNavItem[] = [
     {
-        id: "main",
-        title: "Store Management",
-        items: [
+        id: "seller-overview",
+        label: "Overview",
+        path: "/dashboard/seller/overview",
+        icon: "LayoutDashboard",
+        exact: true,
+    },
+    {
+        id: "seller-products",
+        label: "Products",
+        path: "/dashboard/seller/products",
+        icon: "Package",
+        children: [
             {
-                id: "overview",
-                label: "Overview",
-                path: "/dashboard",
-                icon: "Dashboard",
-                exact: true,
+                id: "seller-products-all",
+                label: "All",
+                path: "/dashboard/seller/products/all",
+                icon: "Layers",
             },
             {
-                id: "products",
-                label: "My Products",
-                path: "/dashboard/products",
-                icon: "Package",
-                badge: "Active",
-                badgeVariant: "primary",
+                id: "seller-products-upload",
+                label: "Upload",
+                path: "/dashboard/seller/products/upload",
+                icon: "UploadCloud",
+                children: [
+                    {
+                        id: "seller-products-upload-files",
+                        label: "Files",
+                        path: "/dashboard/seller/products/upload/files",
+                        icon: "FileText",
+                    },
+                    {
+                        id: "seller-products-upload-media",
+                        label: "Media",
+                        path: "/dashboard/seller/products/upload/media",
+                        icon: "Image",
+                    },
+                    {
+                        id: "seller-products-upload-licenses",
+                        label: "Licenses",
+                        path: "/dashboard/seller/products/upload/licenses",
+                        icon: "ShieldCheck",
+                    },
+                ],
             },
             {
-                id: "sales",
-                label: "Sales & Analytics",
-                path: "/dashboard/sales",
-                icon: "Analytics",
+                id: "seller-products-bundles",
+                label: "Bundles",
+                path: "/dashboard/seller/products/bundles",
+                icon: "Boxes",
             },
             {
-                id: "orders",
-                label: "Customer Orders",
-                path: "/dashboard/orders",
-                icon: "FileText",
+                id: "seller-products-coupons",
+                label: "Coupons",
+                path: "/dashboard/seller/products/coupons",
+                icon: "Tag",
             },
         ],
     },
     {
-        id: "preferences",
-        title: "Account & Store",
-        items: [
+        id: "seller-sales",
+        label: "Sales",
+        path: "/dashboard/seller/sales",
+        icon: "TrendingUp",
+    },
+    {
+        id: "seller-reviews",
+        label: "Reviews",
+        path: "/dashboard/seller/reviews",
+        icon: "Star",
+    },
+    {
+        id: "seller-disputes",
+        label: "Disputes",
+        path: "/dashboard/seller/disputes",
+        icon: "AlertCircle",
+    },
+    {
+        id: "seller-payouts",
+        label: "Payouts",
+        path: "/dashboard/seller/payouts",
+        icon: "Wallet",
+    },
+    {
+        id: "seller-analytics",
+        label: "Analytics",
+        path: "/dashboard/seller/analytics",
+        icon: "BarChart3",
+    },
+    {
+        id: "seller-settings",
+        label: "Settings",
+        path: "/dashboard/seller/settings",
+        icon: "Settings",
+        children: [
             {
-                id: "settings",
-                label: "Store Settings",
-                path: "/dashboard/settings",
-                icon: "Settings",
+                id: "seller-settings-profile",
+                label: "Profile",
+                path: "/dashboard/seller/settings/profile",
+                icon: "User",
+            },
+            {
+                id: "seller-settings-alerts",
+                label: "Alerts",
+                path: "/dashboard/seller/settings/alerts",
+                icon: "Bell",
+            },
+            {
+                id: "seller-settings-payouts",
+                label: "Payouts",
+                path: "/dashboard/seller/settings/payouts",
+                icon: "CreditCard",
             },
         ],
     },
 ];
 
-/**
- * Fallback navigation schema tailored for Buyer accounts.
- */
-const BUYER_NAV_SECTIONS: DashboardNavSection[] = [
+export const BUYER_NAV_ITEMS: DashboardNavItem[] = [
     {
-        id: "main",
-        title: "My Library",
-        items: [
+        id: "buyer-library",
+        label: "Library",
+        path: "/dashboard/buyer/library",
+        icon: "Library",
+        children: [
             {
-                id: "overview",
-                label: "Overview",
-                path: "/dashboard",
-                icon: "Dashboard",
-                exact: true,
-            },
-            {
-                id: "purchases",
-                label: "Purchases & Downloads",
-                path: "/dashboard/purchases",
+                id: "buyer-library-downloads",
+                label: "Downloads",
+                path: "/dashboard/buyer/library/downloads",
                 icon: "Download",
-                badge: "Library",
-                badgeVariant: "success",
             },
             {
-                id: "orders",
-                label: "Orders & Invoices",
-                path: "/dashboard/orders",
-                icon: "FileText",
+                id: "buyer-library-keys",
+                label: "Keys",
+                path: "/dashboard/buyer/library/keys",
+                icon: "KeyRound",
             },
         ],
     },
     {
-        id: "preferences",
-        title: "Account",
-        items: [
+        id: "buyer-orders",
+        label: "Orders",
+        path: "/dashboard/buyer/orders",
+        icon: "ShoppingBag",
+    },
+    {
+        id: "buyer-invoices",
+        label: "Invoices",
+        path: "/dashboard/buyer/invoices",
+        icon: "Receipt",
+    },
+    {
+        id: "buyer-payments",
+        label: "Payments",
+        path: "/dashboard/buyer/payments",
+        icon: "CreditCard",
+    },
+    {
+        id: "buyer-reviews",
+        label: "Reviews",
+        path: "/dashboard/buyer/reviews",
+        icon: "Star",
+    },
+    {
+        id: "buyer-disputes",
+        label: "Disputes",
+        path: "/dashboard/buyer/disputes",
+        icon: "AlertCircle",
+    },
+    {
+        id: "buyer-refunds",
+        label: "Refunds",
+        path: "/dashboard/buyer/refunds",
+        icon: "RotateCcw",
+    },
+    {
+        id: "buyer-settings",
+        label: "Settings",
+        path: "/dashboard/buyer/settings",
+        icon: "Settings",
+        children: [
             {
-                id: "settings",
-                label: "Account Settings",
-                path: "/dashboard/settings",
-                icon: "Settings",
+                id: "buyer-settings-profile",
+                label: "Profile",
+                path: "/dashboard/buyer/settings/profile",
+                icon: "User",
+            },
+            {
+                id: "buyer-settings-security",
+                label: "Security",
+                path: "/dashboard/buyer/settings/security",
+                icon: "Shield",
+            },
+            {
+                id: "buyer-settings-alerts",
+                label: "Alerts",
+                path: "/dashboard/buyer/settings/alerts",
+                icon: "Bell",
             },
         ],
     },
 ];
 
 class DashboardNavigationService {
-    /**
-     * Fetch navigation items from backend endpoint /api/v1/navigation/dashboard.
-     * Gracefully falls back to role-tailored defaults if backend route is not yet deployed.
-     */
-    async getNavigation(role: UserRole = "buyer"): Promise<DashboardNavigationResponse> {
-        try {
-            const response = await apiClient.get<DashboardNavigationResponse>("/api/v1/navigation/dashboard");
-            if (response && Array.isArray(response.sections) && response.sections.length > 0) {
-                return response;
-            }
-        } catch {
-            // Backend endpoint not deployed yet; use role-tailored fallback
-        }
-
-        const sections = role === "seller" ? SELLER_NAV_SECTIONS : BUYER_NAV_SECTIONS;
-        return { sections };
+    getNavigation(role: UserRole = "seller"): DashboardNavigationResponse {
+        const items = role === "seller" ? SELLER_NAV_ITEMS : BUYER_NAV_ITEMS;
+        return {
+            sections: [
+                {
+                    id: role,
+                    title: role === "seller" ? "Seller Navigation" : "Buyer Navigation",
+                    items,
+                },
+            ],
+        };
     }
 }
 
 export const dashboardNavigationService = new DashboardNavigationService();
 export default dashboardNavigationService;
-
