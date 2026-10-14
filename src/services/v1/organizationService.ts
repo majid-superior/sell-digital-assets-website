@@ -112,7 +112,20 @@ export function applyOrganizationMetadata(info: OrganizationInfo | null): void {
   }
 }
 
-function mapBackendToOrganizationInfo(b: BackendOrganizationPayload): OrganizationInfo {
+export interface OrganizationEnvelope {
+  success?: boolean;
+  data: BackendOrganizationPayload;
+}
+
+function isOrganizationEnvelope(res: unknown): res is OrganizationEnvelope {
+  return typeof res === "object" && res !== null && "data" in res && Boolean((res as { data?: unknown }).data);
+}
+
+function mapBackendToOrganizationInfo(input: unknown): OrganizationInfo {
+  const b: BackendOrganizationPayload = isOrganizationEnvelope(input)
+    ? input.data
+    : (input as BackendOrganizationPayload) || {};
+
   const orgName = b.organization_name || b.legal_name || defaultOrganization.name;
   const addressParts = [b.address_line1, b.city, b.state, b.country].filter(Boolean);
   const address = addressParts.join(", ") || b.address_line1 || "";
@@ -214,7 +227,7 @@ export const organizationService = {
     signal?: AbortSignal;
   }): Promise<OrganizationInfo> {
     try {
-      const raw = await apiClient.get<BackendOrganizationPayload>(
+      const raw = await apiClient.get<OrganizationEnvelope | BackendOrganizationPayload>(
         "/api/v1/organizations",
         {
           signal: options?.signal,

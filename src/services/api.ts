@@ -95,7 +95,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     }
 
     if (!response.ok) {
-        await handleResponseError(response);
+        await handleResponseError(response, endpoint);
     }
 
     return parseResponseBody<T>(response);

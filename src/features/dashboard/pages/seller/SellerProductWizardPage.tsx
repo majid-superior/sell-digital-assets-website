@@ -97,6 +97,12 @@ export const SellerProductWizardPage: React.FC = () => {
         },
     });
 
+    const onBasicInfoInvalid = (formErrors: typeof errors) => {
+        const firstKey = Object.keys(formErrors)[0] as keyof typeof formErrors;
+        const firstMessage = formErrors[firstKey]?.message || "Please fill in all required fields.";
+        toast.error("Validation Error", { description: String(firstMessage) });
+    };
+
     // Populate default category when categories load
     useEffect(() => {
         if (categories.length > 0 && !getValues("categoryId")) {
@@ -386,18 +392,16 @@ export const SellerProductWizardPage: React.FC = () => {
                         <CardTitle className="text-base font-bold">Step 1: Basic Asset Information</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <form onSubmit={handleSubmit(handleSaveBasicAndAdvance)} className="space-y-4">
+                        <form onSubmit={handleSubmit(handleSaveBasicAndAdvance, onBasicInfoInvalid)} className="space-y-4">
                             {/* Title */}
                             <div className="space-y-1.5">
                                 <Label htmlFor="title">Asset Title *</Label>
                                 <Input
                                     id="title"
+                                    error={!!errors.title}
                                     placeholder="e.g. Next.js SaaS Boilerplate with Stripe & Supabase"
                                     {...register("title")}
                                 />
-                                {errors.title && (
-                                    <p className="text-[11px] text-error">{errors.title.message}</p>
-                                )}
                             </div>
 
                             {/* Category */}
@@ -406,7 +410,11 @@ export const SellerProductWizardPage: React.FC = () => {
                                 <select
                                     id="categoryId"
                                     {...register("categoryId", { valueAsNumber: true })}
-                                    className="w-full px-3 py-2 text-sm rounded-xl bg-surface border border-outline-variant/40 text-on-surface focus:outline-hidden focus:border-primary cursor-pointer"
+                                    className={`w-full px-3 py-2 text-sm rounded-xl bg-surface border text-on-surface focus:outline-hidden cursor-pointer ${
+                                        errors.categoryId
+                                            ? "border-error focus:border-error"
+                                            : "border-outline-variant/40 focus:border-primary"
+                                    }`}
                                 >
                                     {categories.map((cat) => (
                                         <option key={cat.id} value={cat.id}>
@@ -414,9 +422,6 @@ export const SellerProductWizardPage: React.FC = () => {
                                         </option>
                                     ))}
                                 </select>
-                                {errors.categoryId && (
-                                    <p className="text-[11px] text-error">{errors.categoryId.message}</p>
-                                )}
                             </div>
 
                             {/* Short Description */}
@@ -424,12 +429,10 @@ export const SellerProductWizardPage: React.FC = () => {
                                 <Label htmlFor="shortDescription">Short Hook / Elevator Pitch *</Label>
                                 <Input
                                     id="shortDescription"
+                                    error={!!errors.shortDescription}
                                     placeholder="One or two sentences summarizing the primary value proposition..."
                                     {...register("shortDescription")}
                                 />
-                                {errors.shortDescription && (
-                                    <p className="text-[11px] text-error">{errors.shortDescription.message}</p>
-                                )}
                             </div>
 
                             {/* Full Description */}
@@ -440,11 +443,12 @@ export const SellerProductWizardPage: React.FC = () => {
                                     rows={5}
                                     placeholder="Detailed description, setup instructions, feature list..."
                                     {...register("fullDescription")}
-                                    className="w-full px-3 py-2 text-sm rounded-xl bg-surface border border-outline-variant/40 text-on-surface placeholder:text-on-surface-variant/60 focus:outline-hidden focus:border-primary resize-y"
+                                    className={`w-full px-3 py-2 text-sm rounded-xl bg-surface border text-on-surface placeholder:text-on-surface-variant/60 focus:outline-hidden resize-y ${
+                                        errors.fullDescription
+                                            ? "border-error focus:border-error"
+                                            : "border-outline-variant/40 focus:border-primary"
+                                    }`}
                                 />
-                                {errors.fullDescription && (
-                                    <p className="text-[11px] text-error">{errors.fullDescription.message}</p>
-                                )}
                             </div>
 
                             {/* Tags Input */}

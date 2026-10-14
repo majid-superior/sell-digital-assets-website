@@ -9,7 +9,6 @@ import { Icons } from "@/lib/icons/index.ts";
 import { Button } from "@/components/ui/index.ts";
 import { signUpSchema, type SignUpFormData } from "@/features/auth/schemas/signUpSchema.ts";
 import { useSignUpMutation } from "@/features/auth/hooks/useSignUpMutation.ts";
-import { AuthenticationError } from "@/features/auth/types.ts";
 
 export const SignUpPage: React.FC = () => {
     const { theme, toggleTheme } = useTheme();
@@ -23,7 +22,6 @@ export const SignUpPage: React.FC = () => {
         handleSubmit,
         control,
         setValue,
-        setError,
         formState: { errors, isSubmitting },
     } = useForm<SignUpFormData>({
         resolver: zodResolver(signUpSchema),
@@ -67,6 +65,12 @@ export const SignUpPage: React.FC = () => {
         }
     }, [passwordStrength]);
 
+    const onInvalid = (formErrors: typeof errors) => {
+        const firstKey = Object.keys(formErrors)[0] as keyof typeof formErrors;
+        const firstError = formErrors[firstKey]?.message || "Please fill in all required fields.";
+        toast.error("Validation Error", { description: String(firstError) });
+    };
+
     const onSubmit = async (data: SignUpFormData) => {
         try {
             await signUpMutation.mutateAsync({
@@ -77,18 +81,8 @@ export const SignUpPage: React.FC = () => {
             });
 
             void navigate("/", { replace: true });
-        } catch (error: unknown) {
-            if (error instanceof AuthenticationError && error.fieldErrors) {
-                for (const [field, messages] of Object.entries(error.fieldErrors)) {
-                    if (messages && messages.length > 0) {
-                        const formField = field as keyof SignUpFormData;
-                        setError(formField, {
-                            type: "server",
-                            message: messages[0],
-                        });
-                    }
-                }
-            }
+        } catch {
+            // Popup toast notifications handled automatically by useSignUpMutation onError callback
         }
     };
 
@@ -182,32 +176,6 @@ export const SignUpPage: React.FC = () => {
                             </button>
                         </div>
 
-                        {/* Mutation Error Alert */}
-                        {signUpMutation.isError && (
-                            <div
-                                role="alert"
-                                className="p-3.5 rounded-xl bg-error/10 border border-error/30 text-error text-xs sm:text-sm flex flex-col gap-2"
-                            >
-                                <div className="flex items-start gap-2.5">
-                                    <span className="font-bold shrink-0">Account Notice:</span>
-                                    <span>{signUpMutation.error?.message || "Sign up failed. Please check your details."}</span>
-                                </div>
-                                {signUpMutation.error?.message?.toLowerCase().includes("already exists") && (
-                                    <div className="pt-2 border-t border-error/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                                        <p className="text-on-surface-variant">
-                                            Your existing account can both <strong>buy</strong> and <strong>sell</strong> — you don't need a second registration!
-                                        </p>
-                                        <Link
-                                            to="/signin"
-                                            className="px-3 py-1.5 rounded-lg bg-primary text-on-primary font-semibold text-center hover:opacity-90 shrink-0"
-                                        >
-                                            Sign In Here
-                                        </Link>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
                         {/* Social Sign Up Providers */}
                         <div className="space-y-3">
                             <div className="grid grid-cols-3 gap-2.5">
@@ -252,7 +220,7 @@ export const SignUpPage: React.FC = () => {
                         </div>
 
                         {/* Form Fields */}
-                        <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-4" noValidate>
+                        <form onSubmit={(e) => void handleSubmit(onSubmit, onInvalid)(e)} className="space-y-4" noValidate>
                             {/* Full Name */}
                             <div className="space-y-1.5">
                                 <label
@@ -272,7 +240,6 @@ export const SignUpPage: React.FC = () => {
                                         placeholder="Alex Rivera"
                                         disabled={isPending}
                                         aria-invalid={!!errors.name}
-                                        aria-describedby={errors.name ? "name-error" : undefined}
                                         {...register("name")}
                                         className={`w-full pl-10 pr-4 py-2.5 text-sm rounded-xl bg-surface border text-on-surface placeholder:text-on-surface-variant/50 focus:outline-hidden transition-all disabled:opacity-50 ${errors.name
                                             ? "border-error focus:border-error focus:ring-1 focus:ring-error"
@@ -280,11 +247,6 @@ export const SignUpPage: React.FC = () => {
                                             }`}
                                     />
                                 </div>
-                                {errors.name && (
-                                    <p id="name-error" role="alert" className="text-xs text-error font-medium mt-1">
-                                        {errors.name.message}
-                                    </p>
-                                )}
                             </div>
 
                             {/* Email */}
@@ -306,7 +268,6 @@ export const SignUpPage: React.FC = () => {
                                         placeholder="you@example.com"
                                         disabled={isPending}
                                         aria-invalid={!!errors.email}
-                                        aria-describedby={errors.email ? "email-error" : undefined}
                                         {...register("email")}
                                         className={`w-full pl-10 pr-4 py-2.5 text-sm rounded-xl bg-surface border text-on-surface placeholder:text-on-surface-variant/50 focus:outline-hidden transition-all disabled:opacity-50 ${errors.email
                                             ? "border-error focus:border-error focus:ring-1 focus:ring-error"
@@ -314,11 +275,6 @@ export const SignUpPage: React.FC = () => {
                                             }`}
                                     />
                                 </div>
-                                {errors.email && (
-                                    <p id="email-error" role="alert" className="text-xs text-error font-medium mt-1">
-                                        {errors.email.message}
-                                    </p>
-                                )}
                             </div>
 
                             {/* Password */}
@@ -340,7 +296,6 @@ export const SignUpPage: React.FC = () => {
                                         placeholder="Minimum 8 characters"
                                         disabled={isPending}
                                         aria-invalid={!!errors.password}
-                                        aria-describedby={errors.password ? "password-error" : undefined}
                                         {...register("password")}
                                         className={`w-full pl-10 pr-10 py-2.5 text-sm rounded-xl bg-surface border text-on-surface placeholder:text-on-surface-variant/50 focus:outline-hidden transition-all disabled:opacity-50 ${errors.password
                                             ? "border-error focus:border-error focus:ring-1 focus:ring-error"
@@ -356,12 +311,6 @@ export const SignUpPage: React.FC = () => {
                                         {showPassword ? <Icons.EyeOff size={16} /> : <Icons.Eye size={16} />}
                                     </button>
                                 </div>
-
-                                {errors.password && (
-                                    <p id="password-error" role="alert" className="text-xs text-error font-medium mt-1">
-                                        {errors.password.message}
-                                    </p>
-                                )}
 
                                 {/* Dynamic Password Strength Indicator */}
                                 {password && (
@@ -401,11 +350,6 @@ export const SignUpPage: React.FC = () => {
                                         <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>.
                                     </span>
                                 </label>
-                                {errors.agreeTerms && (
-                                    <p role="alert" className="text-xs text-error font-medium mt-1">
-                                        {errors.agreeTerms.message}
-                                    </p>
-                                )}
                             </div>
 
                             {/* Submit Button */}

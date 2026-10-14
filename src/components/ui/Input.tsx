@@ -26,7 +26,6 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     const generatedId = useId();
     const id = customId || generatedId;
     const isError = Boolean(error);
-    const errorMessage = typeof error === "string" ? error : undefined;
     const descriptionId = `${id}-description`;
 
     return (
@@ -42,9 +41,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             id={id}
             disabled={disabled}
             aria-invalid={isError ? "true" : undefined}
-            aria-describedby={
-              errorMessage || helperText ? descriptionId : undefined
-            }
+            aria-describedby={helperText ? descriptionId : undefined}
             className={cn(
               "w-full rounded-xl border border-outline-variant/40 bg-surface px-3.5 py-2.5 text-sm text-on-surface placeholder:text-on-surface-variant/50 transition-all",
               "focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary",
@@ -64,18 +61,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             </div>
           )}
         </div>
-        {errorMessage ? (
-          <p
-            id={descriptionId}
-            className="mt-1 text-xs text-error flex items-center gap-1 font-medium"
-          >
-            {errorMessage}
-          </p>
-        ) : helperText ? (
+        {helperText && (
           <p id={descriptionId} className="mt-1 text-xs text-on-surface-variant">
             {helperText}
           </p>
-        ) : null}
+        )}
       </div>
     );
   }

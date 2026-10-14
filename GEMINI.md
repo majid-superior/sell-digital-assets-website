@@ -21,8 +21,10 @@
    - **Flash Prevention**: An inline script in `index.html` synchronously evaluates dark mode preferences prior to DOM paint, preventing Flash of Unstyled Theme.
    - **Design Tokens**: Styled using **Tailwind CSS v4** with CSS variables (`@theme` in `src/theme/styles/theme.css`).
 
-4. **Robust Notification & Error Policy**:
-   - Authentication errors and API failures must be presented cleanly using **Sonner** toast notifications (`toast.error(...)`) or dedicated error fallback layouts (`/server`, `ErrorPage`).
+4. **Strict Popup Notification Policy (ZERO INLINE ERRORS — MANDATORY STANDARD)**:
+   - **No Inline Error Renderings**: Never render inline error text paragraphs (e.g., `<p className="...text-error...">{errors.field.message}</p>`) or inline alert error banners inside cards or under form inputs anywhere across the application.
+   - **Exclusive Popup Notifications**: ALL error messages, success feedback, validation failures, and informational notices MUST be presented exclusively via **Sonner toast popups** (`toast.error(...)`, `toast.success(...)`, `toast.info(...)`).
+   - **Form Validation via Popups**: When form schema validation (Zod / React Hook Form) or backend API validation fails, the error message must be dispatched immediately via `toast.error("Validation Error", { description: ... })`. Inputs may retain accessible border/ring visual styling (`aria-invalid="true"`, `border-error`), but textual error feedback must appear strictly in the popup window.
    - Never render raw unhandled stack traces or unformatted error payloads in client views.
 
 ---
@@ -58,4 +60,5 @@ Before declaring any website frontend task complete, verify:
 3. All interactive forms validate inputs with Zod schemas and React Hook Form.
 4. Active theme colors and dark mode toggle operate seamlessly without layout shifts.
 5. Tree-shakeable SVG icons from `@/lib/icons` are used instead of heavy icon fonts.
+6. Zero inline error text or alert banners exist anywhere in client views; all error and success messages use Sonner popup notifications.
 

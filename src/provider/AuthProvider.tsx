@@ -97,7 +97,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Synchronize when other tabs or services dispatch auth events
     useEffect(() => {
         const handleUnauthorized = () => {
-            signOut("/");
+            const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
+            // Never force redirect away if the user is on an authentication page
+            if (currentPath === "/signin" || currentPath === "/signup") {
+                authService.clearSession();
+                setUser(null);
+                setToken(null);
+                return;
+            }
+
+            if (authService.getStoredToken() || user) {
+                signOut("/");
+            }
         };
 
         const handleSignOut = () => {
@@ -116,7 +127,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             window.removeEventListener("auth:unauthorized", handleUnauthorized);
             window.removeEventListener("auth:signout", handleSignOut);
         };
-    }, [signOut]);
+    }, [signOut, user]);
 
     const value = useMemo<AuthContextType>(
         () => ({

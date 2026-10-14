@@ -1,78 +1,29 @@
 // src/layouts/website/pages/signIn.tsx
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useForm } from "react-hook-form";
+import { useForm, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { useTheme } from "@/hooks/useTheme.ts";
 import { useAuth } from "@/hooks/useAuth.ts";
-import { Icons, type IconComponent } from "@/lib/icons/index.ts";
+import { Icons } from "@/lib/icons/index.ts";
 import { Button } from "@/components/ui/index.ts";
 import { signInSchema, type SignInFormData } from "@/features/auth/schemas/signInSchema.ts";
 import { useSignInMutation } from "@/features/auth/hooks/useSignInMutation.ts";
-import { AuthenticationError } from "@/features/auth/types.ts";
 import { getUserPortalAccess } from "@/features/dashboard/utils/navigationHelper.ts";
-
-interface DemoPreset {
-    id: "buyer" | "seller" | "admin";
-    label: string;
-    role: string;
-    email: string;
-    password: string;
-    icon: IconComponent;
-    badge: string;
-    description: string;
-}
-
-const DEMO_PRESETS: readonly DemoPreset[] = [
-    {
-        id: "buyer",
-        label: "Buyer Demo",
-        role: "Buyer",
-        email: "buyer@assetdrop.com",
-        password: "Password123!",
-        icon: Icons.Cart,
-        badge: "Buyer",
-        description: "Browse marketplace & download deliverables",
-    },
-    {
-        id: "seller",
-        label: "Seller Studio",
-        role: "Seller",
-        email: "creator@assetdrop.com",
-        password: "Password123!",
-        icon: Icons.Sell,
-        badge: "Creator",
-        description: "Publish assets & access seller analytics",
-    },
-    {
-        id: "admin",
-        label: "Platform Admin",
-        role: "Admin",
-        email: "admin@selldigitalassets.com",
-        password: "AdminPassword123!",
-        icon: Icons.Security,
-        badge: "Admin",
-        description: "Super administration & ecosystem control",
-    },
-];
 
 export const SignInPage: React.FC = () => {
     const { theme, toggleTheme } = useTheme();
-    const { isAuthenticated, user } = useAuth();
+    const { isAuthenticated, user, isLoading } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const [showPassword, setShowPassword] = useState(false);
-    const [activeDemo, setActiveDemo] = useState<string | null>(null);
 
     const signInMutation = useSignInMutation();
 
     const {
         register,
         handleSubmit,
-        setValue,
-        clearErrors,
-        setError,
         formState: { errors, isSubmitting },
     } = useForm<SignInFormData>({
         resolver: zodResolver(signInSchema),
@@ -116,15 +67,23 @@ export const SignInPage: React.FC = () => {
         [location, user]
     );
 
-    // Modern Website Guard: if user is already authenticated, redirect immediately
+    // Modern Website Guard: if user is already authenticated and session check is settled, redirect immediately
     useEffect(() => {
-        if (isAuthenticated && user) {
+        if (!isLoading && isAuthenticated && user) {
             const target = getResolvedTarget(user);
             void navigate(target, { replace: true });
         }
-    }, [isAuthenticated, user, getResolvedTarget, navigate]);
+    }, [isLoading, isAuthenticated, user, getResolvedTarget, navigate]);
 
     const isPending = isSubmitting || signInMutation.isPending;
+
+    const onInvalid = (fieldErrors: FieldErrors<SignInFormData>) => {
+        const firstError =
+            fieldErrors.email?.message ||
+            fieldErrors.password?.message ||
+            "Please check your credentials and try again.";
+        toast.error("Validation Error", { description: String(firstError) });
+    };
 
     const onSubmit = async (data: SignInFormData) => {
         try {
@@ -137,31 +96,9 @@ export const SignInPage: React.FC = () => {
             // 3. Marketplace home (/) for buyers
             const target = getResolvedTarget(signedInUser);
             void navigate(target, { replace: true });
-        } catch (error: unknown) {
-            // Field-specific validation errors from backend
-            if (error instanceof AuthenticationError && error.fieldErrors) {
-                for (const [field, messages] of Object.entries(error.fieldErrors)) {
-                    if ((field === "email" || field === "password") && messages && messages.length > 0) {
-                        setError(field, {
-                            type: "server",
-                            message: messages[0],
-                        });
-                    }
-                }
-            }
+        } catch {
+            // Popup toast notification is automatically dispatched by useSignInMutation onError
         }
-    };
-
-    const handleSelectDemo = (demo: DemoPreset) => {
-        setActiveDemo(demo.id);
-        setValue("email", demo.email, { shouldValidate: true });
-        setValue("password", demo.password, { shouldValidate: true });
-        setValue("rememberMe", true);
-        clearErrors();
-
-        toast.info(`Loaded ${demo.label}`, {
-            description: `Credentials set for ${demo.email}. Click "Sign In" to proceed.`,
-        });
     };
 
     return (
@@ -230,64 +167,6 @@ export const SignInPage: React.FC = () => {
                             </p>
                         </div>
 
-                        {/* Modern Feature: 1-Click Demo Accounts Selector */}
-                        <div className="space-y-2 p-3.5 rounded-2xl bg-surface border border-outline-variant/30">
-                            <div className="flex items-center justify-between text-xs">
-                                <span className="font-semibold text-on-surface flex items-center gap-1.5">
-                                    <Icons.Magic size={14} className="text-primary" />
-                                    <span>Instant Demo Logins</span>
-                                </span>
-                                <span className="text-[10px] text-on-surface-variant uppercase tracking-wider font-medium">
-                                    1-Click Fill
-                                </span>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-1.5 pt-1">
-                                {DEMO_PRESETS.map((demo) => {
-                                    const Icon = demo.icon;
-                                    const isSelected = activeDemo === demo.id;
-                                    return (
-                                        <button
-                                            key={demo.id}
-                                            type="button"
-                                            onClick={() => handleSelectDemo(demo)}
-                                            disabled={isPending}
-                                            title={demo.description}
-                                            className={`flex flex-col items-center justify-center p-2 rounded-xl text-center border transition-all cursor-pointer ${
-                                                isSelected
-                                                    ? "bg-primary/10 border-primary text-primary font-bold shadow-2xs"
-                                                    : "bg-surface-container-low border-outline-variant/30 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high"
-                                            }`}
-                                        >
-                                            <Icon size={16} className={isSelected ? "text-primary" : "text-on-surface-variant"} />
-                                            <span className="text-[11px] font-semibold mt-1 leading-tight truncate w-full">
-                                                {demo.badge}
-                                            </span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        {/* Error Alert if mutation fails */}
-                        {signInMutation.isError && (
-                            <div
-                                role="alert"
-                                className="p-3.5 rounded-xl bg-error/10 border border-error/30 text-error text-xs sm:text-sm flex items-start gap-2.5"
-                            >
-                                <span className="font-bold shrink-0">
-                                    {signInMutation.error?.code === "NO_RESPONSE" || signInMutation.error?.code === "NETWORK_OFFLINE"
-                                        ? "Connection Error:"
-                                        : signInMutation.error?.code === "TIMEOUT"
-                                        ? "Timeout:"
-                                        : signInMutation.error?.code === "SERVER_ERROR"
-                                        ? "Server Error:"
-                                        : "Error:"}
-                                </span>
-                                <span>{signInMutation.error?.message || "Sign in failed. Please verify your credentials."}</span>
-                            </div>
-                        )}
-
                         {/* Social Auth Providers */}
                         <div className="space-y-3">
                             <div className="grid grid-cols-3 gap-2.5">
@@ -332,7 +211,7 @@ export const SignInPage: React.FC = () => {
                         </div>
 
                         {/* Credentials Form */}
-                        <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="space-y-4" noValidate>
+                        <form onSubmit={(e) => void handleSubmit(onSubmit, onInvalid)(e)} className="space-y-4" noValidate>
                             {/* Email */}
                             <div className="space-y-1.5">
                                 <label
@@ -351,7 +230,6 @@ export const SignInPage: React.FC = () => {
                                         autoComplete="email"
                                         placeholder="you@example.com"
                                         aria-invalid={!!errors.email}
-                                        aria-describedby={errors.email ? "email-error" : undefined}
                                         disabled={isPending}
                                         {...register("email")}
                                         className={`w-full pl-10 pr-4 py-2.5 text-sm rounded-xl bg-surface border text-on-surface placeholder:text-on-surface-variant/50 focus:outline-hidden transition-all disabled:opacity-50 ${errors.email
@@ -360,11 +238,6 @@ export const SignInPage: React.FC = () => {
                                             }`}
                                     />
                                 </div>
-                                {errors.email && (
-                                    <p id="email-error" role="alert" className="text-xs text-error font-medium mt-1">
-                                        {errors.email.message}
-                                    </p>
-                                )}
                             </div>
 
                             {/* Password */}
@@ -397,7 +270,6 @@ export const SignInPage: React.FC = () => {
                                         autoComplete="current-password"
                                         placeholder="••••••••••••"
                                         aria-invalid={!!errors.password}
-                                        aria-describedby={errors.password ? "password-error" : undefined}
                                         disabled={isPending}
                                         {...register("password")}
                                         className={`w-full pl-10 pr-10 py-2.5 text-sm rounded-xl bg-surface border text-on-surface placeholder:text-on-surface-variant/50 focus:outline-hidden transition-all disabled:opacity-50 ${errors.password
@@ -414,11 +286,6 @@ export const SignInPage: React.FC = () => {
                                         {showPassword ? <Icons.EyeOff size={16} /> : <Icons.Eye size={16} />}
                                     </button>
                                 </div>
-                                {errors.password && (
-                                    <p id="password-error" role="alert" className="text-xs text-error font-medium mt-1">
-                                        {errors.password.message}
-                                    </p>
-                                )}
                             </div>
 
                             {/* Modern Website Option: Remember Me for 30 days */}

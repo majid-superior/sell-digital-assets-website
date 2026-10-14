@@ -24,7 +24,6 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
     const generatedId = useId();
     const id = customId || generatedId;
     const isError = Boolean(error);
-    const errorMessage = typeof error === "string" ? error : undefined;
 
     return (
       <div className="flex flex-col gap-1">
@@ -68,9 +67,6 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
             </div>
           )}
         </label>
-        {errorMessage && (
-          <p className="text-xs text-error font-medium pl-7">{errorMessage}</p>
-        )}
       </div>
     );
   }

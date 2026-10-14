@@ -22,7 +22,7 @@ export class ApiError extends Error {
 /**
  * Handle non-ok HTTP responses, dispatching auth expiration and packaging server error payloads.
  */
-export async function handleResponseError(response: Response): Promise<never> {
+export async function handleResponseError(response: Response, endpoint?: string): Promise<never> {
     let errorData: unknown;
     try {
         errorData = (await response.json()) as unknown;
@@ -34,7 +34,16 @@ export async function handleResponseError(response: Response): Promise<never> {
         }
     }
 
-    if (response.status === 401) {
+    // Do not trigger global auth expiration on authentication endpoints (/auth/signin, /auth/signup, /auth/register)
+    // A 401 on /signin indicates invalid credentials, not an expired session.
+    const targetUrl = (endpoint || response.url || "").toLowerCase();
+    const isAuthEndpoint =
+        targetUrl.includes("/auth/signin") ||
+        targetUrl.includes("/auth/signup") ||
+        targetUrl.includes("/auth/login") ||
+        targetUrl.includes("/auth/register");
+
+    if (response.status === 401 && !isAuthEndpoint) {
         if (typeof window !== "undefined") {
             window.dispatchEvent(new CustomEvent("auth:unauthorized"));
         }

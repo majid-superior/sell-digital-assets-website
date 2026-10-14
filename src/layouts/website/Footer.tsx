@@ -90,6 +90,10 @@ export const Footer: React.FC<FooterProps> = ({
             toast.success("Subscribed to Weekly Drops!", {
                 description: "Check your inbox soon for hand-picked templates and releases.",
             });
+        } else {
+            toast.error("Invalid Email", {
+                description: "Please enter a valid email address.",
+            });
         }
     };
 
@@ -113,8 +117,15 @@ export const Footer: React.FC<FooterProps> = ({
                                 className="w-9 h-9 rounded-xl object-contain shadow-xs shrink-0"
                             />
                             <span>
-                                {brandName.replace("Drop", "")}
-                                <span className="text-primary font-extrabold">Drop</span>
+                                {brandName.includes("Drop") ? (
+                                    <>
+                                        {brandName.substring(0, brandName.indexOf("Drop"))}
+                                        <span className="text-primary font-extrabold">Drop</span>
+                                        {brandName.substring(brandName.indexOf("Drop") + 4)}
+                                    </>
+                                ) : (
+                                    brandName
+                                )}
                             </span>
                         </Link>
 

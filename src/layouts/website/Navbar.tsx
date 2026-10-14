@@ -98,8 +98,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                             className="w-9 h-9 rounded-xl object-contain shadow-xs shrink-0"
                         />
                         <span className="flex items-center">
-                            {brandName.replace("Drop", "")}
-                            <span className="text-primary font-extrabold">Drop</span>
+                            {brandName.includes("Drop") ? (
+                                <>
+                                    {brandName.substring(0, brandName.indexOf("Drop"))}
+                                    <span className="text-primary font-extrabold">Drop</span>
+                                    {brandName.substring(brandName.indexOf("Drop") + 4)}
+                                </>
+                            ) : (
+                                brandName
+                            )}
                         </span>
                     </Link>
 

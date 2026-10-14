@@ -84,13 +84,14 @@ export const BuyerLicensesPage: React.FC = () => {
                 verifyKeyInput.trim(),
                 verifyDomainInput.trim() || undefined
             );
-            setVerificationResult(result);
 
             if (result.isValid) {
+                setVerificationResult(result);
                 toast.success("License Key Valid!", {
                     description: `Status: ${result.status.toUpperCase()} • Tier: ${result.tier.toUpperCase()}`,
                 });
             } else {
+                setVerificationResult(null);
                 toast.error("License Verification Failed", {
                     description: result.reason || "Invalid license credentials",
                 });
@@ -194,61 +195,45 @@ export const BuyerLicensesPage: React.FC = () => {
 
                     {/* Verification Result Display */}
                     {verificationResult && (
-                        <div
-                            className={`p-4 rounded-xl border transition-all text-xs space-y-2 mt-3 ${
-                                verificationResult.isValid
-                                    ? "bg-primary/5 border-primary/30 text-on-surface"
-                                    : "bg-error/5 border-error/30 text-error"
-                            }`}
-                        >
+                        <div className="p-4 rounded-xl border border-primary/30 bg-primary/5 text-on-surface transition-all text-xs space-y-2 mt-3">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    {verificationResult.isValid ? (
-                                        <Icons.Check size={16} className="text-primary" />
-                                    ) : (
-                                        <Icons.Close size={16} className="text-error" />
-                                    )}
+                                    <Icons.Check size={16} className="text-primary" />
                                     <span className="font-bold text-sm">
-                                        {verificationResult.isValid ? "License Valid & Active" : "Invalid License"}
+                                        License Valid &amp; Active
                                     </span>
                                 </div>
                                 <Badge
-                                    variant={verificationResult.isValid ? "primary" : "error"}
+                                    variant="primary"
                                     size="sm"
                                     className="uppercase font-mono text-[9px]"
                                 >
-                                    {verificationResult.status || "FAIL"}
+                                    {verificationResult.status || "ACTIVE"}
                                 </Badge>
                             </div>
 
-                            {verificationResult.isValid && (
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-outline-variant/20">
-                                    <div>
-                                        <span className="text-[10px] text-on-surface-variant block">Tier</span>
-                                        <span className="font-semibold uppercase font-mono">{verificationResult.tier}</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-[10px] text-on-surface-variant block">Seats Used</span>
-                                        <span className="font-semibold">
-                                            {verificationResult.seats?.activeCount} / {verificationResult.seats?.maxActivations}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <span className="text-[10px] text-on-surface-variant block">Domain Bound</span>
-                                        <span className="font-semibold">
-                                            {verificationResult.isDomainActivated ? "Yes (Active)" : "No"}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <span className="text-[10px] text-on-surface-variant block">Remaining</span>
-                                        <span className="font-semibold">{verificationResult.seats?.remaining} seats</span>
-                                    </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-outline-variant/20">
+                                <div>
+                                    <span className="text-[10px] text-on-surface-variant block">Tier</span>
+                                    <span className="font-semibold uppercase font-mono">{verificationResult.tier}</span>
                                 </div>
-                            )}
-
-                            {!verificationResult.isValid && verificationResult.reason && (
-                                <p className="text-xs text-error font-medium">{verificationResult.reason}</p>
-                            )}
+                                <div>
+                                    <span className="text-[10px] text-on-surface-variant block">Seats Used</span>
+                                    <span className="font-semibold">
+                                        {verificationResult.seats?.activeCount} / {verificationResult.seats?.maxActivations}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] text-on-surface-variant block">Domain Bound</span>
+                                    <span className="font-semibold">
+                                        {verificationResult.isDomainActivated ? "Yes (Active)" : "No"}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] text-on-surface-variant block">Remaining</span>
+                                    <span className="font-semibold">{verificationResult.seats?.remaining} seats</span>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </CardContent>
