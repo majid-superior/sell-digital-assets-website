@@ -54,6 +54,11 @@ export const Navbar: React.FC<NavbarProps> = ({
 
     const closeMobileMenu = () => setMobileMenuOpen(false);
 
+    const handleSignOut = () => {
+        signOut("/");
+        void navigate("/", { replace: true });
+    };
+
     // Close mobile menu on Escape key press; return focus to trigger button
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -178,7 +183,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                             </span>
                             <button
                                 type="button"
-                                onClick={() => signOut()}
+                                onClick={handleSignOut}
                                 className="px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer"
                             >
                                 Sign Out
@@ -300,7 +305,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                                     type="button"
                                     onClick={() => {
                                         closeMobileMenu();
-                                        signOut();
+                                        handleSignOut();
                                     }}
                                     className="w-full py-2.5 text-center text-sm font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-lg transition-colors cursor-pointer"
                                 >

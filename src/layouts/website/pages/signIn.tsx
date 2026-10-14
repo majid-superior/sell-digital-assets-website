@@ -1,27 +1,77 @@
 // src/layouts/website/pages/signIn.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { useTheme } from "@/hooks/useTheme.ts";
-import { Icons } from "@/lib/icons/index.ts";
+import { useAuth } from "@/hooks/useAuth.ts";
+import { Icons, type IconComponent } from "@/lib/icons/index.ts";
 import { Button } from "@/components/ui/index.ts";
 import { signInSchema, type SignInFormData } from "@/features/auth/schemas/signInSchema.ts";
 import { useSignInMutation } from "@/features/auth/hooks/useSignInMutation.ts";
 import { AuthenticationError } from "@/features/auth/types.ts";
+import { getUserPortalAccess } from "@/features/dashboard/utils/navigationHelper.ts";
+
+interface DemoPreset {
+    id: "buyer" | "seller" | "admin";
+    label: string;
+    role: string;
+    email: string;
+    password: string;
+    icon: IconComponent;
+    badge: string;
+    description: string;
+}
+
+const DEMO_PRESETS: readonly DemoPreset[] = [
+    {
+        id: "buyer",
+        label: "Buyer Demo",
+        role: "Buyer",
+        email: "buyer@assetdrop.com",
+        password: "Password123!",
+        icon: Icons.Cart,
+        badge: "Buyer",
+        description: "Browse marketplace & download deliverables",
+    },
+    {
+        id: "seller",
+        label: "Seller Studio",
+        role: "Seller",
+        email: "creator@assetdrop.com",
+        password: "Password123!",
+        icon: Icons.Sell,
+        badge: "Creator",
+        description: "Publish assets & access seller analytics",
+    },
+    {
+        id: "admin",
+        label: "Platform Admin",
+        role: "Admin",
+        email: "admin@selldigitalassets.com",
+        password: "AdminPassword123!",
+        icon: Icons.Security,
+        badge: "Admin",
+        description: "Super administration & ecosystem control",
+    },
+];
 
 export const SignInPage: React.FC = () => {
     const { theme, toggleTheme } = useTheme();
+    const { isAuthenticated, user } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const [showPassword, setShowPassword] = useState(false);
+    const [activeDemo, setActiveDemo] = useState<string | null>(null);
 
     const signInMutation = useSignInMutation();
 
     const {
         register,
         handleSubmit,
+        setValue,
+        clearErrors,
         setError,
         formState: { errors, isSubmitting },
     } = useForm<SignInFormData>({
@@ -29,30 +79,66 @@ export const SignInPage: React.FC = () => {
         defaultValues: {
             email: "",
             password: "",
-            rememberMe: false,
+            rememberMe: true,
         },
         mode: "onBlur",
     });
+
+    // Determine target destination from query params or location state
+    const getResolvedTarget = React.useCallback(
+        (currentUser = user): string => {
+            const searchParams = new URLSearchParams(location.search);
+            const redirectQuery =
+                searchParams.get("redirect") ||
+                searchParams.get("returnUrl") ||
+                searchParams.get("from");
+
+            const stateFrom = (location.state as { from?: { pathname: string; search?: string } } | null)?.from;
+            const stateFromPath = stateFrom ? `${stateFrom.pathname}${stateFrom.search || ""}` : undefined;
+
+            const target = redirectQuery || stateFromPath;
+
+            // If target is valid and not signin/signup, redirect there
+            if (target && !target.startsWith("/signin") && !target.startsWith("/signup")) {
+                return target;
+            }
+
+            // Otherwise smart role-based default:
+            if (currentUser) {
+                const access = getUserPortalAccess(currentUser);
+                if (access.defaultPortal === "seller") {
+                    return "/dashboard/seller/overview";
+                }
+            }
+
+            return "/";
+        },
+        [location, user]
+    );
+
+    // Modern Website Guard: if user is already authenticated, redirect immediately
+    useEffect(() => {
+        if (isAuthenticated && user) {
+            const target = getResolvedTarget(user);
+            void navigate(target, { replace: true });
+        }
+    }, [isAuthenticated, user, getResolvedTarget, navigate]);
 
     const isPending = isSubmitting || signInMutation.isPending;
 
     const onSubmit = async (data: SignInFormData) => {
         try {
-            await signInMutation.mutateAsync(data);
+            const authResponse = await signInMutation.mutateAsync(data);
+            const signedInUser = authResponse.user;
 
-            // Determine redirect target:
-            // 1. Previous route if redirected from protected route
-            // 2. Creator dashboard if seller
-            // 3. Marketplace home for buyers
-            const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname;
-            if (from && from !== "/signin" && from !== "/signup") {
-                void navigate(from, { replace: true });
-            } else {
-                void navigate("/", { replace: true });
-            }
+            // Smart Redirection:
+            // 1. Previous intended route if redirected from ProtectedRoute or query param (?redirect= / ?returnUrl=)
+            // 2. Creator dashboard (/dashboard/seller/overview) if seller or admin
+            // 3. Marketplace home (/) for buyers
+            const target = getResolvedTarget(signedInUser);
+            void navigate(target, { replace: true });
         } catch (error: unknown) {
-            // Error notification is triggered by useSignInMutation's onError callback.
-            // In addition, if the backend returned field-specific errors, highlight those fields:
+            // Field-specific validation errors from backend
             if (error instanceof AuthenticationError && error.fieldErrors) {
                 for (const [field, messages] of Object.entries(error.fieldErrors)) {
                     if ((field === "email" || field === "password") && messages && messages.length > 0) {
@@ -64,6 +150,18 @@ export const SignInPage: React.FC = () => {
                 }
             }
         }
+    };
+
+    const handleSelectDemo = (demo: DemoPreset) => {
+        setActiveDemo(demo.id);
+        setValue("email", demo.email, { shouldValidate: true });
+        setValue("password", demo.password, { shouldValidate: true });
+        setValue("rememberMe", true);
+        clearErrors();
+
+        toast.info(`Loaded ${demo.label}`, {
+            description: `Credentials set for ${demo.email}. Click "Sign In" to proceed.`,
+        });
     };
 
     return (
@@ -78,7 +176,7 @@ export const SignInPage: React.FC = () => {
                 <div className="absolute -bottom-40 left-1/3 w-96 h-96 rounded-full bg-secondary/10 blur-3xl" />
             </div>
 
-            {/* Standalone Header Bar (No full site header) */}
+            {/* Standalone Header Bar */}
             <header className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex items-center justify-between">
                 {/* Brand Logo */}
                 <Link
@@ -128,8 +226,47 @@ export const SignInPage: React.FC = () => {
                                 Welcome back
                             </h1>
                             <p className="text-xs sm:text-sm text-on-surface-variant">
-                                Sign in to access your digital assets, downloads, and account.
+                                Sign in to access your digital assets, creator studio, and account.
                             </p>
+                        </div>
+
+                        {/* Modern Feature: 1-Click Demo Accounts Selector */}
+                        <div className="space-y-2 p-3.5 rounded-2xl bg-surface border border-outline-variant/30">
+                            <div className="flex items-center justify-between text-xs">
+                                <span className="font-semibold text-on-surface flex items-center gap-1.5">
+                                    <Icons.Magic size={14} className="text-primary" />
+                                    <span>Instant Demo Logins</span>
+                                </span>
+                                <span className="text-[10px] text-on-surface-variant uppercase tracking-wider font-medium">
+                                    1-Click Fill
+                                </span>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-1.5 pt-1">
+                                {DEMO_PRESETS.map((demo) => {
+                                    const Icon = demo.icon;
+                                    const isSelected = activeDemo === demo.id;
+                                    return (
+                                        <button
+                                            key={demo.id}
+                                            type="button"
+                                            onClick={() => handleSelectDemo(demo)}
+                                            disabled={isPending}
+                                            title={demo.description}
+                                            className={`flex flex-col items-center justify-center p-2 rounded-xl text-center border transition-all cursor-pointer ${
+                                                isSelected
+                                                    ? "bg-primary/10 border-primary text-primary font-bold shadow-2xs"
+                                                    : "bg-surface-container-low border-outline-variant/30 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high"
+                                            }`}
+                                        >
+                                            <Icon size={16} className={isSelected ? "text-primary" : "text-on-surface-variant"} />
+                                            <span className="text-[11px] font-semibold mt-1 leading-tight truncate w-full">
+                                                {demo.badge}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         </div>
 
                         {/* Error Alert if mutation fails */}
@@ -189,7 +326,7 @@ export const SignInPage: React.FC = () => {
                                     <div className="w-full border-t border-outline-variant/30" />
                                 </div>
                                 <span className="relative px-3 bg-surface-container-low text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant/70">
-                                    Or continue with email
+                                    Or continue with credentials
                                 </span>
                             </div>
                         </div>
@@ -284,7 +421,7 @@ export const SignInPage: React.FC = () => {
                                 )}
                             </div>
 
-                            {/* Remember Me */}
+                            {/* Modern Website Option: Remember Me for 30 days */}
                             <div className="flex items-center justify-between pt-1">
                                 <label className="flex items-center gap-2 cursor-pointer select-none">
                                     <input
@@ -293,8 +430,13 @@ export const SignInPage: React.FC = () => {
                                         {...register("rememberMe")}
                                         className="w-4 h-4 rounded-sm border-outline-variant text-primary focus:ring-primary accent-primary cursor-pointer disabled:opacity-50"
                                     />
-                                    <span className="text-xs text-on-surface-variant">Remember this device for 30 days</span>
+                                    <span className="text-xs text-on-surface-variant">
+                                        Remember this device for 30 days
+                                    </span>
                                 </label>
+                                <span className="text-[11px] text-on-surface-variant/60">
+                                    Secure Session
+                                </span>
                             </div>
 
                             {/* Submit Button */}

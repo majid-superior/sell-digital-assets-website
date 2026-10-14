@@ -1,6 +1,6 @@
 // src/features/dashboard/components/DashboardHeader.tsx
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Icons } from "@/lib/icons/index.ts";
 import { useTheme } from "@/hooks/useTheme.ts";
 import { useAuth } from "@/hooks/useAuth.ts";
@@ -30,6 +30,12 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     const { theme, toggleTheme } = useTheme();
     const { user, signOut } = useAuth();
     const location = useLocation();
+    const navigate = useNavigate();
+
+    const handleSignOut = () => {
+        signOut("/");
+        void navigate("/", { replace: true });
+    };
 
     const { portalLabel, pageTitle } = getBreadcrumbTitle(location.pathname);
     const displayTitle = title || pageTitle;
@@ -107,7 +113,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                     </span>
                     <button
                         type="button"
-                        onClick={() => signOut()}
+                        onClick={handleSignOut}
                         title="Sign Out"
                         aria-label="Sign Out"
                         className="px-2.5 py-1 rounded-full text-xs font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer"

@@ -8,7 +8,7 @@ export interface AuthContextType {
     isAuthenticated: boolean;
     isLoading: boolean;
     setSession: (user: User, token: string) => void;
-    signOut: () => void;
+    signOut: (redirectTo?: string) => void;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);

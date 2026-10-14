@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import type { User } from "@/types/user.ts";
 import { AuthContext, type AuthContextType } from "@/context/authContext.ts";
 import { authService } from "@/services/v1/authService.ts";
+import { toast } from "sonner";
 
 export interface AuthProviderProps {
     children: React.ReactNode;
@@ -18,10 +19,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setToken(newToken);
     }, []);
 
-    const signOut = useCallback(() => {
+    const signOut = useCallback((redirectTo: string = "/") => {
         authService.signOut();
         setUser(null);
         setToken(null);
+        toast.success("Signed out successfully", {
+            description: "You have returned to the marketplace.",
+        });
+        if (typeof window !== "undefined" && window.location.pathname !== redirectTo) {
+            window.location.href = redirectTo;
+        }
     }, []);
 
     // Verify session integrity against the backend on mount
@@ -90,13 +97,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Synchronize when other tabs or services dispatch auth events
     useEffect(() => {
         const handleUnauthorized = () => {
-            signOut();
+            signOut("/");
         };
 
         const handleSignOut = () => {
             authService.clearSession();
             setUser(null);
             setToken(null);
+            if (typeof window !== "undefined" && window.location.pathname !== "/") {
+                window.location.href = "/";
+            }
         };
 
         window.addEventListener("auth:unauthorized", handleUnauthorized);
