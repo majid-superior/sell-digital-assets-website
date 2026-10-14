@@ -118,8 +118,8 @@ export const SellerProductsPage: React.FC = () => {
                 </Button>
             </div>
 
-            {/* Performance Stats Cards (if available from backend) */}
-            {stats && (
+            {/* Performance Stats Cards (if available from backend and assets exist) */}
+            {stats && stats.totalAssets > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/30">
                         <span className="text-[11px] text-on-surface-variant uppercase font-semibold">Total Assets</span>

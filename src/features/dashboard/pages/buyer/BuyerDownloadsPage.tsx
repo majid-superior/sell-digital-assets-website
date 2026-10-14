@@ -3,81 +3,88 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { assetService } from "@/services/v1/assetService.ts";
+import { licenseService } from "@/services/v1/licenseService.ts";
 import { downloadService } from "@/services/v1/downloadService.ts";
 import { queryKeys } from "@/services/queryKeys.ts";
-import { useAuth } from "@/hooks/useAuth.ts";
 import { formatBytes } from "@/utils/file.ts";
 import { formatDate } from "@/utils/date.ts";
 import { Icons } from "@/lib/icons/index.ts";
 import { Button, Badge, Skeleton, EmptyState, Modal, Input, Label } from "@/components/ui/index.ts";
-import type { DigitalAsset } from "@/types/asset.ts";
+import type { BuyerLicenseItem } from "@/types/license.ts";
 
 export const BuyerDownloadsPage: React.FC = () => {
-    const { user } = useAuth();
-    const [downloadingId, setDownloadingId] = useState<string | null>(null);
+    const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
 
     // Direct License Download Modal
     const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
     const [customLicenseKey, setCustomLicenseKey] = useState("");
     const [isGeneratingCustom, setIsGeneratingCustom] = useState(false);
 
-    // Fetch downloadable assets from live backend catalog
-    const { data: response, isLoading } = useQuery({
-        queryKey: queryKeys.assets.list({ limit: 20 }),
-        queryFn: () => assetService.getAssets({ limit: 20 }),
+    // Live Query: Fetch authenticated buyer's licensed deliverables from backend
+    const { data: licenses = [], isLoading } = useQuery({
+        queryKey: queryKeys.licenses.buyer(),
+        queryFn: () => licenseService.getBuyerLicenses(),
     });
 
-    const assets: DigitalAsset[] = response?.items || [];
-
-    const handleExecuteDownload = async (asset: DigitalAsset) => {
+    const handleExecuteDownload = async (item: BuyerLicenseItem) => {
         try {
-            setDownloadingId(asset.id);
-            toast.loading("Generating secure time-limited signed link...", { id: `dl-${asset.id}` });
+            setDownloadingKey(item.license_key);
+            toast.loading("Generating secure time-limited signed link...", { id: `dl-${item.id}` });
 
-            const result = await downloadService.generateDownloadLink(asset.id, {
-                buyerId: user?.id,
+            const file = item.files && item.files.length > 0 ? item.files[0] : null;
+            const result = await downloadService.generateDownloadLink(item.asset_id, {
+                licenseKey: item.license_key,
+                fileId: file?.id,
             });
 
             downloadService.downloadFile(result.downloadUrl, result.fileName);
 
             toast.success("Download Started", {
-                id: `dl-${asset.id}`,
+                id: `dl-${item.id}`,
                 description: `${result.fileName} (v${result.version || "1.0.0"}) — signed link expires in 15 minutes.`,
             });
         } catch (err) {
             const msg = err instanceof Error ? err.message : "Failed to generate download link";
             toast.error("Download Authorization Error", {
-                id: `dl-${asset.id}`,
-                description: msg.includes("Authorization required")
-                    ? "Please enter your license key or confirm purchase ownership."
-                    : msg,
+                id: `dl-${item.id}`,
+                description: msg,
             });
         } finally {
-            setDownloadingId(null);
+            setDownloadingKey(null);
         }
     };
 
     const handleCustomKeyDownload = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!customLicenseKey.trim()) {
+        const key = customLicenseKey.trim();
+        if (!key) {
             toast.error("Please enter a valid license key");
             return;
         }
 
         try {
             setIsGeneratingCustom(true);
-            toast.loading("Verifying key and signing deliverable link...", { id: "custom-dl" });
+            toast.loading("Verifying license key...", { id: "custom-dl" });
 
-            // Using first asset or general fulfillment endpoint
-            const targetAssetId = assets[0]?.id || "00000000-0000-0000-0000-000000000001";
-            const result = await downloadService.generateDownloadLink(targetAssetId, {
-                licenseKey: customLicenseKey.trim(),
+            // 1. Live cryptographic verification via backend
+            const verification = await licenseService.verifyLicense(key);
+            if (!verification.isValid || !verification.asset?.id) {
+                toast.error("Invalid License Key", {
+                    id: "custom-dl",
+                    description: verification.reason || "License key does not exist or has expired.",
+                });
+                return;
+            }
+
+            // 2. Generate signed download link for verified asset
+            toast.loading("Signing deliverable package...", { id: "custom-dl" });
+            const result = await downloadService.generateDownloadLink(verification.asset.id, {
+                licenseKey: key,
             });
 
             downloadService.downloadFile(result.downloadUrl, result.fileName);
 
-            toast.success("Download Stream Ready", {
+            toast.success("Download Ready", {
                 id: "custom-dl",
                 description: `Signed package ${result.fileName} is downloading. Link expires in 15 minutes.`,
             });
@@ -100,7 +107,7 @@ export const BuyerDownloadsPage: React.FC = () => {
                         Purchased Deliverables &amp; Downloads
                     </h1>
                     <p className="text-xs text-on-surface-variant mt-1">
-                        Access your production ZIP deliverables, code repositories, and version releases.
+                        Access your production ZIP deliverables, code packages, and version releases.
                     </p>
                 </div>
 
@@ -119,7 +126,7 @@ export const BuyerDownloadsPage: React.FC = () => {
             <div className="space-y-4">
                 {isLoading ? (
                     <div className="space-y-3">
-                        {Array.from({ length: 4 }, (_, i) => (
+                        {Array.from({ length: 3 }, (_, i) => (
                             <div
                                 key={i}
                                 className="p-5 rounded-2xl border border-outline-variant/30 bg-surface flex items-center justify-between gap-4"
@@ -135,53 +142,59 @@ export const BuyerDownloadsPage: React.FC = () => {
                             </div>
                         ))}
                     </div>
-                ) : assets.length > 0 ? (
+                ) : licenses.length > 0 ? (
                     <div className="space-y-3">
-                        {assets.map((asset) => {
-                            const file = asset.files && asset.files.length > 0 ? asset.files[0] : null;
-                            const thumbnail = asset.media?.find((m) => m.media_type === "thumbnail")?.url || asset.thumbnailUrl;
-                            const categoryName = typeof asset.category === "object" ? asset.category?.name : (asset.category || "General");
-                            const versionStr = file?.version || asset.version || "1.0.0";
-                            const fileSize = file?.file_size_bytes || asset.fileSizeInBytes || 0;
+                        {licenses.map((item: BuyerLicenseItem) => {
+                            const file = item.files && item.files.length > 0 ? item.files[0] : null;
+                            const title = item.asset?.title || "Purchased Digital Asset";
+                            const versionStr = file?.version || "1.0.0";
+                            const fileSize = file?.file_size_bytes || 0;
 
                             return (
                                 <div
-                                    key={asset.id}
+                                    key={item.id}
                                     className="p-5 rounded-2xl border border-outline-variant/30 bg-surface hover:border-outline-variant/60 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs"
                                 >
-                                    {/* Left: Thumbnail & Details */}
+                                    {/* Left: Deliverable Details */}
                                     <div className="flex items-center gap-4 min-w-0">
-                                        {thumbnail ? (
-                                            <img
-                                                src={thumbnail}
-                                                alt={asset.title}
-                                                className="w-14 h-14 rounded-2xl object-cover border border-outline-variant/30 bg-surface-container shrink-0"
-                                            />
-                                        ) : (
-                                            <div className="w-14 h-14 rounded-2xl bg-surface-container border border-outline-variant/30 flex items-center justify-center shrink-0 text-primary">
-                                                <Icons.Package size={24} />
-                                            </div>
-                                        )}
+                                        <div className="w-14 h-14 rounded-2xl bg-surface-container border border-outline-variant/30 flex items-center justify-center shrink-0 text-primary">
+                                            <Icons.Package size={24} />
+                                        </div>
 
                                         <div className="min-w-0 space-y-1">
                                             <div className="flex items-center gap-2 flex-wrap">
-                                                <Link
-                                                    to={`/asset/${asset.slug}`}
-                                                    className="font-bold text-sm text-on-surface hover:text-primary transition-colors truncate"
-                                                >
-                                                    {asset.title}
-                                                </Link>
+                                                {item.asset?.slug ? (
+                                                    <Link
+                                                        to={`/asset/${item.asset.slug}`}
+                                                        className="font-bold text-sm text-on-surface hover:text-primary transition-colors truncate"
+                                                    >
+                                                        {title}
+                                                    </Link>
+                                                ) : (
+                                                    <span className="font-bold text-sm text-on-surface truncate">
+                                                        {title}
+                                                    </span>
+                                                )}
                                                 <Badge variant="primary" size="sm" className="font-mono text-[9px] uppercase">
                                                     v{versionStr}
+                                                </Badge>
+                                                <Badge variant="outline" size="sm" className="font-mono text-[9px] uppercase">
+                                                    {item.tier}
                                                 </Badge>
                                             </div>
 
                                             <div className="flex items-center gap-3 text-xs text-on-surface-variant flex-wrap">
-                                                <span>{categoryName}</span>
+                                                {file?.file_name && (
+                                                    <span className="font-mono">{file.file_name}</span>
+                                                )}
+                                                {fileSize > 0 && (
+                                                    <>
+                                                        <span>•</span>
+                                                        <span className="font-mono">{formatBytes(fileSize)}</span>
+                                                    </>
+                                                )}
                                                 <span>•</span>
-                                                <span className="font-mono">{formatBytes(fileSize)}</span>
-                                                <span>•</span>
-                                                <span>Updated {formatDate(asset.updated_at || asset.created_at)}</span>
+                                                <span>Purchased {formatDate(item.issued_at)}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -189,22 +202,10 @@ export const BuyerDownloadsPage: React.FC = () => {
                                     {/* Right: Actions */}
                                     <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                                         <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => {
-                                                setCustomLicenseKey("");
-                                                setIsKeyModalOpen(true);
-                                            }}
-                                            className="cursor-pointer text-xs"
-                                        >
-                                            License Key
-                                        </Button>
-
-                                        <Button
                                             variant="primary"
                                             size="sm"
-                                            onClick={() => handleExecuteDownload(asset)}
-                                            isLoading={downloadingId === asset.id}
+                                            onClick={() => handleExecuteDownload(item)}
+                                            isLoading={downloadingKey === item.license_key}
                                             leftIcon={<Icons.Download size={14} />}
                                             className="cursor-pointer text-xs shadow-xs"
                                         >
@@ -216,14 +217,14 @@ export const BuyerDownloadsPage: React.FC = () => {
                         })}
                     </div>
                 ) : (
-                    <div className="p-12 rounded-3xl border border-dashed border-outline-variant/40 text-center">
+                    <div className="p-12 rounded-3xl border border-dashed border-outline-variant/40 text-center bg-surface">
                         <EmptyState
-                            title="No deliverables found"
-                            description="You have not purchased or downloaded any assets yet. Browse our marketplace catalog to find software deliverables."
+                            title="No purchased downloads yet"
+                            description="You have not purchased any digital deliverables yet. Browse the marketplace catalog to discover software packages, templates, and digital assets."
                             icon={<Icons.Download size={36} />}
                             action={
                                 <Link to="/explore">
-                                    <Button variant="primary" size="md">
+                                    <Button variant="primary" size="md" className="cursor-pointer">
                                         Explore Marketplace
                                     </Button>
                                 </Link>
@@ -238,7 +239,7 @@ export const BuyerDownloadsPage: React.FC = () => {
                 isOpen={isKeyModalOpen}
                 onClose={() => setIsKeyModalOpen(false)}
                 title="Instant Deliverable Download"
-                description="Input any valid purchased license key to stream the signed package directly from disk."
+                description="Input any valid purchased license key to stream the signed package directly from the live storage system."
             >
                 <form onSubmit={handleCustomKeyDownload} className="space-y-4">
                     <div className="space-y-1.5">
@@ -246,13 +247,13 @@ export const BuyerDownloadsPage: React.FC = () => {
                         <Input
                             id="custom-key-field"
                             type="text"
-                            placeholder="DV26-LIVE-PROD-TEST-8888"
+                            placeholder="DV26-XXXX-YYYY-ZZZZ-####"
                             value={customLicenseKey}
                             onChange={(e) => setCustomLicenseKey(e.target.value)}
                             className="font-mono uppercase tracking-wider text-sm"
                         />
                         <p className="text-[11px] text-on-surface-variant">
-                            Validates cryptographic signature, checks active seats, and produces a 15-minute signed streaming URL.
+                            Validates cryptographic signature with the live backend, checks active seats, and produces a 15-minute signed streaming URL.
                         </p>
                     </div>
 
@@ -284,4 +285,3 @@ export const BuyerDownloadsPage: React.FC = () => {
 };
 
 export default BuyerDownloadsPage;
-

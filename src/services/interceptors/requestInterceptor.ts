@@ -81,6 +81,22 @@ export function prepareRequestHeaders(customHeaders?: HeadersInit): Record<strin
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
 
+    if (typeof window !== "undefined") {
+        const userJson = localStorage.getItem("auth_user") || sessionStorage.getItem("auth_user");
+        if (userJson) {
+            try {
+                const user = JSON.parse(userJson) as { id?: string };
+                if (user?.id) {
+                    headers["x-seller-id"] = String(user.id);
+                    headers["x-buyer-id"] = String(user.id);
+                    headers["x-user-id"] = String(user.id);
+                }
+            } catch {
+                // Ignore JSON parse errors
+            }
+        }
+    }
+
     if (customHeaders) {
         if (customHeaders instanceof Headers) {
             customHeaders.forEach((val, key) => {

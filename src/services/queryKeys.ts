@@ -34,6 +34,7 @@ export const queryKeys = {
     },
     licenses: {
         all: ["licenses"] as const,
+        buyer: () => [...queryKeys.licenses.all, "buyer"] as const,
         details: () => [...queryKeys.licenses.all, "detail"] as const,
         detail: (key: string) => [...queryKeys.licenses.details(), key] as const,
     },

@@ -33,6 +33,8 @@ import {
     X,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth.ts";
+import { toast } from "sonner";
+import { authService } from "@/services/v1/authService.ts";
 import {
     SELLER_NAV_ITEMS,
     BUYER_NAV_ITEMS,
@@ -256,6 +258,8 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
 
     const currentItems = portal === "seller" ? SELLER_NAV_ITEMS : BUYER_NAV_ITEMS;
 
+    const [isUpgrading, setIsUpgrading] = useState(false);
+
     const handleSwitchPortal = (newPortal: "seller" | "buyer") => {
         if (newPortal === "seller") {
             void navigate("/dashboard/seller/overview");
@@ -263,6 +267,26 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
             void navigate("/dashboard/buyer/library/downloads");
         }
         if (onClose) onClose();
+    };
+
+    const handleBecomeSeller = async () => {
+        try {
+            setIsUpgrading(true);
+            toast.loading("Upgrading your account to Creator/Seller status...", { id: "upgrade-seller" });
+            await authService.becomeSeller();
+            toast.success("Welcome to the Seller Studio!", {
+                id: "upgrade-seller",
+                description: "Your account now has full Creator privileges. Start by publishing your first asset!",
+            });
+            if (onClose) onClose();
+            // Full refresh to sync user session and navigation access
+            window.location.href = "/dashboard/seller/products/new";
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : "Failed to upgrade account";
+            toast.error("Upgrade Failed", { id: "upgrade-seller", description: msg });
+        } finally {
+            setIsUpgrading(false);
+        }
     };
 
     return (
@@ -374,6 +398,27 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
                     />
                 ))}
             </nav>
+
+            {/* Upgrade to Seller Banner (Only shown if buyer and not yet seller) */}
+            {!access.canAccessSeller && (
+                <div className="p-3 mx-3 mb-2 rounded-2xl bg-primary/10 border border-primary/20 text-xs shrink-0">
+                    <div className="font-bold text-on-surface flex items-center gap-1.5">
+                        <Store size={15} className="text-primary" />
+                        <span>Start Selling</span>
+                    </div>
+                    <p className="text-[11px] text-on-surface-variant mt-1 leading-relaxed">
+                        List your digital templates, software, and assets to earn revenue.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={handleBecomeSeller}
+                        disabled={isUpgrading}
+                        className="mt-2.5 w-full py-1.5 px-3 rounded-xl bg-primary text-on-primary font-semibold text-xs hover:opacity-90 active:scale-95 transition-all cursor-pointer shadow-xs text-center"
+                    >
+                        {isUpgrading ? "Upgrading..." : "Become a Seller in 1 Click"}
+                    </button>
+                </div>
+            )}
 
             {/* 4. Bottom Actions */}
             <div className="p-3 border-t border-outline-variant/30 space-y-1 shrink-0">

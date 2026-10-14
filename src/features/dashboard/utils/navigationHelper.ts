@@ -44,26 +44,19 @@ export function getUserPortalAccess(user: User | null, currentPath = ""): UserPo
     // Database role IDs: 1 = admin, 2 = seller, 3 = buyer/customer
     const isAdmin = rolesSet.has("admin") || user.role_id === 1;
     const isSeller = isAdmin || rolesSet.has("seller") || user.role_id === 2 || Boolean(user.sellerProfile);
-    const isBuyer = isAdmin || rolesSet.has("buyer") || rolesSet.has("customer") || user.role_id === 3;
 
-    // Both roles condition:
-    // User is admin OR has explicit multi-role containing both seller and buyer OR has "both"/"all"
-    const hasBothRoles =
-        isAdmin ||
-        (rolesSet.has("seller") && (rolesSet.has("buyer") || rolesSet.has("customer"))) ||
-        rolesSet.has("both") ||
-        rolesSet.has("all");
-
-    const canAccessSeller = hasBothRoles || isSeller;
-    const canAccessBuyer = hasBothRoles || isBuyer || !isSeller;
+    // Unified Marketplace Principle:
+    // Every authenticated user has Buyer capabilities (they can purchase assets, download deliverables, and manage keys).
+    // Sellers and Admins have both capabilities (selling & buying), enabling the Dual-Portal Switcher.
+    const canAccessBuyer = true;
+    const canAccessSeller = isAdmin || isSeller;
+    const hasBothRoles = canAccessSeller && canAccessBuyer;
 
     let defaultPortal: "seller" | "buyer" = "buyer";
-    if (canAccessSeller && !canAccessBuyer) {
+    if (canAccessSeller) {
         defaultPortal = "seller";
-    } else if (canAccessBuyer && !canAccessSeller) {
-        defaultPortal = "buyer";
     } else {
-        defaultPortal = isSeller ? "seller" : "buyer";
+        defaultPortal = "buyer";
     }
 
     return {

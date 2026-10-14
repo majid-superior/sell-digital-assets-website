@@ -4,6 +4,7 @@ import type {
   LicenseEntity,
   LicenseVerificationResult,
   LicenseActivationResult,
+  BuyerLicenseItem,
 } from "@/types/license.ts";
 import type { TierType } from "@/types/asset.ts";
 
@@ -81,6 +82,19 @@ class LicenseService {
       }
     );
     return res.data;
+  }
+
+  /**
+   * Retrieve all active cryptographic licenses owned by the authenticated buyer.
+   */
+  async getBuyerLicenses(): Promise<BuyerLicenseItem[]> {
+    const res = await apiClient.get<ApiResponseEnvelope<BuyerLicenseItem[]> | BuyerLicenseItem[]>(
+      "/api/v1/licenses/buyer"
+    );
+    if (!res) return [];
+    if (Array.isArray(res)) return res;
+    if ("data" in res && Array.isArray(res.data)) return res.data;
+    return [];
   }
 }
 

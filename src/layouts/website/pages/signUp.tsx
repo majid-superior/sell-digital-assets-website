@@ -186,10 +186,25 @@ export const SignUpPage: React.FC = () => {
                         {signUpMutation.isError && (
                             <div
                                 role="alert"
-                                className="p-3.5 rounded-xl bg-error/10 border border-error/30 text-error text-xs sm:text-sm flex items-start gap-2.5"
+                                className="p-3.5 rounded-xl bg-error/10 border border-error/30 text-error text-xs sm:text-sm flex flex-col gap-2"
                             >
-                                <span className="font-bold shrink-0">Registration Error:</span>
-                                <span>{signUpMutation.error?.message || "Sign up failed. Please check your details."}</span>
+                                <div className="flex items-start gap-2.5">
+                                    <span className="font-bold shrink-0">Account Notice:</span>
+                                    <span>{signUpMutation.error?.message || "Sign up failed. Please check your details."}</span>
+                                </div>
+                                {signUpMutation.error?.message?.toLowerCase().includes("already exists") && (
+                                    <div className="pt-2 border-t border-error/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                                        <p className="text-on-surface-variant">
+                                            Your existing account can both <strong>buy</strong> and <strong>sell</strong> — you don't need a second registration!
+                                        </p>
+                                        <Link
+                                            to="/signin"
+                                            className="px-3 py-1.5 rounded-lg bg-primary text-on-primary font-semibold text-center hover:opacity-90 shrink-0"
+                                        >
+                                            Sign In Here
+                                        </Link>
+                                    </div>
+                                )}
                             </div>
                         )}
 

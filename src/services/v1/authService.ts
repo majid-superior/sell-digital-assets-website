@@ -32,6 +32,10 @@ class AuthService {
 
         const rolesList: string[] = Array.isArray(user.roles) && user.roles.length > 0
             ? user.roles
+            : role === "seller"
+            ? ["seller", "buyer"]
+            : role === "admin"
+            ? ["admin", "seller", "buyer"]
             : [role];
 
         return {
@@ -321,6 +325,20 @@ class AuthService {
         } catch {
             return null;
         }
+    }
+
+    /**
+     * Upgrades the authenticated buyer account to a seller/creator account.
+     */
+    async becomeSeller(): Promise<User> {
+        const response = await apiClient.post<User | { data: User; user?: User }>("/api/v1/auth/become-seller", {});
+        const rawUser: User = (response && "data" in response && response.data)
+            ? response.data
+            : (response as User);
+        const user = this.normalizeUser(rawUser);
+        const storage = localStorage.getItem(TOKEN_KEY) ? localStorage : sessionStorage;
+        storage.setItem(USER_KEY, JSON.stringify(user));
+        return user;
     }
 }
 
