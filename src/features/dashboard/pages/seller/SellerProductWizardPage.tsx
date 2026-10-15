@@ -10,6 +10,7 @@ import { assetService } from "@/services/v1/assetService.ts";
 import { queryKeys } from "@/services/queryKeys.ts";
 import { formatCurrency } from "@/utils/currency.ts";
 import { formatBytes } from "@/utils/file.ts";
+import { resolveMediaUrl } from "@/utils/media.ts";
 import { Icons } from "@/lib/icons/index.ts";
 import {
     Button,
@@ -43,15 +44,12 @@ export const SellerProductWizardPage: React.FC = () => {
     const [assetId, setAssetId] = useState<string | null>(editId || null);
     const [activeAsset, setActiveAsset] = useState<DigitalAsset | null>(null);
 
-    // Tags state
-    const [tags, setTags] = useState<string[]>(["template", "typescript"]);
+    // Tags state (default empty)
+    const [tags, setTags] = useState<string[]>([]);
     const [tagInput, setTagInput] = useState("");
 
-    // Technical specs state
-    const [specs, setSpecs] = useState<Array<{ key: string; value: string }>>([
-        { key: "Framework", value: "React 19" },
-        { key: "Database", value: "PostgreSQL" },
-    ]);
+    // Technical specs state (default empty)
+    const [specs, setSpecs] = useState<Array<{ key: string; value: string }>>([]);
     const [newSpecKey, setNewSpecKey] = useState("");
     const [newSpecValue, setNewSpecValue] = useState("");
 
@@ -202,13 +200,14 @@ export const SellerProductWizardPage: React.FC = () => {
         }
     };
 
-    // 2-Phase Presigned Upload: Deliverable File
-    const handleUploadDeliverable = async () => {
+    // 2-Phase Presigned Upload: Deliverable File (Auto-upload when browsed or dropped)
+    const handleUploadDeliverable = async (fileToUpload?: File) => {
+        const file = fileToUpload || deliverableFile;
         if (!assetId) {
-            toast.error("Save basic asset details first");
+            toast.error("Save basic asset details first", { description: "Please complete Step 1 before uploading files." });
             return;
         }
-        if (!deliverableFile) {
+        if (!file) {
             toast.error("Please select a ZIP file to upload");
             return;
         }
@@ -216,19 +215,20 @@ export const SellerProductWizardPage: React.FC = () => {
         try {
             setIsUploadingDeliverable(true);
             setDeliverableUploadProgress(0);
+            setDeliverableFile(file);
 
             // Phase 1: Request presigned upload URL
             toast.loading("Generating presigned upload authorization...", { id: "deliverable-upload" });
             const presigned = await assetService.presignFileUpload(assetId, {
-                fileName: deliverableFile.name,
-                contentType: deliverableFile.type || "application/zip",
+                fileName: file.name,
+                contentType: file.type || "application/zip",
                 version: deliverableVersion,
-                fileSizeBytes: deliverableFile.size,
+                fileSizeBytes: file.size,
             });
 
             // Phase 2: Stream binary direct to storage
             toast.loading("Streaming binary deliverable to storage disk...", { id: "deliverable-upload" });
-            await assetService.uploadBinary(presigned.uploadUrl, deliverableFile, (percent) => {
+            await assetService.uploadBinary(presigned.uploadUrl, file, (percent) => {
                 setDeliverableUploadProgress(percent);
             });
 
@@ -236,12 +236,12 @@ export const SellerProductWizardPage: React.FC = () => {
             toast.loading("Confirming file version in database...", { id: "deliverable-upload" });
             const confirmed = await assetService.confirmFileUpload(assetId, {
                 storageKey: presigned.storageKey,
-                fileName: deliverableFile.name,
+                fileName: file.name,
                 version: deliverableVersion,
-                fileSizeBytes: deliverableFile.size,
+                fileSizeBytes: file.size,
             });
 
-            setUploadedFiles([...uploadedFiles, confirmed]);
+            setUploadedFiles((prev) => [...prev, confirmed]);
             toast.success("Deliverable Uploaded Successfully!", {
                 id: "deliverable-upload",
                 description: `${confirmed.file_name} attached to v${confirmed.version}`,
@@ -259,9 +259,11 @@ export const SellerProductWizardPage: React.FC = () => {
     // 2-Phase Presigned Upload: Media File
     const handleUploadMedia = async (file: File) => {
         if (!assetId) {
-            toast.error("Save basic asset details first");
+            toast.error("Save basic asset details first", { description: "Please complete Step 1 before uploading media." });
             return;
         }
+
+        const localPreviewUrl = URL.createObjectURL(file);
 
         try {
             setIsUploadingMedia(true);
@@ -287,12 +289,18 @@ export const SellerProductWizardPage: React.FC = () => {
                 displayOrder: mediaList.length + 1,
             });
 
-            setMediaList([...mediaList, confirmed]);
+            const mediaWithUrl: AssetMedia = {
+                ...confirmed,
+                url: confirmed.url || localPreviewUrl,
+            };
+
+            setMediaList((prev) => [...prev, mediaWithUrl]);
             toast.success("Media Uploaded Successfully!", {
                 id: "media-upload",
                 description: `Showcase ${confirmed.media_type} preview is now live.`,
             });
         } catch (err) {
+            URL.revokeObjectURL(localPreviewUrl);
             const msg = err instanceof Error ? err.message : "Media upload failed";
             toast.error("Upload Error", { id: "media-upload", description: msg });
         } finally {
@@ -301,22 +309,30 @@ export const SellerProductWizardPage: React.FC = () => {
         }
     };
 
-    // Final Publish / Draft Actions
+    // Final Publish / Review Actions (Sellers submit for review)
     const handleFinalPublish = async (shouldPublish: boolean) => {
         if (!assetId) {
-            toast.error("Asset not saved yet");
+            toast.error("Asset not saved yet", { description: "Please complete Step 1 first." });
+            return;
+        }
+
+        if (shouldPublish && uploadedFiles.length === 0) {
+            toast.error("Deliverable ZIP Required", {
+                description: "You must upload at least one deliverable package in Step 3 before submitting for review.",
+            });
+            setCurrentStep("deliverables");
             return;
         }
 
         try {
-            const targetStatus = shouldPublish ? "published" : "draft";
+            const targetStatus = shouldPublish ? "pending" : "draft";
             await assetService.updateAssetStatus(assetId, targetStatus);
             toast.success(
-                shouldPublish ? "Asset Published Live!" : "Draft Saved Successfully!",
+                shouldPublish ? "Asset Submitted for Review!" : "Draft Saved Successfully!",
                 {
                     description: shouldPublish
-                        ? "Your digital product is now active in the public marketplace."
-                        : "You can return to edit and publish whenever you are ready.",
+                        ? "Your digital product has been submitted for admin approval and will go live once approved."
+                        : "You can return to edit and submit whenever you are ready.",
                 }
             );
             void queryClient.invalidateQueries({ queryKey: queryKeys.assets.all });
@@ -629,23 +645,34 @@ export const SellerProductWizardPage: React.FC = () => {
                             />
                         </div>
 
-                        {/* Drag and Drop Box */}
+                        {/* Drag and Drop Box with Auto-Upload */}
                         <div
                             onDragOver={(e) => e.preventDefault()}
                             onDrop={(e) => {
                                 e.preventDefault();
                                 if (e.dataTransfer.files?.[0]) {
-                                    setDeliverableFile(e.dataTransfer.files[0]);
+                                    void handleUploadDeliverable(e.dataTransfer.files[0]);
                                 }
                             }}
-                            className="p-8 border-2 border-dashed border-outline-variant/50 rounded-2xl bg-surface-container-lowest/50 text-center flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-colors"
+                            onClick={() => {
+                                if (!isUploadingDeliverable) {
+                                    document.getElementById("deliverable-file-input")?.click();
+                                }
+                            }}
+                            className="p-8 border-2 border-dashed border-outline-variant/50 rounded-2xl bg-surface-container-lowest/50 text-center flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-colors group"
                         >
-                            <Icons.Upload size={36} className="text-primary mb-2" />
+                            <Icons.Upload size={36} className="text-primary mb-2 transition-transform group-hover:scale-110" />
                             <h4 className="font-bold text-sm text-on-surface">
-                                {deliverableFile ? deliverableFile.name : "Drag & drop ZIP archive here"}
+                                {isUploadingDeliverable
+                                    ? `Uploading ${deliverableFile?.name || "ZIP"}...`
+                                    : deliverableFile
+                                    ? deliverableFile.name
+                                    : "Drag & drop ZIP archive here"}
                             </h4>
                             <p className="text-xs text-on-surface-variant mt-1">
-                                {deliverableFile ? `${formatBytes(deliverableFile.size)} selected` : "or click browse to select a .zip payload from your machine"}
+                                {isUploadingDeliverable
+                                    ? "Streaming payload direct to storage server..."
+                                    : "or click anywhere in this box to browse and auto-upload .zip"}
                             </p>
 
                             <input
@@ -655,26 +682,33 @@ export const SellerProductWizardPage: React.FC = () => {
                                 className="hidden"
                                 onChange={(e) => {
                                     if (e.target.files?.[0]) {
-                                        setDeliverableFile(e.target.files[0]);
+                                        const file = e.target.files[0];
+                                        void handleUploadDeliverable(file);
+                                        e.target.value = "";
                                     }
                                 }}
                             />
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => document.getElementById("deliverable-file-input")?.click()}
+                                type="button"
+                                isLoading={isUploadingDeliverable}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    document.getElementById("deliverable-file-input")?.click();
+                                }}
                                 className="mt-3 cursor-pointer"
                             >
-                                Browse Files
+                                {isUploadingDeliverable ? "Uploading..." : "Browse Files"}
                             </Button>
                         </div>
 
                         {/* Visual Progress Bar */}
                         {deliverableUploadProgress !== null && (
-                            <div className="space-y-1.5">
+                            <div className="space-y-1.5 animate-fade-in">
                                 <div className="flex justify-between text-xs font-semibold">
                                     <span className="text-on-surface">Uploading Binary to Storage...</span>
-                                    <span className="text-primary">{deliverableUploadProgress}%</span>
+                                    <span className="text-primary font-mono">{deliverableUploadProgress}%</span>
                                 </div>
                                 <div className="w-full h-2 rounded-full bg-surface-container overflow-hidden">
                                     <div
@@ -682,21 +716,6 @@ export const SellerProductWizardPage: React.FC = () => {
                                         style={{ width: `${deliverableUploadProgress}%` }}
                                     />
                                 </div>
-                            </div>
-                        )}
-
-                        {deliverableFile && (
-                            <div className="flex justify-end">
-                                <Button
-                                    variant="primary"
-                                    size="md"
-                                    onClick={handleUploadDeliverable}
-                                    isLoading={isUploadingDeliverable}
-                                    leftIcon={<Icons.Upload size={16} />}
-                                    className="cursor-pointer"
-                                >
-                                    Upload &amp; Confirm Deliverable
-                                </Button>
                             </div>
                         )}
 
@@ -772,11 +791,22 @@ export const SellerProductWizardPage: React.FC = () => {
                                     void handleUploadMedia(e.dataTransfer.files[0]);
                                 }
                             }}
-                            className="p-8 border-2 border-dashed border-outline-variant/50 rounded-2xl bg-surface-container-lowest/50 text-center flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-colors"
+                            onClick={() => {
+                                if (!isUploadingMedia) {
+                                    document.getElementById("media-file-input")?.click();
+                                }
+                            }}
+                            className="p-8 border-2 border-dashed border-outline-variant/50 rounded-2xl bg-surface-container-lowest/50 text-center flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-colors group"
                         >
-                            <Icons.Upload size={36} className="text-primary mb-2" />
-                            <h4 className="font-bold text-sm text-on-surface">Upload {mediaType} Image</h4>
-                            <p className="text-xs text-on-surface-variant mt-1">PNG, JPG, or WebP up to 10MB</p>
+                            <Icons.Upload size={36} className="text-primary mb-2 transition-transform group-hover:scale-110" />
+                            <h4 className="font-bold text-sm text-on-surface">
+                                {isUploadingMedia ? `Uploading ${mediaType} Image...` : `Upload ${mediaType} Image`}
+                            </h4>
+                            <p className="text-xs text-on-surface-variant mt-1">
+                                {isUploadingMedia
+                                    ? "Streaming media bytes to storage server..."
+                                    : "PNG, JPG, or WebP up to 10MB (click anywhere to browse)"}
+                            </p>
 
                             <input
                                 type="file"
@@ -785,14 +815,20 @@ export const SellerProductWizardPage: React.FC = () => {
                                 className="hidden"
                                 onChange={(e) => {
                                     if (e.target.files?.[0]) {
-                                        void handleUploadMedia(e.target.files[0]);
+                                        const file = e.target.files[0];
+                                        void handleUploadMedia(file);
+                                        e.target.value = "";
                                     }
                                 }}
                             />
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => document.getElementById("media-file-input")?.click()}
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    document.getElementById("media-file-input")?.click();
+                                }}
                                 isLoading={isUploadingMedia}
                                 className="mt-3 cursor-pointer"
                             >
@@ -801,10 +837,10 @@ export const SellerProductWizardPage: React.FC = () => {
                         </div>
 
                         {mediaUploadProgress !== null && (
-                            <div className="space-y-1.5">
+                            <div className="space-y-1.5 animate-fade-in">
                                 <div className="flex justify-between text-xs font-semibold">
                                     <span className="text-on-surface">Streaming Media Image...</span>
-                                    <span className="text-primary">{mediaUploadProgress}%</span>
+                                    <span className="text-primary font-mono">{mediaUploadProgress}%</span>
                                 </div>
                                 <div className="w-full h-2 rounded-full bg-surface-container overflow-hidden">
                                     <div
@@ -825,19 +861,35 @@ export const SellerProductWizardPage: React.FC = () => {
                                     {mediaList.map((m) => (
                                         <div
                                             key={m.id}
-                                            className="relative aspect-16/10 rounded-xl overflow-hidden border border-outline-variant/30 bg-surface-container group"
+                                            className="relative aspect-16/10 rounded-xl overflow-hidden border border-outline-variant/30 bg-surface-container group shadow-2xs"
                                         >
                                             {m.url ? (
-                                                <img src={m.url} alt={m.media_type} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-xs text-on-surface-variant">
-                                                    {m.storage_key}
-                                                </div>
-                                            )}
+                                                <img
+                                                    src={resolveMediaUrl(m.url)}
+                                                    alt={m.media_type}
+                                                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                                    onError={(e) => {
+                                                        const target = e.currentTarget;
+                                                        target.style.display = "none";
+                                                        const sibling = target.nextElementSibling;
+                                                        if (sibling) (sibling as HTMLElement).style.display = "flex";
+                                                    }}
+                                                />
+                                            ) : null}
+                                            <div
+                                                className={`w-full h-full flex flex-col items-center justify-center p-2 text-center text-xs text-on-surface-variant ${
+                                                    m.url ? "hidden" : "flex"
+                                                }`}
+                                            >
+                                                <Icons.Image size={24} className="text-on-surface-variant/40 mb-1" />
+                                                <span className="truncate max-w-full text-[10px] font-mono">
+                                                    {m.storage_key ? m.storage_key.split("/").pop() : "Preview"}
+                                                </span>
+                                            </div>
                                             <Badge
                                                 variant="outline"
                                                 size="sm"
-                                                className="absolute top-1.5 left-1.5 text-[9px] uppercase bg-surface/80"
+                                                className="absolute top-1.5 left-1.5 text-[9px] uppercase bg-surface/90 backdrop-blur-xs font-semibold"
                                             >
                                                 {m.media_type}
                                             </Badge>
@@ -857,7 +909,7 @@ export const SellerProductWizardPage: React.FC = () => {
                                 onClick={() => setCurrentStep("review")}
                                 className="cursor-pointer"
                             >
-                                Next: Review &amp; Publish <Icons.Next size={14} className="ml-1" />
+                                Next: Review &amp; Submit <Icons.Next size={14} className="ml-1" />
                             </Button>
                         </div>
                     </CardContent>
@@ -868,7 +920,7 @@ export const SellerProductWizardPage: React.FC = () => {
             {currentStep === "review" && (
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-base font-bold">Step 5: Review &amp; Publish</CardTitle>
+                        <CardTitle className="text-base font-bold">Step 5: Review &amp; Submit for Approval</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div className="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/30 space-y-3">
@@ -902,7 +954,7 @@ export const SellerProductWizardPage: React.FC = () => {
                             {uploadedFiles.length > 0 ? (
                                 <Icons.Check size={20} className="text-primary" />
                             ) : (
-                                <span className="text-[11px] text-amber-500 font-semibold">ZIP Required for live publishing</span>
+                                <span className="text-[11px] text-amber-500 font-semibold">ZIP Required for submission</span>
                             )}
                         </div>
 
@@ -926,7 +978,7 @@ export const SellerProductWizardPage: React.FC = () => {
                                     onClick={() => handleFinalPublish(true)}
                                     className="cursor-pointer"
                                 >
-                                    Publish Immediately
+                                    Submit for Review
                                 </Button>
                             </div>
                         </div>

@@ -6,6 +6,7 @@ import { useOrganization } from "@/hooks/useOrganization.ts";
 import { formatCurrency } from "@/utils/currency.ts";
 import { formatBytes } from "@/utils/file.ts";
 import { formatDate } from "@/utils/date.ts";
+import { resolveMediaUrl } from "@/utils/media.ts";
 import { Icons } from "@/lib/icons/index.ts";
 import {
     Button,
@@ -48,6 +49,7 @@ export const AssetDetailPage: React.FC = () => {
 
     // Media showcase state
     const [selectedImage, setSelectedImage] = useState<string>("");
+    const [mainImageError, setMainImageError] = useState<boolean>(false);
 
     // Dynamic Tier selection state
     const [selectedTierOverride, setSelectedTierOverride] = useState<TierType | null>(null);
@@ -75,19 +77,24 @@ export const AssetDetailPage: React.FC = () => {
     const allMediaUrls: string[] = [];
     if (asset.media && asset.media.length > 0) {
         for (const m of asset.media) {
-            if (m.url) allMediaUrls.push(m.url);
+            if (m.url) {
+                const resolved = resolveMediaUrl(m.url);
+                if (resolved && !allMediaUrls.includes(resolved)) allMediaUrls.push(resolved);
+            }
         }
     }
     if (allMediaUrls.length === 0 && asset.thumbnailUrl) {
-        allMediaUrls.push(asset.thumbnailUrl);
+        const resolvedThumb = resolveMediaUrl(asset.thumbnailUrl);
+        if (resolvedThumb) allMediaUrls.push(resolvedThumb);
     }
     if (asset.previewUrls && asset.previewUrls.length > 0) {
         for (const url of asset.previewUrls) {
-            if (!allMediaUrls.includes(url)) allMediaUrls.push(url);
+            const resolved = resolveMediaUrl(url);
+            if (resolved && !allMediaUrls.includes(resolved)) allMediaUrls.push(resolved);
         }
     }
 
-    const activeImage = selectedImage || allMediaUrls[0] || "";
+    const activeImage = selectedImage ? resolveMediaUrl(selectedImage) : (allMediaUrls[0] || "");
 
     // Tiers mapping
     const tiersList: AssetTier[] = asset.tiers && asset.tiers.length > 0
@@ -185,12 +192,13 @@ export const AssetDetailPage: React.FC = () => {
                 <div className="lg:col-span-7 space-y-6">
                     {/* Main Image Display */}
                     <div className="overflow-hidden rounded-3xl border border-outline-variant/30 bg-surface-container-high aspect-16/10 shadow-lg relative flex items-center justify-center">
-                        {activeImage ? (
+                        {activeImage && !mainImageError ? (
                             <img
                                 src={activeImage}
                                 alt={asset.title}
                                 fetchPriority="high"
                                 decoding="async"
+                                onError={() => setMainImageError(true)}
                                 className="h-full w-full object-cover transition-all duration-300"
                             />
                         ) : (
@@ -213,7 +221,10 @@ export const AssetDetailPage: React.FC = () => {
                                     type="button"
                                     aria-label={`Select preview image ${index + 1}`}
                                     aria-pressed={activeImage === imgUrl}
-                                    onClick={() => setSelectedImage(imgUrl)}
+                                    onClick={() => {
+                                        setSelectedImage(imgUrl);
+                                        setMainImageError(false);
+                                    }}
                                     className={`relative h-20 w-28 overflow-hidden rounded-xl border-2 transition-all cursor-pointer shrink-0 ${
                                         activeImage === imgUrl
                                             ? "border-primary ring-2 ring-primary/20 scale-102"
@@ -225,6 +236,9 @@ export const AssetDetailPage: React.FC = () => {
                                         alt={`Preview ${index + 1}`}
                                         loading="lazy"
                                         decoding="async"
+                                        onError={(e) => {
+                                            (e.currentTarget as HTMLElement).style.opacity = "0.3";
+                                        }}
                                         className="h-full w-full object-cover"
                                     />
                                 </button>

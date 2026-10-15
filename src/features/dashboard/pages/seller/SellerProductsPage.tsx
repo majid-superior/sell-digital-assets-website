@@ -69,7 +69,7 @@ export const SellerProductsPage: React.FC = () => {
     });
 
     const handleToggleStatus = (asset: DigitalAsset) => {
-        const nextStatus: AssetStatus = asset.status === "published" ? "draft" : "published";
+        const nextStatus: AssetStatus = asset.status === "published" ? "draft" : "pending";
         statusMutation.mutate({ id: asset.id, newStatus: nextStatus });
     };
 
@@ -85,8 +85,12 @@ export const SellerProductsPage: React.FC = () => {
                 return "primary";
             case "draft":
                 return "outline";
+            case "pending":
             case "under_review":
+                return "warning";
+            case "needs_update":
                 return "secondary";
+            case "rejected":
             case "archived":
                 return "error";
             default:
@@ -294,11 +298,22 @@ export const SellerProductsPage: React.FC = () => {
                                                         variant="ghost"
                                                         size="sm"
                                                         onClick={() => handleToggleStatus(item)}
-                                                        title={item.status === "published" ? "Unpublish Asset" : "Publish Asset"}
+                                                        disabled={item.status === "pending"}
+                                                        title={
+                                                            item.status === "published"
+                                                                ? "Unpublish to draft"
+                                                                : item.status === "pending"
+                                                                ? "Asset is pending admin review"
+                                                                : "Submit for Admin Review"
+                                                        }
                                                         isLoading={statusMutation.isPending && statusMutation.variables?.id === item.id}
                                                         className="text-xs px-2.5 py-1 cursor-pointer"
                                                     >
-                                                        {item.status === "published" ? "Unpublish" : "Publish"}
+                                                        {item.status === "published"
+                                                            ? "Unpublish"
+                                                            : item.status === "pending"
+                                                            ? "In Review"
+                                                            : "Submit"}
                                                     </Button>
 
                                                     <Button

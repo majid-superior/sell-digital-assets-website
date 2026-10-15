@@ -41,6 +41,7 @@ import {
   FileText as LucideFileText,
   Plus as LucidePlus,
   Upload as LucideUpload,
+  Image as LucideImage,
 } from "lucide-react";
 
 import type { LucideProps } from "lucide-react";
@@ -107,6 +108,7 @@ export const ExternalLink: IconComponent = createSemanticIcon(LucideExternalLink
 export const FileText: IconComponent = createSemanticIcon(LucideFileText);
 export const Plus: IconComponent = createSemanticIcon(LucidePlus);
 export const Upload: IconComponent = createSemanticIcon(LucideUpload);
+export const Image: IconComponent = createSemanticIcon(LucideImage);
 
 // Friendly aliases
 export const Sun: IconComponent = ThemeLight;

@@ -1,9 +1,9 @@
-// src/components/common/AssetCard.tsx
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import type { DigitalAsset } from "@/types/asset.ts";
 import { formatCurrency } from "@/utils/currency.ts";
+import { resolveMediaUrl } from "@/utils/media.ts";
 import { Icons } from "@/lib/icons/index.ts";
 import { Card, Badge, Button } from "@/components/ui/index.ts";
 
@@ -20,7 +20,9 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
     asset.media?.find((m) => m.media_type === "thumbnail") ||
     asset.media?.find((m) => Boolean(m.url)) ||
     asset.media?.[0];
-  const thumbnailUrl = thumbnailMedia?.url || asset.thumbnailUrl;
+  const rawThumbnailUrl = thumbnailMedia?.url || asset.thumbnailUrl;
+  const thumbnailUrl = resolveMediaUrl(rawThumbnailUrl);
+  const [hasImageError, setHasImageError] = useState(false);
 
   // Resolve category name safely
   const categoryName = asset.category?.name || "Asset";
@@ -40,7 +42,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
         to={`/asset/${asset.slug}`}
         className="relative aspect-16/10 overflow-hidden bg-surface-container-high block group-hover:opacity-95"
       >
-        {thumbnailUrl ? (
+        {thumbnailUrl && !hasImageError ? (
           <img
             src={thumbnailUrl}
             alt={asset.title}
@@ -48,6 +50,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
             decoding="async"
             width={640}
             height={400}
+            onError={() => setHasImageError(true)}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
           />
         ) : (

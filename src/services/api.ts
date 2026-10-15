@@ -1,4 +1,4 @@
-import { buildRequestUrl, prepareRequestHeaders } from "./interceptors/requestInterceptor.ts";
+import { buildRequestUrl, prepareRequestHeaders, getRefreshToken } from "./interceptors/requestInterceptor.ts";
 import {
     ApiError,
     handleResponseError,
@@ -11,6 +11,55 @@ export interface RequestOptions extends RequestInit {
 }
 
 export { ApiError };
+
+let refreshInProgressPromise: Promise<string | null> | null = null;
+
+async function attemptSilentRefresh(): Promise<string | null> {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) return null;
+
+    try {
+        const refreshUrl = buildRequestUrl("/api/v1/auth/refresh");
+        const res = await fetch(refreshUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+            body: JSON.stringify({ refreshToken }),
+        });
+
+        if (!res.ok) {
+            return null;
+        }
+
+        const data = (await res.json()) as {
+            token?: string;
+            refreshToken?: string;
+            tokens?: { accessToken?: string; refreshToken?: string };
+            user?: unknown;
+        };
+        const newToken = data?.token || data?.tokens?.accessToken;
+        const newRefreshToken = data?.refreshToken || data?.tokens?.refreshToken || refreshToken;
+
+        if (newToken) {
+            const storage =
+                typeof window !== "undefined" &&
+                (localStorage.getItem("auth_token") || localStorage.getItem("auth_refresh_token"))
+                    ? localStorage
+                    : sessionStorage;
+            storage.setItem("auth_token", newToken);
+            storage.setItem("auth_refresh_token", newRefreshToken);
+            if (data.user) {
+                storage.setItem("auth_user", JSON.stringify(data.user));
+            }
+            return newToken;
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}
 
 export class NetworkError extends Error {
     constructor(
@@ -32,7 +81,7 @@ export class TimeoutError extends Error {
     }
 }
 
-async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+async function request<T>(endpoint: string, options: RequestOptions = {}, isRetry = false): Promise<T> {
     const { params, headers, timeoutMs = 15000, signal: customSignal, ...customConfig } = options;
 
     const url = buildRequestUrl(endpoint, params);
@@ -95,6 +144,23 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     }
 
     if (!response.ok) {
+        const isAuthEndpoint =
+            endpoint.includes("/auth/signin") ||
+            endpoint.includes("/auth/signup") ||
+            endpoint.includes("/auth/refresh");
+
+        if (response.status === 401 && !isAuthEndpoint && !isRetry) {
+            if (!refreshInProgressPromise) {
+                refreshInProgressPromise = attemptSilentRefresh().finally(() => {
+                    refreshInProgressPromise = null;
+                });
+            }
+            const renewedToken = await refreshInProgressPromise;
+            if (renewedToken) {
+                return request<T>(endpoint, options, true);
+            }
+        }
+
         await handleResponseError(response, endpoint);
     }
 

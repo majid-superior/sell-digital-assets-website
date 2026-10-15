@@ -1,5 +1,33 @@
 import { apiClient, ApiError } from "../api.ts";
 
+export interface SystemSettings {
+  sessionIdleTimeoutMinutes: number;
+  accessTokenTtlMinutes: number;
+  refreshTokenTtlDays: number;
+  rememberMeTtlDays: number;
+  maxLoginAttempts: number;
+  lockoutDurationMinutes: number;
+  passwordMinLength: number;
+  requireSpecialChar: boolean;
+  allowUserRegistration: boolean;
+  requireEmailVerification: boolean;
+  maintenanceMode: boolean;
+}
+
+export const defaultSystemSettings: SystemSettings = {
+  sessionIdleTimeoutMinutes: 30,
+  accessTokenTtlMinutes: 15,
+  refreshTokenTtlDays: 7,
+  rememberMeTtlDays: 30,
+  maxLoginAttempts: 5,
+  lockoutDurationMinutes: 15,
+  passwordMinLength: 8,
+  requireSpecialChar: false,
+  allowUserRegistration: true,
+  requireEmailVerification: false,
+  maintenanceMode: false,
+};
+
 export interface OrganizationInfo {
   name: string;
   shortName: string;
@@ -16,6 +44,7 @@ export interface OrganizationInfo {
   logoUrl?: string;
   logoDarkUrl?: string;
   faviconUrl?: string;
+  systemSettings: SystemSettings;
 }
 
 export interface BackendOrganizationPayload {
@@ -74,6 +103,7 @@ export const defaultOrganization: OrganizationInfo = {
   logoUrl: "/logo.png",
   logoDarkUrl: "/logo-dark.png",
   faviconUrl: "/favicon.ico",
+  systemSettings: defaultSystemSettings,
 };
 
 export const STORAGE_KEY_ORGANIZATION_TITLE = "organization_title";
@@ -149,6 +179,27 @@ function mapBackendToOrganizationInfo(input: unknown): OrganizationInfo {
     logoUrl: b.logo_url || defaultOrganization.logoUrl,
     logoDarkUrl: b.logo_dark_url || defaultOrganization.logoDarkUrl,
     faviconUrl: b.favicon_url || defaultOrganization.faviconUrl,
+    systemSettings: (() => {
+      const rawSystem = ((b as any).system_settings && typeof (b as any).system_settings === "object")
+        ? (b as any).system_settings
+        : (b.metadata && typeof b.metadata === "object" && (b.metadata as any).system_settings)
+        ? (b.metadata as any).system_settings
+        : {};
+
+      return {
+        sessionIdleTimeoutMinutes: Number(rawSystem.sessionIdleTimeoutMinutes) || defaultSystemSettings.sessionIdleTimeoutMinutes,
+        accessTokenTtlMinutes: Number(rawSystem.accessTokenTtlMinutes) || defaultSystemSettings.accessTokenTtlMinutes,
+        refreshTokenTtlDays: Number(rawSystem.refreshTokenTtlDays) || defaultSystemSettings.refreshTokenTtlDays,
+        rememberMeTtlDays: Number(rawSystem.rememberMeTtlDays) || defaultSystemSettings.rememberMeTtlDays,
+        maxLoginAttempts: Number(rawSystem.maxLoginAttempts) || defaultSystemSettings.maxLoginAttempts,
+        lockoutDurationMinutes: Number(rawSystem.lockoutDurationMinutes) || defaultSystemSettings.lockoutDurationMinutes,
+        passwordMinLength: Number(rawSystem.passwordMinLength) || defaultSystemSettings.passwordMinLength,
+        requireSpecialChar: Boolean(rawSystem.requireSpecialChar ?? defaultSystemSettings.requireSpecialChar),
+        allowUserRegistration: Boolean(rawSystem.allowUserRegistration ?? defaultSystemSettings.allowUserRegistration),
+        requireEmailVerification: Boolean(rawSystem.requireEmailVerification ?? defaultSystemSettings.requireEmailVerification),
+        maintenanceMode: Boolean(rawSystem.maintenanceMode ?? defaultSystemSettings.maintenanceMode),
+      };
+    })(),
   };
 }
 
@@ -245,6 +296,14 @@ export const organizationService = {
       if (cachedOrganization) return cachedOrganization;
       return defaultOrganization;
     }
+  },
+
+  /**
+   * Retrieves active system settings (session idle timeout, token limits, etc.)
+   */
+  getSystemSettings(): SystemSettings {
+    const org = this.getCachedOrganization();
+    return org?.systemSettings || defaultSystemSettings;
   },
 };
 

@@ -1,7 +1,7 @@
 // src/types/asset.ts
 
 export type TierType = "personal" | "commercial" | "extended";
-export type AssetStatus = "draft" | "under_review" | "published" | "archived";
+export type AssetStatus = "draft" | "pending" | "under_review" | "needs_update" | "published" | "rejected" | "archived";
 export type MediaType = "thumbnail" | "screenshot" | "preview_audio" | "preview_video";
 
 export interface AssetTier {
