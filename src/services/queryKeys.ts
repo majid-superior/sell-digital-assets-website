@@ -31,6 +31,9 @@ export const queryKeys = {
     categories: {
         all: ["categories"] as const,
         tree: () => [...queryKeys.categories.all, "tree"] as const,
+        adminTree: () => [...queryKeys.categories.all, "admin", "tree"] as const,
+        taxonomy: () => [...queryKeys.categories.all, "taxonomy"] as const,
+        detail: (id: string | number) => [...queryKeys.categories.all, "detail", String(id)] as const,
     },
     licenses: {
         all: ["licenses"] as const,

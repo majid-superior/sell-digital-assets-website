@@ -7,11 +7,7 @@ import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
 
 export default defineConfig([
-  globalIgnores([
-    "dist",
-    "src/features/checkout/**",
-    "src/features/disputes/**",
-  ]),
+  globalIgnores(["dist"]),
   // 1. TypeScript & React files: full type-aware linting + a11y rules
   {
     files: ["**/*.{ts,tsx}"],

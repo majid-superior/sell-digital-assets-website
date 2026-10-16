@@ -1,11 +1,10 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { toast } from "sonner";
 import type { DigitalAsset } from "@/types/asset.ts";
 import { formatCurrency } from "@/utils/currency.ts";
 import { resolveMediaUrl } from "@/utils/media.ts";
 import { Icons } from "@/lib/icons/index.ts";
-import { Card, Badge, Button } from "@/components/ui/index.ts";
+import { Card, Badge } from "@/components/ui/index.ts";
 
 interface AssetCardProps {
   asset: DigitalAsset;
@@ -29,7 +28,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
 
   // Calculate starting price
   const startingPrice = asset.min_price ?? (asset.tiers && asset.tiers.length > 0 ? asset.tiers[0].price : 0);
-  const displayPrice = formatCurrency(startingPrice);
+  const displayPrice = formatCurrency(startingPrice, asset.currency);
 
   const ratingVal = asset.ratingAverage ?? 5.0;
   const reviewsCount = asset.reviewsCount ?? 0;
@@ -144,20 +143,14 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
                 {displayPrice}
               </span>
             </div>
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              onClick={() => {
-                toast.success("Added to Cart!", {
-                  description: `${asset.title} (${displayPrice})`,
-                });
-              }}
-              className="min-h-11 min-w-11 p-0 rounded-xl flex items-center justify-center cursor-pointer"
-              aria-label={`Add ${asset.title} to cart`}
+            <Link
+              to={`/asset/${asset.slug}`}
+              className="min-h-11 min-w-11 p-0 rounded-xl flex items-center justify-center cursor-pointer bg-primary text-on-primary hover:bg-primary/90 transition-colors shadow-xs"
+              title="View asset details"
+              aria-label={`View ${asset.title}`}
             >
-              <Icons.Cart size={16} />
-            </Button>
+              <Icons.Eye size={18} />
+            </Link>
           </div>
         </div>
       </div>

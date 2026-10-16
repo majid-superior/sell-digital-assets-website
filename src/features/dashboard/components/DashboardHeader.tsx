@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Icons } from "@/lib/icons/index.ts";
 import { useTheme } from "@/hooks/useTheme.ts";
 import { useAuth } from "@/hooks/useAuth.ts";
-import { SELLER_NAV_ITEMS, BUYER_NAV_ITEMS } from "../services/dashboardNavigationService.ts";
+import { dashboardNavigationService } from "../services/dashboardNavigationService.ts";
 import { findNavTrail } from "../utils/navigationHelper.ts";
 
 export interface DashboardHeaderProps {
@@ -15,7 +15,7 @@ export interface DashboardHeaderProps {
 const getBreadcrumbTitle = (pathname: string): { portalLabel: string; pageTitle: string } => {
     const isSeller = pathname.includes("/seller");
     const portalLabel = isSeller ? "Seller Portal" : "Buyer Portal";
-    const items = isSeller ? SELLER_NAV_ITEMS : BUYER_NAV_ITEMS;
+    const items = dashboardNavigationService.getNavigation(isSeller ? "seller" : "buyer").sections[0].items;
 
     const navInfo = findNavTrail(items, pathname);
     const pageTitle = navInfo?.item.label || (pathname === "/dashboard" ? "Portal Overview" : "Dashboard");

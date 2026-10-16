@@ -1,5 +1,5 @@
 // src/features/dashboard/pages/seller/SellerProductWizardPage.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { assetService } from "@/services/v1/assetService.ts";
 import { queryKeys } from "@/services/queryKeys.ts";
+import { useCategoryTaxonomy } from "@/hooks/useCategoryTaxonomy.ts";
 import { formatCurrency } from "@/utils/currency.ts";
 import { formatBytes } from "@/utils/file.ts";
 import { resolveMediaUrl } from "@/utils/media.ts";
@@ -22,6 +23,7 @@ import {
     Label,
     Badge,
 } from "@/components/ui/index.ts";
+import { Spinner } from "@/components/ui/Spinner.tsx";
 import type { TierType, MediaType, AssetMedia, AssetFile, DigitalAsset } from "@/types/asset.ts";
 
 const basicInfoSchema = z.object({
@@ -35,49 +37,82 @@ type BasicInfoFormData = z.infer<typeof basicInfoSchema>;
 
 type WizardStep = "info" | "tiers_specs" | "deliverables" | "media" | "review";
 
-export const SellerProductWizardPage: React.FC = () => {
+interface SellerProductWizardFormProps {
+    initialAsset: DigitalAsset | null;
+    isEditMode: boolean;
+}
+
+const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
+    initialAsset,
+    isEditMode,
+}) => {
     const navigate = useNavigate();
-    const { id: editId } = useParams<{ id: string }>();
     const queryClient = useQueryClient();
 
     const [currentStep, setCurrentStep] = useState<WizardStep>("info");
-    const [assetId, setAssetId] = useState<string | null>(editId || null);
-    const [activeAsset, setActiveAsset] = useState<DigitalAsset | null>(null);
+    const [assetId, setAssetId] = useState<string | null>(() => initialAsset?.id || null);
+    const [activeAsset, setActiveAsset] = useState<DigitalAsset | null>(() => initialAsset || null);
 
-    // Tags state (default empty)
-    const [tags, setTags] = useState<string[]>([]);
+    // Tags state
+    const [tags, setTags] = useState<string[]>(() => initialAsset?.tags || []);
     const [tagInput, setTagInput] = useState("");
 
-    // Technical specs state (default empty)
-    const [specs, setSpecs] = useState<Array<{ key: string; value: string }>>([]);
+    // Technical specs state
+    const [specs, setSpecs] = useState<Array<{ key: string; value: string }>>(() => {
+        if (initialAsset?.technical_specs && typeof initialAsset.technical_specs === "object") {
+            return Object.entries(initialAsset.technical_specs).map(([key, value]) => ({
+                key,
+                value: String(value),
+            }));
+        }
+        return [];
+    });
     const [newSpecKey, setNewSpecKey] = useState("");
     const [newSpecValue, setNewSpecValue] = useState("");
 
     // Tiers state
-    const [tiers, setTiers] = useState<Array<{ tierType: TierType; price: number; licenseTermsSummary: string }>>([
-        { tierType: "personal", price: 29, licenseTermsSummary: "Single personal non-commercial project" },
-        { tierType: "commercial", price: 79, licenseTermsSummary: "Up to 5 commercial commercial applications" },
-        { tierType: "extended", price: 199, licenseTermsSummary: "Unlimited SaaS projects & resale permission" },
-    ]);
+    const [tiers, setTiers] = useState<Array<{ tierType: TierType; price: number; licenseTermsSummary: string }>>(() => {
+        if (initialAsset?.tiers && Array.isArray(initialAsset.tiers) && initialAsset.tiers.length > 0) {
+            return initialAsset.tiers.map((t) => ({
+                tierType: t.tier_type,
+                price: Number(t.price ?? 29),
+                licenseTermsSummary: t.license_terms_summary || "",
+            }));
+        }
+        return [
+            { tierType: "personal", price: 29, licenseTermsSummary: "Single personal non-commercial project" },
+            { tierType: "commercial", price: 79, licenseTermsSummary: "Up to 5 commercial commercial applications" },
+            { tierType: "extended", price: 199, licenseTermsSummary: "Unlimited SaaS projects & resale permission" },
+        ];
+    });
 
     // Deliverable upload state
     const [deliverableFile, setDeliverableFile] = useState<File | null>(null);
     const [deliverableVersion, setDeliverableVersion] = useState("1.0.0");
     const [deliverableUploadProgress, setDeliverableUploadProgress] = useState<number | null>(null);
-    const [uploadedFiles, setUploadedFiles] = useState<AssetFile[]>([]);
+    const [uploadedFiles, setUploadedFiles] = useState<AssetFile[]>(() => initialAsset?.files || []);
     const [isUploadingDeliverable, setIsUploadingDeliverable] = useState(false);
 
     // Media upload state
-    const [mediaList, setMediaList] = useState<AssetMedia[]>([]);
+    const [mediaList, setMediaList] = useState<AssetMedia[]>(() => initialAsset?.media || []);
     const [mediaUploadProgress, setMediaUploadProgress] = useState<number | null>(null);
     const [isUploadingMedia, setIsUploadingMedia] = useState(false);
     const [mediaType, setMediaType] = useState<MediaType>("thumbnail");
+    const blobUrlsRef = useRef<Set<string>>(new Set());
+
+    // Cleanup any pending object URLs on unmount to prevent memory leaks
+    useEffect(() => {
+        const urls = blobUrlsRef.current;
+        return () => {
+            urls.forEach((url) => {
+                URL.revokeObjectURL(url);
+            });
+            urls.clear();
+        };
+    }, []);
 
     // Fetch category taxonomy for dropdown
-    const { data: categories = [] } = useQuery({
-        queryKey: queryKeys.categories.tree(),
-        queryFn: () => assetService.getCategoryTaxonomy(),
-    });
+    const { categories } = useCategoryTaxonomy();
 
     const {
         register,
@@ -88,10 +123,10 @@ export const SellerProductWizardPage: React.FC = () => {
     } = useForm<BasicInfoFormData>({
         resolver: zodResolver(basicInfoSchema),
         defaultValues: {
-            title: "",
-            categoryId: categories[0]?.id || 1,
-            shortDescription: "",
-            fullDescription: "",
+            title: initialAsset?.title || "",
+            categoryId: initialAsset?.category_id || categories[0]?.id || 1,
+            shortDescription: initialAsset?.short_description || "",
+            fullDescription: initialAsset?.full_description || "",
         },
     });
 
@@ -101,12 +136,12 @@ export const SellerProductWizardPage: React.FC = () => {
         toast.error("Validation Error", { description: String(firstMessage) });
     };
 
-    // Populate default category when categories load
+    // Populate default category when categories load (new product mode)
     useEffect(() => {
-        if (categories.length > 0 && !getValues("categoryId")) {
+        if (!isEditMode && categories.length > 0 && !getValues("categoryId")) {
             setValue("categoryId", categories[0].id);
         }
-    }, [categories, setValue, getValues]);
+    }, [isEditMode, categories, setValue, getValues]);
 
     // Add Tag
     const handleAddTag = (e: React.KeyboardEvent) => {
@@ -174,6 +209,7 @@ export const SellerProductWizardPage: React.FC = () => {
                 setAssetId(created.id);
                 setActiveAsset(created);
                 toast.success("Draft Asset Created", { description: `Saved as draft (${created.title})` });
+                void queryClient.invalidateQueries({ queryKey: queryKeys.assets.all });
             } else {
                 // Update existing draft asset
                 const updated = await assetService.updateAsset(assetId, {
@@ -191,12 +227,51 @@ export const SellerProductWizardPage: React.FC = () => {
                 });
                 setActiveAsset(updated);
                 toast.success("Asset Draft Updated");
+                void queryClient.invalidateQueries({ queryKey: queryKeys.assets.all });
             }
 
             setCurrentStep("tiers_specs");
         } catch (err) {
             const msg = err instanceof Error ? err.message : "Failed to save asset details";
             toast.error("Validation Error", { description: msg });
+        }
+    };
+
+    const [isSavingStep2, setIsSavingStep2] = useState(false);
+
+    // Save Pricing Tiers and Technical Specs & Advance to Deliverables
+    const handleSaveStep2AndAdvance = async () => {
+        if (!assetId) {
+            toast.error("Invalid State", { description: "Please complete Step 1 details first." });
+            setCurrentStep("info");
+            return;
+        }
+
+        try {
+            setIsSavingStep2(true);
+            const technicalSpecsObj: Record<string, unknown> = {};
+            for (const s of specs) {
+                technicalSpecsObj[s.key] = s.value;
+            }
+
+            const updated = await assetService.updateAsset(assetId, {
+                technicalSpecs: technicalSpecsObj,
+                tiers: tiers.map((t) => ({
+                    tierType: t.tierType,
+                    price: t.price,
+                    licenseTermsSummary: t.licenseTermsSummary,
+                })),
+            });
+
+            setActiveAsset(updated);
+            toast.success("Pricing & Specs Saved", { description: "Pricing tiers and technical specifications updated successfully." });
+            void queryClient.invalidateQueries({ queryKey: queryKeys.assets.all });
+            setCurrentStep("deliverables");
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : "Failed to save pricing and technical specifications";
+            toast.error("Save Failed", { description: msg });
+        } finally {
+            setIsSavingStep2(false);
         }
     };
 
@@ -264,6 +339,7 @@ export const SellerProductWizardPage: React.FC = () => {
         }
 
         const localPreviewUrl = URL.createObjectURL(file);
+        blobUrlsRef.current.add(localPreviewUrl);
 
         try {
             setIsUploadingMedia(true);
@@ -289,6 +365,11 @@ export const SellerProductWizardPage: React.FC = () => {
                 displayOrder: mediaList.length + 1,
             });
 
+            if (confirmed.url) {
+                URL.revokeObjectURL(localPreviewUrl);
+                blobUrlsRef.current.delete(localPreviewUrl);
+            }
+
             const mediaWithUrl: AssetMedia = {
                 ...confirmed,
                 url: confirmed.url || localPreviewUrl,
@@ -301,6 +382,7 @@ export const SellerProductWizardPage: React.FC = () => {
             });
         } catch (err) {
             URL.revokeObjectURL(localPreviewUrl);
+            blobUrlsRef.current.delete(localPreviewUrl);
             const msg = err instanceof Error ? err.message : "Media upload failed";
             toast.error("Upload Error", { id: "media-upload", description: msg });
         } finally {
@@ -610,7 +692,8 @@ export const SellerProductWizardPage: React.FC = () => {
                         <Button
                             variant="primary"
                             size="md"
-                            onClick={() => setCurrentStep("deliverables")}
+                            onClick={handleSaveStep2AndAdvance}
+                            isLoading={isSavingStep2}
                             className="cursor-pointer"
                         >
                             Next: Upload Deliverables <Icons.Next size={14} className="ml-1" />
@@ -647,6 +730,16 @@ export const SellerProductWizardPage: React.FC = () => {
 
                         {/* Drag and Drop Box with Auto-Upload */}
                         <div
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    if (!isUploadingDeliverable) {
+                                        document.getElementById("deliverable-file-input")?.click();
+                                    }
+                                }
+                            }}
                             onDragOver={(e) => e.preventDefault()}
                             onDrop={(e) => {
                                 e.preventDefault();
@@ -659,7 +752,7 @@ export const SellerProductWizardPage: React.FC = () => {
                                     document.getElementById("deliverable-file-input")?.click();
                                 }
                             }}
-                            className="p-8 border-2 border-dashed border-outline-variant/50 rounded-2xl bg-surface-container-lowest/50 text-center flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-colors group"
+                            className="p-8 border-2 border-dashed border-outline-variant/50 rounded-2xl bg-surface-container-lowest/50 text-center flex flex-col items-center justify-center cursor-pointer hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary transition-colors group"
                         >
                             <Icons.Upload size={36} className="text-primary mb-2 transition-transform group-hover:scale-110" />
                             <h4 className="font-bold text-sm text-on-surface">
@@ -784,6 +877,16 @@ export const SellerProductWizardPage: React.FC = () => {
 
                         {/* Drag and Drop Box for Image */}
                         <div
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    if (!isUploadingMedia) {
+                                        document.getElementById("media-file-input")?.click();
+                                    }
+                                }
+                            }}
                             onDragOver={(e) => e.preventDefault()}
                             onDrop={(e) => {
                                 e.preventDefault();
@@ -796,7 +899,7 @@ export const SellerProductWizardPage: React.FC = () => {
                                     document.getElementById("media-file-input")?.click();
                                 }
                             }}
-                            className="p-8 border-2 border-dashed border-outline-variant/50 rounded-2xl bg-surface-container-lowest/50 text-center flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-colors group"
+                            className="p-8 border-2 border-dashed border-outline-variant/50 rounded-2xl bg-surface-container-lowest/50 text-center flex flex-col items-center justify-center cursor-pointer hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary transition-colors group"
                         >
                             <Icons.Upload size={36} className="text-primary mb-2 transition-transform group-hover:scale-110" />
                             <h4 className="font-bold text-sm text-on-surface">
@@ -954,7 +1057,7 @@ export const SellerProductWizardPage: React.FC = () => {
                             {uploadedFiles.length > 0 ? (
                                 <Icons.Check size={20} className="text-primary" />
                             ) : (
-                                <span className="text-[11px] text-amber-500 font-semibold">ZIP Required for submission</span>
+                                <Badge variant="outline" size="sm">Pending</Badge>
                             )}
                         </div>
 
@@ -986,6 +1089,35 @@ export const SellerProductWizardPage: React.FC = () => {
                 </Card>
             )}
         </div>
+    );
+};
+
+export const SellerProductWizardPage: React.FC = () => {
+    const { id: editId } = useParams<{ id: string }>();
+    const isEditMode = Boolean(editId);
+
+    const { data: existingAsset, isLoading: isLoadingExisting } = useQuery({
+        queryKey: queryKeys.assets.detail(editId || ""),
+        queryFn: () => assetService.getAssetById(editId!),
+        enabled: isEditMode,
+        staleTime: 1000 * 60 * 5,
+    });
+
+    if (isEditMode && (isLoadingExisting || !existingAsset)) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-3">
+                <Spinner size="lg" />
+                <p className="text-sm text-on-surface-variant">Loading asset details for editing...</p>
+            </div>
+        );
+    }
+
+    return (
+        <SellerProductWizardForm
+            key={editId || "new"}
+            initialAsset={existingAsset || null}
+            isEditMode={isEditMode}
+        />
     );
 };
 

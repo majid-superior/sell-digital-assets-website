@@ -1,6 +1,6 @@
 // src/features/website/pages/AssetDetailPage.tsx
 import React, { useState, useEffect } from "react";
-import { useParams, Link, Navigate } from "react-router-dom";
+import { useParams, Link, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useOrganization } from "@/hooks/useOrganization.ts";
 import { formatCurrency } from "@/utils/currency.ts";
@@ -18,8 +18,8 @@ import {
     Modal,
     Input,
     Label,
+    Skeleton,
 } from "@/components/ui/index.ts";
-import { Spinner } from "@/components/ui/Spinner.tsx";
 import { toast } from "sonner";
 import { assetService } from "@/services/v1/assetService.ts";
 import { downloadService } from "@/services/v1/downloadService.ts";
@@ -30,6 +30,8 @@ import type { TierType, DigitalAsset, AssetTier } from "@/types/asset.ts";
 
 export const AssetDetailPage: React.FC = () => {
     const { slug } = useParams<{ slug: string }>();
+    const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
     const { organization } = useOrganization();
 
@@ -67,8 +69,65 @@ export const AssetDetailPage: React.FC = () => {
 
     if (!asset) {
         return (
-            <div className="min-h-[60vh] flex items-center justify-center">
-                <Spinner size="lg" aria-label="Loading digital asset details" />
+            <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-10">
+                {/* Breadcrumb Skeleton */}
+                <div className="flex items-center gap-2">
+                    <Skeleton className="h-4 w-20" />
+                    <span className="text-on-surface-variant/40">/</span>
+                    <Skeleton className="h-4 w-16" />
+                    <span className="text-on-surface-variant/40">/</span>
+                    <Skeleton className="h-4 w-32" />
+                </div>
+
+                {/* Main Showcase Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+                    {/* Left: Gallery & Description (7 Cols) */}
+                    <div className="lg:col-span-7 space-y-6">
+                        <Skeleton className="aspect-16/10 w-full rounded-3xl" />
+                        <div className="flex gap-3 overflow-hidden">
+                            <Skeleton className="h-20 w-28 rounded-xl shrink-0" />
+                            <Skeleton className="h-20 w-28 rounded-xl shrink-0" />
+                            <Skeleton className="h-20 w-28 rounded-xl shrink-0" />
+                        </div>
+                        <Card className="rounded-3xl border border-outline-variant/30 p-6 space-y-4">
+                            <Skeleton className="h-6 w-1/4" />
+                            <div className="space-y-2">
+                                <Skeleton className="h-4 w-full" />
+                                <Skeleton className="h-4 w-5/6" />
+                                <Skeleton className="h-4 w-4/6" />
+                            </div>
+                        </Card>
+                    </div>
+
+                    {/* Right: Pricing & License Checkout (5 Cols) */}
+                    <div className="lg:col-span-5 space-y-6">
+                        <Card className="rounded-3xl border border-outline-variant/30 p-6 space-y-6">
+                            <div className="flex items-center justify-between">
+                                <Skeleton className="h-6 w-24 rounded-full" />
+                                <Skeleton className="h-4 w-20" />
+                            </div>
+                            <div className="space-y-2">
+                                <Skeleton className="h-8 w-3/4" />
+                                <Skeleton className="h-4 w-1/2" />
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                                <Skeleton className="h-12 rounded-xl" />
+                                <Skeleton className="h-12 rounded-xl" />
+                                <Skeleton className="h-12 rounded-xl" />
+                            </div>
+                            <div className="space-y-2 pt-2">
+                                <Skeleton className="h-10 w-1/3" />
+                                <Skeleton className="h-4 w-2/3" />
+                            </div>
+                            <Skeleton className="h-12 w-full rounded-xl" />
+                            <div className="space-y-3 pt-4 border-t border-outline-variant/30">
+                                <Skeleton className="h-4 w-full" />
+                                <Skeleton className="h-4 w-full" />
+                                <Skeleton className="h-4 w-3/4" />
+                            </div>
+                        </Card>
+                    </div>
+                </div>
             </div>
         );
     }
@@ -124,8 +183,17 @@ export const AssetDetailPage: React.FC = () => {
 
     const handleCheckoutOrTestLicense = async () => {
         if (!user?.id) {
-            toast.info("Authentication Required", {
-                description: "Please sign in to complete your asset purchase or generate a test license.",
+            toast.error("Authentication Required", {
+                description: "Please sign in to complete your asset purchase.",
+            });
+            void navigate(`/signin?redirect=${encodeURIComponent(location.pathname)}`);
+            return;
+        }
+
+        // Prevent arbitrary free license creation in production
+        if (!import.meta.env.DEV) {
+            toast.info("Checkout Integration", {
+                description: "Live checkout and payment processing is currently in configuration. Instant test license issuance is disabled in production.",
             });
             return;
         }
@@ -133,8 +201,8 @@ export const AssetDetailPage: React.FC = () => {
         try {
             setIsIssuingLicense(true);
             const issued = await licenseService.issueTestLicense(asset.id, user.id, selectedTierType);
-            toast.success("Order Processed Successfully!", {
-                description: `License Issued: ${issued.license_key}. You can now download the deliverable.`,
+            toast.success("Order Processed (DEV Mode)", {
+                description: `Test License Issued: ${issued.license_key}. You can now download the deliverable.`,
             });
             setDownloadLicenseKey(issued.license_key);
             setIsDownloadModalOpen(true);
@@ -317,7 +385,7 @@ export const AssetDetailPage: React.FC = () => {
                             </CardTitle>
 
                             <div className="text-3xl font-extrabold text-primary">
-                                {formatCurrency(currentPrice)}
+                                {formatCurrency(currentPrice, asset.currency)}
                                 <span className="text-xs font-normal text-on-surface-variant ml-2 capitalize">
                                     {selectedTierType} License
                                 </span>
@@ -353,7 +421,7 @@ export const AssetDetailPage: React.FC = () => {
                                                     )}
                                                 </div>
                                                 <span className="text-sm font-extrabold text-primary">
-                                                    {formatCurrency(tier.price)}
+                                                    {formatCurrency(tier.price, asset.currency)}
                                                 </span>
                                             </button>
                                         );
@@ -371,7 +439,7 @@ export const AssetDetailPage: React.FC = () => {
                                     isLoading={isIssuingLicense}
                                     leftIcon={<Icons.Cart size={18} />}
                                 >
-                                    Buy Now ({formatCurrency(currentPrice)})
+                                    Buy Now ({formatCurrency(currentPrice, asset.currency)})
                                 </Button>
                                 <Button
                                     variant="outline"

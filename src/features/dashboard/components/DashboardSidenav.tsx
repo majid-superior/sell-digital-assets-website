@@ -1,44 +1,10 @@
 import React, { useState, useMemo } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
-import {
-    LayoutDashboard,
-    Package,
-    Layers,
-    UploadCloud,
-    FileText,
-    Image as ImageIcon,
-    ShieldCheck,
-    Boxes,
-    Tag,
-    TrendingUp,
-    Star,
-    AlertCircle,
-    Wallet,
-    BarChart3,
-    Settings,
-    User,
-    Bell,
-    CreditCard,
-    Library,
-    Download,
-    KeyRound,
-    ShoppingBag,
-    Receipt,
-    RotateCcw,
-    Shield,
-    ChevronRight,
-    Store,
-    Compass,
-    LogOut,
-    X,
-} from "lucide-react";
+import { Icons } from "@/lib/icons/index.ts";
 import { useAuth } from "@/hooks/useAuth.ts";
 import { toast } from "sonner";
 import { authService } from "@/services/v1/authService.ts";
-import {
-    SELLER_NAV_ITEMS,
-    BUYER_NAV_ITEMS,
-} from "../services/dashboardNavigationService.ts";
+import { dashboardNavigationService } from "../services/dashboardNavigationService.ts";
 import { getUserPortalAccess } from "../utils/navigationHelper.ts";
 import type { DashboardNavItem } from "../types/index.ts";
 
@@ -51,57 +17,57 @@ export interface DashboardSidenavProps {
 const resolveIcon = (iconName: string): React.ComponentType<{ size?: number; className?: string }> => {
     switch (iconName) {
         case "LayoutDashboard":
-            return LayoutDashboard;
+            return Icons.LayoutDashboard;
         case "Package":
-            return Package;
+            return Icons.Package;
         case "Layers":
-            return Layers;
+            return Icons.Layers;
         case "UploadCloud":
-            return UploadCloud;
+            return Icons.UploadCloud;
         case "FileText":
-            return FileText;
+            return Icons.FileText;
         case "Image":
-            return ImageIcon;
+            return Icons.Image;
         case "ShieldCheck":
-            return ShieldCheck;
+            return Icons.ShieldCheck;
         case "Boxes":
-            return Boxes;
+            return Icons.Boxes;
         case "Tag":
-            return Tag;
+            return Icons.Tag;
         case "TrendingUp":
-            return TrendingUp;
+            return Icons.TrendingUp;
         case "Star":
-            return Star;
+            return Icons.Star;
         case "AlertCircle":
-            return AlertCircle;
+            return Icons.AlertCircle;
         case "Wallet":
-            return Wallet;
+            return Icons.Wallet;
         case "BarChart3":
-            return BarChart3;
+            return Icons.BarChart3;
         case "Settings":
-            return Settings;
+            return Icons.Settings;
         case "User":
-            return User;
+            return Icons.User;
         case "Bell":
-            return Bell;
+            return Icons.Bell;
         case "CreditCard":
-            return CreditCard;
+            return Icons.CreditCard;
         case "Library":
-            return Library;
+            return Icons.Library;
         case "Download":
-            return Download;
+            return Icons.Download;
         case "KeyRound":
-            return KeyRound;
+            return Icons.KeyRound;
         case "ShoppingBag":
-            return ShoppingBag;
+            return Icons.ShoppingBag;
         case "Receipt":
-            return Receipt;
+            return Icons.Receipt;
         case "RotateCcw":
-            return RotateCcw;
+            return Icons.RotateCcw;
         case "Shield":
-            return Shield;
+            return Icons.Shield;
         default:
-            return Package;
+            return Icons.Package;
     }
 };
 
@@ -159,7 +125,7 @@ const TreeRow: React.FC<TreeRowProps> = ({
                         />
                         <span className="truncate">{item.label}</span>
                     </div>
-                    <ChevronRight
+                    <Icons.ChevronRight
                         size={14}
                         className={`text-on-surface-variant shrink-0 transition-transform duration-200 ${
                             isExpanded ? "rotate-90 text-on-surface" : ""
@@ -256,7 +222,10 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
         }));
     };
 
-    const currentItems = portal === "seller" ? SELLER_NAV_ITEMS : BUYER_NAV_ITEMS;
+    const currentItems = useMemo(
+        () => dashboardNavigationService.getNavigation(portal).sections[0].items,
+        [portal]
+    );
 
     const [isUpgrading, setIsUpgrading] = useState(false);
 
@@ -320,7 +289,7 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
                         aria-label="Close navigation sidebar"
                         className="lg:hidden p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer"
                     >
-                        <X size={20} />
+                        <Icons.Close size={20} />
                     </button>
                 )}
             </div>
@@ -338,7 +307,7 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
                                     : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60"
                             }`}
                         >
-                            <Store size={14} />
+                            <Icons.Store size={14} />
                             <span>Seller Portal</span>
                         </button>
 
@@ -351,7 +320,7 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
                                     : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60"
                             }`}
                         >
-                            <ShoppingBag size={14} />
+                            <Icons.ShoppingBag size={14} />
                             <span>Buyer Portal</span>
                         </button>
                     </div>
@@ -361,11 +330,11 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
                     <div className="flex items-center gap-2">
                         {portal === "seller" ? (
                             <div className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                                <Store size={14} />
+                                <Icons.Store size={14} />
                             </div>
                         ) : (
                             <div className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                                <ShoppingBag size={14} />
+                                <Icons.ShoppingBag size={14} />
                             </div>
                         )}
                         <span className="text-xs font-bold text-on-surface">
@@ -403,7 +372,7 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
             {!access.canAccessSeller && (
                 <div className="p-3 mx-3 mb-2 rounded-2xl bg-primary/10 border border-primary/20 text-xs shrink-0">
                     <div className="font-bold text-on-surface flex items-center gap-1.5">
-                        <Store size={15} className="text-primary" />
+                        <Icons.Store size={15} className="text-primary" />
                         <span>Start Selling</span>
                     </div>
                     <p className="text-[11px] text-on-surface-variant mt-1 leading-relaxed">
@@ -427,7 +396,7 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
                     onClick={onClose}
                     className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
                 >
-                    <Compass size={16} />
+                    <Icons.Compass size={16} />
                     <span>Browse Marketplace</span>
                 </Link>
 
@@ -440,7 +409,7 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
                     }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-error hover:bg-error/10 transition-colors cursor-pointer text-left"
                 >
-                    <LogOut size={16} />
+                    <Icons.LogOut size={16} />
                     <span>Sign Out</span>
                 </button>
             </div>

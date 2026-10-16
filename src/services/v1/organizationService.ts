@@ -1,4 +1,6 @@
 import { apiClient, ApiError } from "../api.ts";
+import { isSafeIconUrl } from "../../utils/sanitize.ts";
+import { queryClient } from "@/services/queryClient.ts";
 
 export interface SystemSettings {
   sessionIdleTimeoutMinutes: number;
@@ -78,10 +80,12 @@ export interface BackendOrganizationPayload {
   currency_symbol?: string | null;
   platform_fee_percent?: string | number;
   payout_minimum?: string | number;
+  system_settings?: Partial<SystemSettings> | null;
   metadata?: {
     links?: {
       website?: string;
     };
+    system_settings?: Partial<SystemSettings> | null;
   } | null;
 }
 
@@ -120,10 +124,14 @@ export function updateDocumentTitle(title?: string | null): void {
 
 export function updateFavicon(faviconUrl?: string | null): void {
   if (typeof document === "undefined" || !faviconUrl) return;
-  const link = document.querySelector<HTMLLinkElement>("link[rel*='icon']");
-  if (link) {
-    link.href = faviconUrl;
+  if (!isSafeIconUrl(faviconUrl)) return;
+  let link = document.querySelector<HTMLLinkElement>("link[rel*='icon']");
+  if (!link) {
+    link = document.createElement("link");
+    link.rel = "icon";
+    document.head.appendChild(link);
   }
+  link.href = faviconUrl;
 }
 
 export function applyOrganizationMetadata(info: OrganizationInfo | null): void {
@@ -180,11 +188,12 @@ function mapBackendToOrganizationInfo(input: unknown): OrganizationInfo {
     logoDarkUrl: b.logo_dark_url || defaultOrganization.logoDarkUrl,
     faviconUrl: b.favicon_url || defaultOrganization.faviconUrl,
     systemSettings: (() => {
-      const rawSystem = ((b as any).system_settings && typeof (b as any).system_settings === "object")
-        ? (b as any).system_settings
-        : (b.metadata && typeof b.metadata === "object" && (b.metadata as any).system_settings)
-        ? (b.metadata as any).system_settings
-        : {};
+      const rawSystem: Partial<SystemSettings> =
+        (b.system_settings && typeof b.system_settings === "object" ? b.system_settings : null) ||
+        (b.metadata?.system_settings && typeof b.metadata.system_settings === "object"
+          ? b.metadata.system_settings
+          : null) ||
+        {};
 
       return {
         sessionIdleTimeoutMinutes: Number(rawSystem.sessionIdleTimeoutMinutes) || defaultSystemSettings.sessionIdleTimeoutMinutes,
@@ -229,9 +238,15 @@ export const organizationService = {
     }
 
     // Silent background SWR sync with PostgreSQL database
-    this.getOrganization({ silent: true }).catch(() => {
-      // Handled silently
-    });
+    this.getOrganization({ silent: true })
+      .then((org) => {
+        if (org) {
+          queryClient.setQueryData(["organization", "singleton"], org);
+        }
+      })
+      .catch(() => {
+        // Handled silently
+      });
   },
 
   /**
@@ -250,7 +265,7 @@ export const organizationService = {
         // Ignore parsing errors
       }
     }
-    return defaultOrganization;
+    return null;
   },
 
   /**
@@ -260,6 +275,7 @@ export const organizationService = {
     cachedOrganization = info;
     if (info) {
       applyOrganizationMetadata(info);
+      queryClient.setQueryData(["organization", "singleton"], info);
     }
   },
 
@@ -288,6 +304,7 @@ export const organizationService = {
       const mapped = mapBackendToOrganizationInfo(raw);
       cachedOrganization = mapped;
       applyOrganizationMetadata(mapped);
+      queryClient.setQueryData(["organization", "singleton"], mapped);
       return mapped;
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") {

@@ -29,28 +29,39 @@ export function buildRequestUrl(
     endpoint: string,
     params?: Record<string, string | number | boolean>
 ): string {
-    let normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
-
-    // Normalize any legacy /api/... without /v1/ into /api/v1/...
-    if (normalizedEndpoint.startsWith("/api/") && !normalizedEndpoint.startsWith("/api/v1/")) {
-        normalizedEndpoint = normalizedEndpoint.replace(/^\/api\//, "/api/v1/");
-    } else if (!normalizedEndpoint.startsWith("/api/v1/") && !endpoint.startsWith("http://") && !endpoint.startsWith("https://")) {
-        normalizedEndpoint = `/api/v1${normalizedEndpoint}`;
-    }
-
     let url: string;
 
     if (endpoint.startsWith("http://") || endpoint.startsWith("https://")) {
         url = endpoint;
-    } else if (ENV.API_BASE_URL.startsWith("http://") || ENV.API_BASE_URL.startsWith("https://")) {
-        try {
-            const baseOrigin = new URL(ENV.API_BASE_URL).origin;
-            url = `${baseOrigin}${normalizedEndpoint}`;
-        } catch {
-            url = normalizedEndpoint;
-        }
     } else {
-        url = normalizedEndpoint;
+        const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+        const rawBase = (ENV.API_BASE_URL || "/api/v1").replace(/\/+$/, "");
+
+        if (rawBase.startsWith("http://") || rawBase.startsWith("https://")) {
+            try {
+                const parsed = new URL(rawBase);
+                const basePath = parsed.pathname === "/" ? "" : parsed.pathname.replace(/\/+$/, "");
+
+                if (basePath.endsWith("/api/v1") && cleanEndpoint.startsWith("/api/v1/")) {
+                    url = `${parsed.origin}${basePath}${cleanEndpoint.replace(/^\/api\/v1/, "")}`;
+                } else if (!basePath && !cleanEndpoint.startsWith("/api/")) {
+                    url = `${parsed.origin}/api/v1${cleanEndpoint}`;
+                } else {
+                    url = `${parsed.origin}${basePath}${cleanEndpoint}`;
+                }
+            } catch {
+                url = `${rawBase}${cleanEndpoint}`;
+            }
+        } else {
+            const baseClean = rawBase.startsWith("/") ? rawBase : `/${rawBase}`;
+            if (baseClean === "/api/v1" && cleanEndpoint.startsWith("/api/v1/")) {
+                url = cleanEndpoint;
+            } else if (cleanEndpoint.startsWith(baseClean)) {
+                url = cleanEndpoint;
+            } else {
+                url = `${baseClean}${cleanEndpoint}`;
+            }
+        }
     }
 
     if (params && Object.keys(params).length > 0) {
@@ -80,22 +91,6 @@ export function prepareRequestHeaders(customHeaders?: HeadersInit): Record<strin
         Accept: "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
-
-    if (typeof window !== "undefined") {
-        const userJson = localStorage.getItem("auth_user") || sessionStorage.getItem("auth_user");
-        if (userJson) {
-            try {
-                const user = JSON.parse(userJson) as { id?: string };
-                if (user?.id) {
-                    headers["x-seller-id"] = String(user.id);
-                    headers["x-buyer-id"] = String(user.id);
-                    headers["x-user-id"] = String(user.id);
-                }
-            } catch {
-                // Ignore JSON parse errors
-            }
-        }
-    }
 
     if (customHeaders) {
         if (customHeaders instanceof Headers) {

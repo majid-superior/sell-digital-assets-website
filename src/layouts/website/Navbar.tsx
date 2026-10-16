@@ -48,7 +48,17 @@ export const Navbar: React.FC<NavbarProps> = ({
     const hasCategoryFilter = new URLSearchParams(location.search).has("category");
     const navigate = useNavigate();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [searchQuery, setSearchQuery] = useState("");
+    const [prevSearch, setPrevSearch] = useState(location.search);
+    const [searchQuery, setSearchQuery] = useState(() => {
+        return new URLSearchParams(location.search).get("q") || "";
+    });
+
+    if (location.search !== prevSearch) {
+        setPrevSearch(location.search);
+        const q = new URLSearchParams(location.search).get("q");
+        setSearchQuery(q !== null ? q : "");
+    }
+
     const mobileMenuRef = useRef<HTMLDivElement>(null);
     const menuButtonRef = useRef<HTMLButtonElement>(null);
 

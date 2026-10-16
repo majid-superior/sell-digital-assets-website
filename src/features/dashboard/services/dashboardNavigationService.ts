@@ -1,6 +1,5 @@
 // src/features/dashboard/services/dashboardNavigationService.ts
 import type { DashboardNavItem, DashboardNavigationResponse } from "../types/index.ts";
-import type { UserRole } from "@/types/user.ts";
 
 export const SELLER_NAV_ITEMS: DashboardNavItem[] = [
     {
@@ -206,13 +205,21 @@ export const BUYER_NAV_ITEMS: DashboardNavItem[] = [
 ];
 
 class DashboardNavigationService {
-    getNavigation(role: UserRole = "seller"): DashboardNavigationResponse {
-        const items = role === "seller" ? SELLER_NAV_ITEMS : BUYER_NAV_ITEMS;
+    getNavigation(role?: string): DashboardNavigationResponse {
+        const normalizedRole = role?.toLowerCase();
+        const isSellerOrAdmin =
+            normalizedRole === "seller" ||
+            normalizedRole === "admin" ||
+            normalizedRole === "superadmin";
+
+        const items = isSellerOrAdmin ? SELLER_NAV_ITEMS : BUYER_NAV_ITEMS;
+        const activeRole = isSellerOrAdmin ? "seller" : "buyer";
+
         return {
             sections: [
                 {
-                    id: role,
-                    title: role === "seller" ? "Seller Navigation" : "Buyer Navigation",
+                    id: activeRole,
+                    title: activeRole === "seller" ? "Seller Navigation" : "Buyer Navigation",
                     items,
                 },
             ],

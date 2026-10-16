@@ -1,6 +1,6 @@
 // src/routes/AppRoutes.tsx
 import React, { Suspense, lazy } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Index from "@/layouts/website/index.tsx";
 import Page from "@/layouts/website/page.tsx";
 import { Spinner } from "@/components/ui/Spinner.tsx";
@@ -16,6 +16,7 @@ const ServerPage = lazy(() => import("@/layouts/website/pages/server.tsx"));
 const ErrorPage = lazy(() => import("@/layouts/website/pages/error.tsx"));
 const ExplorePage = lazy(() => import("@/features/website/pages/ExplorePage.tsx"));
 const AssetDetailPage = lazy(() => import("@/features/website/pages/AssetDetailPage.tsx"));
+const StaticInfoPage = lazy(() => import("@/features/website/pages/StaticInfoPage.tsx"));
 
 // Dashboard feature routes
 const DashboardLayout = lazy(() => import("@/features/dashboard/layouts/DashboardLayout.tsx"));
@@ -44,8 +45,7 @@ const RouteLoadingFallback = () => (
 
 export const AppRoutes: React.FC = () => {
     return (
-        <BrowserRouter>
-            <Suspense fallback={<RouteLoadingFallback />}>
+        <Suspense fallback={<RouteLoadingFallback />}>
                 <Routes>
                     {/* Home / Index — has its own full layout shell */}
                     <Route element={<Index />}>
@@ -70,8 +70,8 @@ export const AppRoutes: React.FC = () => {
                             <Route path="seller/products/upload" element={<Navigate to="/dashboard/seller/products/upload/files" replace />} />
                             <Route path="seller/products/upload/files" element={<SellerProductWizardPage />} />
                             <Route path="seller/products/edit/:id" element={<SellerProductWizardPage />} />
-                            <Route path="seller/products/upload/media" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Media" />} />
-                            <Route path="seller/products/upload/licenses" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Licenses" />} />
+                            <Route path="seller/products/upload/media" element={<Navigate to="/dashboard/seller/products/upload/files" replace />} />
+                            <Route path="seller/products/upload/licenses" element={<Navigate to="/dashboard/seller/products/upload/files" replace />} />
                             <Route path="seller/products/bundles" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Bundles" />} />
                             <Route path="seller/products/coupons" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Coupons" />} />
                             <Route path="seller/sales" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Sales" />} />
@@ -119,13 +119,28 @@ export const AppRoutes: React.FC = () => {
                         <Route path="/categories" element={<ExplorePage />} />
                         <Route path="/featured" element={<ExplorePage />} />
                         <Route path="/asset/:slug" element={<AssetDetailPage />} />
+
+                        {/* Legal & Informational Static Pages */}
+                        <Route path="/terms" element={<StaticInfoPage title="Terms of Service" category="Legal" />} />
+                        <Route path="/privacy" element={<StaticInfoPage title="Privacy Policy" category="Legal" />} />
+                        <Route path="/licenses" element={<StaticInfoPage title="Licensing Agreement" category="Legal" />} />
+                        <Route path="/security" element={<StaticInfoPage title="Security & Trust" category="Security" />} />
+                        <Route path="/docs" element={<StaticInfoPage title="Documentation" category="Resources" />} />
+                        <Route path="/help" element={<StaticInfoPage title="Help Center" category="Support" />} />
+                        <Route path="/about" element={<StaticInfoPage title="About Us" category="Company" />} />
+                        <Route path="/careers" element={<StaticInfoPage title="Careers" category="Company" />} />
+                        <Route path="/community" element={<StaticInfoPage title="Creator Community" category="Community" />} />
+                        <Route path="/creator-guidelines" element={<StaticInfoPage title="Creator Guidelines" category="Creators" />} />
+                        <Route path="/payouts" element={<StaticInfoPage title="Fee Structure & Payouts" category="Creators" />} />
+                        <Route path="/standards" element={<StaticInfoPage title="Asset Quality Standards" category="Creators" />} />
+                        <Route path="/seller-handbook" element={<StaticInfoPage title="Seller Handbook" category="Creators" />} />
+                        <Route path="/api-docs" element={<StaticInfoPage title="API Reference" category="Developers" />} />
                     </Route>
 
                     {/* 404 Not Found fallback */}
                     <Route path="*" element={<ErrorPage />} />
                 </Routes>
             </Suspense>
-        </BrowserRouter>
     );
 };
 

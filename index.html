@@ -11,7 +11,7 @@
     />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>${escapeHtml(organization.title)} | Marketplace</title>
+    <title>Digital Assets Marketplace</title>
     <!-- Dynamic Theme Pre-paint Injector: 0ms Flash Prevention -->
     <script>
       (function () {
@@ -35,24 +35,40 @@
           }
 
           var cached = localStorage.getItem("theme_css");
-          if (cached) {
-            var styleEl = document.getElementById("dynamic-theme-vars");
-            if (!styleEl) {
-              styleEl = document.createElement("style");
-              styleEl.id = "dynamic-theme-vars";
-              document.head.appendChild(styleEl);
+          if (cached && typeof cached === "string") {
+            // Validate cached CSS contains no script/style breakouts or executable constructs
+            if (!/[<>]/.test(cached) && !/\b(?:javascript|expression|url)\b/i.test(cached)) {
+              var styleEl = document.getElementById("dynamic-theme-vars");
+              if (!styleEl) {
+                styleEl = document.createElement("style");
+                styleEl.id = "dynamic-theme-vars";
+                document.head.appendChild(styleEl);
+              }
+              styleEl.textContent = cached;
             }
-            styleEl.textContent = cached;
           }
 
           var cachedOrgTitle = localStorage.getItem("organization_title");
-          if (cachedOrgTitle) {
-            document.title = cachedOrgTitle + " | Marketplace";
+          if (cachedOrgTitle && typeof cachedOrgTitle === "string") {
+            var cleanTitle = cachedOrgTitle.replace(/[<>]/g, "").trim();
+            if (cleanTitle) {
+              document.title = cleanTitle + " | Marketplace";
+            }
           }
           var cachedFavicon = localStorage.getItem("organization_favicon");
-          if (cachedFavicon) {
-            var favEl = document.querySelector("link[rel*='icon']");
-            if (favEl) favEl.href = cachedFavicon;
+          if (cachedFavicon && typeof cachedFavicon === "string") {
+            var trimmedFav = cachedFavicon.trim();
+            var isSafeFav =
+              (trimmedFav.indexOf("/") === 0 &&
+                trimmedFav.indexOf("//") !== 0 &&
+                trimmedFav.indexOf("/\\") !== 0 &&
+                trimmedFav.indexOf("\\") === -1) ||
+              trimmedFav.indexOf("http://") === 0 ||
+              trimmedFav.indexOf("https://") === 0;
+            if (isSafeFav) {
+              var favEl = document.querySelector("link[rel*='icon']");
+              if (favEl) favEl.href = trimmedFav;
+            }
           }
         } catch (e) {
           console.warn("Theme pre-paint error:", e);

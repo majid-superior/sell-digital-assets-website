@@ -1,5 +1,6 @@
 import { apiClient, ApiError } from "../api.ts";
 import { COLOR_HEX_MAP } from "../../theme/tokens/colors.ts";
+import { isSafeCssColor } from "../../utils/sanitize.ts";
 
 export interface ThemePalette {
   primary?: string;
@@ -104,6 +105,7 @@ export class ThemeServiceError extends Error {
 }
 
 let cachedTheme: ActiveThemeData | null = null;
+let activeThemeInFlightPromise: Promise<ActiveThemeData> | null = null;
 const STORAGE_KEY_CSS = "theme_css";
 const STORAGE_KEY_ACTIVE = "sda_active_theme";
 const STORAGE_KEY_ETAG = "theme_etag";
@@ -212,16 +214,22 @@ export function compilePaletteToCss(colorHexMap: ColorHexMap): string {
   const lightLines: string[] = [];
   for (const [key, val] of Object.entries(light)) {
     if (val && typeof val === "string") {
+      const sanitizedVal = val.trim();
       const kebab = camelToKebab(key);
-      lightLines.push(`  --color-${kebab}: ${val} !important;`);
+      if (/^[a-z0-9-]+$/i.test(kebab) && isSafeCssColor(sanitizedVal)) {
+        lightLines.push(`  --color-${kebab}: ${sanitizedVal} !important;`);
+      }
     }
   }
 
   const darkLines: string[] = [];
   for (const [key, val] of Object.entries(dark)) {
     if (val && typeof val === "string") {
+      const sanitizedVal = val.trim();
       const kebab = camelToKebab(key);
-      darkLines.push(`  --color-${kebab}: ${val} !important;`);
+      if (/^[a-z0-9-]+$/i.test(kebab) && isSafeCssColor(sanitizedVal)) {
+        darkLines.push(`  --color-${kebab}: ${sanitizedVal} !important;`);
+      }
     }
   }
 
@@ -346,76 +354,86 @@ export const themeService = {
     silent?: boolean;
     signal?: AbortSignal;
   }): Promise<ActiveThemeData> {
-    try {
-      // Request active theme with fallbacks across /api/v1 endpoints
-      const res = await apiClient
-        .get<unknown>("/api/v1/theme/active", {
-          signal: options?.signal,
-        })
-        .catch(async (err: unknown) => {
-          if (err instanceof ApiError && (err.status === 404 || err.status === 0)) {
-            return apiClient.get<unknown>("/api/v1/theme", {
-              signal: options?.signal,
-            });
-          }
-          throw err;
-        });
-
-      const themeData = unwrapThemeResponse(res);
-      cachedTheme = themeData;
-
-      try {
-        localStorage.setItem(STORAGE_KEY_ACTIVE, JSON.stringify(themeData));
-        if (themeData.etag) {
-          localStorage.setItem(STORAGE_KEY_ETAG, themeData.etag);
-        }
-      } catch {
-        // Ignore storage access errors
-      }
-
-      applyThemeToDom(themeData.colorHexMap);
-      return themeData;
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") {
-        throw err;
-      }
-
-      if (!options?.silent) {
-        console.warn("[ThemeService] Unable to fetch theme from backend. Preserving cached theme.", err);
-      }
-
-      if (cachedTheme) return cachedTheme;
-
-      try {
-        const stored = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY_ACTIVE) : null;
-        if (stored) {
-          const parsed = JSON.parse(stored) as unknown;
-          const normalized = unwrapThemeResponse(parsed);
-          cachedTheme = normalized;
-          applyThemeToDom(normalized.colorHexMap);
-          return normalized;
-        }
-      } catch {
-        // Ignore JSON parse errors
-      }
-
-      // Fallback to default design tokens if API is unreachable and no cache exists
-      const fallback: ActiveThemeData = {
-        id: 1,
-        name: "Default Theme",
-        slug: "default",
-        mode: "dark",
-        borderRadius: "rounded-lg",
-        isActive: true,
-        colorHexMap: {
-          light: { ...COLOR_HEX_MAP.light },
-          dark: { ...COLOR_HEX_MAP.dark },
-        },
-      };
-      cachedTheme = fallback;
-      applyThemeToDom(fallback.colorHexMap);
-      return fallback;
+    if (activeThemeInFlightPromise) {
+      return activeThemeInFlightPromise;
     }
+
+    activeThemeInFlightPromise = (async () => {
+      try {
+        // Request active theme with fallbacks across /api/v1 endpoints
+        const res = await apiClient
+          .get<unknown>("/api/v1/theme/active", {
+            signal: options?.signal,
+          })
+          .catch(async (err: unknown) => {
+            if (err instanceof ApiError && (err.status === 404 || err.status === 0)) {
+              return apiClient.get<unknown>("/api/v1/theme", {
+                signal: options?.signal,
+              });
+            }
+            throw err;
+          });
+
+        const themeData = unwrapThemeResponse(res);
+        cachedTheme = themeData;
+
+        try {
+          localStorage.setItem(STORAGE_KEY_ACTIVE, JSON.stringify(themeData));
+          if (themeData.etag) {
+            localStorage.setItem(STORAGE_KEY_ETAG, themeData.etag);
+          }
+        } catch {
+          // Ignore storage access errors
+        }
+
+        applyThemeToDom(themeData.colorHexMap);
+        return themeData;
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === "AbortError") {
+          throw err;
+        }
+
+        if (!options?.silent) {
+          console.warn("[ThemeService] Unable to fetch theme from backend. Preserving cached theme.", err);
+        }
+
+        if (cachedTheme) return cachedTheme;
+
+        try {
+          const stored = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY_ACTIVE) : null;
+          if (stored) {
+            const parsed = JSON.parse(stored) as unknown;
+            const normalized = unwrapThemeResponse(parsed);
+            cachedTheme = normalized;
+            applyThemeToDom(normalized.colorHexMap);
+            return normalized;
+          }
+        } catch {
+          // Ignore JSON parse errors
+        }
+
+        // Fallback to default design tokens if API is unreachable and no cache exists
+        const fallback: ActiveThemeData = {
+          id: 1,
+          name: "Default Theme",
+          slug: "default",
+          mode: "dark",
+          borderRadius: "rounded-lg",
+          isActive: true,
+          colorHexMap: {
+            light: { ...COLOR_HEX_MAP.light },
+            dark: { ...COLOR_HEX_MAP.dark },
+          },
+        };
+        cachedTheme = fallback;
+        applyThemeToDom(fallback.colorHexMap);
+        return fallback;
+      } finally {
+        activeThemeInFlightPromise = null;
+      }
+    })();
+
+    return activeThemeInFlightPromise;
   },
 
   /**

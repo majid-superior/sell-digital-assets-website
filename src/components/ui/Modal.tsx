@@ -1,4 +1,4 @@
-import React, { useEffect, useId } from "react";
+import React, { useEffect, useId, useRef } from "react";
 import { cn } from "@/lib/utils.ts";
 import { Close } from "@/lib/icons/index.ts";
 
@@ -40,6 +40,7 @@ export const Modal: React.FC<ModalProps> = ({
 }) => {
   const titleId = useId();
   const descriptionId = useId();
+  const modalRef = useRef<HTMLDivElement>(null);
 
   // Handle escape key
   useEffect(() => {
@@ -54,6 +55,57 @@ export const Modal: React.FC<ModalProps> = ({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, closeOnEsc, onClose]);
+
+  // Focus trap and restoration
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previousActiveElement = document.activeElement as HTMLElement | null;
+    const modalElement = modalRef.current;
+    if (!modalElement) return;
+
+    const focusableSelector =
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const focusableElements = modalElement.querySelectorAll<HTMLElement>(focusableSelector);
+    const firstElement = focusableElements[0];
+
+    if (firstElement) {
+      firstElement.focus();
+    } else {
+      modalElement.focus();
+    }
+
+    const handleFocusTrap = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+
+      const currentElements = modalElement.querySelectorAll<HTMLElement>(focusableSelector);
+      if (currentElements.length === 0) {
+        e.preventDefault();
+        return;
+      }
+
+      const first = currentElements[0];
+      const last = currentElements[currentElements.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === first || document.activeElement === modalElement) {
+          e.preventDefault();
+          last?.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleFocusTrap);
+    return () => {
+      window.removeEventListener("keydown", handleFocusTrap);
+      previousActiveElement?.focus();
+    };
+  }, [isOpen]);
 
   // Lock body scroll when modal is active
   useEffect(() => {
@@ -78,12 +130,14 @@ export const Modal: React.FC<ModalProps> = ({
       role="presentation"
     >
       <div
+        ref={modalRef}
         role="dialog"
         aria-modal="true"
+        tabIndex={-1}
         aria-labelledby={title ? titleId : undefined}
         aria-describedby={description ? descriptionId : undefined}
         className={cn(
-          "w-full rounded-2xl border border-outline-variant/30 bg-surface-container-low text-on-surface shadow-2xl transition-all overflow-hidden flex flex-col",
+          "w-full rounded-2xl border border-outline-variant/30 bg-surface-container-low text-on-surface shadow-2xl transition-all overflow-hidden flex flex-col focus:outline-hidden",
           sizeStyles[size],
           className
         )}

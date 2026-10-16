@@ -24,6 +24,7 @@ export const SignInPage: React.FC = () => {
     const {
         register,
         handleSubmit,
+        getValues,
         formState: { errors, isSubmitting },
     } = useForm<SignInFormData>({
         resolver: zodResolver(signInSchema),
@@ -34,6 +35,26 @@ export const SignInPage: React.FC = () => {
         },
         mode: "onBlur",
     });
+
+function getSafeRedirectUrl(target: string | null | undefined): string | null {
+    if (!target || typeof target !== "string") return null;
+    const trimmed = target.trim();
+    // Must be a safe relative path: starts with single '/', not '//', not '/\', no '\', no protocol '://'
+    if (
+        !trimmed.startsWith("/") ||
+        trimmed.startsWith("//") ||
+        trimmed.startsWith("/\\") ||
+        trimmed.includes("\\") ||
+        trimmed.includes("://")
+    ) {
+        return null;
+    }
+    // Disallow redirecting back to authentication pages to prevent loops
+    if (trimmed.startsWith("/signin") || trimmed.startsWith("/signup")) {
+        return null;
+    }
+    return trimmed;
+}
 
     // Determine target destination from query params or location state
     const getResolvedTarget = React.useCallback(
@@ -47,11 +68,11 @@ export const SignInPage: React.FC = () => {
             const stateFrom = (location.state as { from?: { pathname: string; search?: string } } | null)?.from;
             const stateFromPath = stateFrom ? `${stateFrom.pathname}${stateFrom.search || ""}` : undefined;
 
-            const target = redirectQuery || stateFromPath;
+            const safeTarget = getSafeRedirectUrl(redirectQuery || stateFromPath);
 
-            // If target is valid and not signin/signup, redirect there
-            if (target && !target.startsWith("/signin") && !target.startsWith("/signup")) {
-                return target;
+            // If target is safe and valid, redirect there
+            if (safeTarget) {
+                return safeTarget;
             }
 
             // Otherwise smart role-based default:
@@ -99,6 +120,20 @@ export const SignInPage: React.FC = () => {
         } catch {
             // Popup toast notification is automatically dispatched by useSignInMutation onError
         }
+    };
+
+    const handleForgotPassword = (e: React.MouseEvent) => {
+        e.preventDefault();
+        const currentEmail = getValues("email");
+        if (!currentEmail || !currentEmail.trim()) {
+            toast.info("Password Reset", {
+                description: "Please enter your email address in the field above to receive reset instructions.",
+            });
+            return;
+        }
+        toast.info("Password Recovery", {
+            description: `Please contact system administrator or support to reset password for ${currentEmail.trim()}.`,
+        });
     };
 
     return (
@@ -249,16 +284,13 @@ export const SignInPage: React.FC = () => {
                                     >
                                         Password
                                     </label>
-                                    <a
-                                        href="#forgot"
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            toast.success("Password Reset Email Sent", { description: "Instructions have been sent to your email address." });
-                                        }}
-                                        className="text-xs text-primary font-medium hover:underline"
+                                    <button
+                                        type="button"
+                                        onClick={handleForgotPassword}
+                                        className="text-xs text-primary font-medium hover:underline cursor-pointer bg-transparent border-0 p-0"
                                     >
                                         Forgot password?
-                                    </a>
+                                    </button>
                                 </div>
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-on-surface-variant/60">

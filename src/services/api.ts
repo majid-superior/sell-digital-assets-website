@@ -1,9 +1,10 @@
-import { buildRequestUrl, prepareRequestHeaders, getRefreshToken } from "./interceptors/requestInterceptor.ts";
+import { buildRequestUrl, prepareRequestHeaders } from "./interceptors/requestInterceptor.ts";
 import {
     ApiError,
     handleResponseError,
     parseResponseBody,
 } from "./interceptors/responseInterceptor.ts";
+import { authService } from "./v1/authService.ts";
 
 export interface RequestOptions extends RequestInit {
     params?: Record<string, string | number | boolean>;
@@ -15,45 +16,18 @@ export { ApiError };
 let refreshInProgressPromise: Promise<string | null> | null = null;
 
 async function attemptSilentRefresh(): Promise<string | null> {
-    const refreshToken = getRefreshToken();
-    if (!refreshToken) return null;
-
     try {
-        const refreshUrl = buildRequestUrl("/api/v1/auth/refresh");
-        const res = await fetch(refreshUrl, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Accept: "application/json",
-            },
-            body: JSON.stringify({ refreshToken }),
-        });
-
-        if (!res.ok) {
-            return null;
-        }
-
-        const data = (await res.json()) as {
-            token?: string;
-            refreshToken?: string;
-            tokens?: { accessToken?: string; refreshToken?: string };
-            user?: unknown;
-        };
-        const newToken = data?.token || data?.tokens?.accessToken;
-        const newRefreshToken = data?.refreshToken || data?.tokens?.refreshToken || refreshToken;
-
-        if (newToken) {
-            const storage =
-                typeof window !== "undefined" &&
-                (localStorage.getItem("auth_token") || localStorage.getItem("auth_refresh_token"))
-                    ? localStorage
-                    : sessionStorage;
-            storage.setItem("auth_token", newToken);
-            storage.setItem("auth_refresh_token", newRefreshToken);
-            if (data.user) {
-                storage.setItem("auth_user", JSON.stringify(data.user));
+        const session = await authService.refreshSession();
+        const token = session?.token || session?.tokens?.accessToken;
+        if (token) {
+            if (typeof window !== "undefined") {
+                window.dispatchEvent(
+                    new CustomEvent("auth:token-refreshed", {
+                        detail: { token, user: session.user },
+                    })
+                );
             }
-            return newToken;
+            return token;
         }
         return null;
     } catch {

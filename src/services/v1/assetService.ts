@@ -204,6 +204,19 @@ class AssetService {
   }
 
   /**
+   * Retrieve single digital asset by ID or unique identifier.
+   */
+  async getAssetById(id: string): Promise<DigitalAsset> {
+    const res = await apiClient.get<ApiResponseEnvelope<DigitalAsset> | DigitalAsset>(
+      `/api/v1/assets/${encodeURIComponent(id)}`
+    );
+    if ("data" in res && res.data) {
+      return res.data;
+    }
+    return res as DigitalAsset;
+  }
+
+  /**
    * Retrieve category taxonomy hierarchy.
    */
   async getCategoryTaxonomy(): Promise<CategoryTaxonomyNode[]> {

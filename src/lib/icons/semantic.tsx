@@ -42,6 +42,23 @@ import {
   Plus as LucidePlus,
   Upload as LucideUpload,
   Image as LucideImage,
+  Edit as LucideEdit,
+  Layers as LucideLayers,
+  UploadCloud as LucideUploadCloud,
+  Boxes as LucideBoxes,
+  AlertCircle as LucideAlertCircle,
+  Wallet as LucideWallet,
+  BarChart3 as LucideBarChart3,
+  Library as LucideLibrary,
+  KeyRound as LucideKeyRound,
+  ShoppingBag as LucideShoppingBag,
+  Receipt as LucideReceipt,
+  RotateCcw as LucideRotateCcw,
+  Shield as LucideShield,
+  Store as LucideStore,
+  Trash2 as LucideTrash2,
+  HelpCircle as LucideHelpCircle,
+  ChevronDown as LucideChevronDown,
 } from "lucide-react";
 
 import type { LucideProps } from "lucide-react";
@@ -109,6 +126,23 @@ export const FileText: IconComponent = createSemanticIcon(LucideFileText);
 export const Plus: IconComponent = createSemanticIcon(LucidePlus);
 export const Upload: IconComponent = createSemanticIcon(LucideUpload);
 export const Image: IconComponent = createSemanticIcon(LucideImage);
+export const Edit: IconComponent = createSemanticIcon(LucideEdit);
+export const Layers: IconComponent = createSemanticIcon(LucideLayers);
+export const UploadCloud: IconComponent = createSemanticIcon(LucideUploadCloud);
+export const Boxes: IconComponent = createSemanticIcon(LucideBoxes);
+export const AlertCircle: IconComponent = createSemanticIcon(LucideAlertCircle);
+export const Wallet: IconComponent = createSemanticIcon(LucideWallet);
+export const BarChart3: IconComponent = createSemanticIcon(LucideBarChart3);
+export const Library: IconComponent = createSemanticIcon(LucideLibrary);
+export const KeyRound: IconComponent = createSemanticIcon(LucideKeyRound);
+export const ShoppingBag: IconComponent = createSemanticIcon(LucideShoppingBag);
+export const Receipt: IconComponent = createSemanticIcon(LucideReceipt);
+export const RotateCcw: IconComponent = createSemanticIcon(LucideRotateCcw);
+export const Shield: IconComponent = createSemanticIcon(LucideShield);
+export const Store: IconComponent = createSemanticIcon(LucideStore);
+export const Trash2: IconComponent = createSemanticIcon(LucideTrash2);
+export const HelpCircle: IconComponent = createSemanticIcon(LucideHelpCircle);
+export const ChevronDown: IconComponent = createSemanticIcon(LucideChevronDown);
 
 // Friendly aliases
 export const Sun: IconComponent = ThemeLight;
@@ -117,3 +151,7 @@ export const ShoppingCart: IconComponent = Cart;
 export const Sparkles: IconComponent = Magic;
 export const ChevronRight: IconComponent = Next;
 export const ChevronLeft: IconComponent = Back;
+export const ShieldCheck: IconComponent = Security;
+export const Star: IconComponent = Rating;
+export const Tag: IconComponent = Sell;
+export const Compass: IconComponent = Explore;

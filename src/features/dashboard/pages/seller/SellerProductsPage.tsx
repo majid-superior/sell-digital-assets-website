@@ -8,7 +8,8 @@ import { queryKeys } from "@/services/queryKeys.ts";
 import { formatCurrency } from "@/utils/currency.ts";
 import { formatDate } from "@/utils/date.ts";
 import { Icons } from "@/lib/icons/index.ts";
-import { Button, Badge, Skeleton, EmptyState } from "@/components/ui/index.ts";
+import { Button, Badge, Skeleton, EmptyState, Modal } from "@/components/ui/index.ts";
+import { useDebounce } from "@/hooks/useDebounce.ts";
 import type { DigitalAsset, AssetStatus } from "@/types/asset.ts";
 
 type StatusTab = "all" | "published" | "draft" | "archived";
@@ -17,17 +18,19 @@ export const SellerProductsPage: React.FC = () => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
 
+    const [assetToDelete, setAssetToDelete] = useState<{ id: string; title: string } | null>(null);
     const [activeTab, setActiveTab] = useState<StatusTab>("all");
     const [searchQuery, setSearchQuery] = useState("");
+    const debouncedSearch = useDebounce(searchQuery, 350);
     const [page, setPage] = useState(1);
     const limit = 15;
 
     const queryParams = useMemo(() => ({
         status: activeTab === "all" ? undefined : (activeTab as AssetStatus),
-        search: searchQuery.trim() || undefined,
+        search: debouncedSearch.trim() || undefined,
         page,
         limit,
-    }), [activeTab, searchQuery, page, limit]);
+    }), [activeTab, debouncedSearch, page, limit]);
 
     const { data: response, isLoading } = useQuery({
         queryKey: queryKeys.assets.sellerList(queryParams),
@@ -74,8 +77,13 @@ export const SellerProductsPage: React.FC = () => {
     };
 
     const handleDelete = (id: string, title: string) => {
-        if (window.confirm(`Are you sure you want to archive "${title}"?`)) {
-            deleteMutation.mutate(id);
+        setAssetToDelete({ id, title });
+    };
+
+    const confirmDelete = () => {
+        if (assetToDelete) {
+            deleteMutation.mutate(assetToDelete.id);
+            setAssetToDelete(null);
         }
     };
 
@@ -319,6 +327,16 @@ export const SellerProductsPage: React.FC = () => {
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
+                                                        onClick={() => navigate(`/dashboard/seller/products/edit/${item.id}`)}
+                                                        title="Edit Product"
+                                                        className="p-1.5 cursor-pointer text-foreground hover:text-primary"
+                                                    >
+                                                        <Icons.Edit size={14} />
+                                                    </Button>
+
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
                                                         onClick={() => navigate(`/asset/${item.slug}`)}
                                                         title="Preview Live Page"
                                                         className="p-1.5 cursor-pointer"
@@ -399,6 +417,38 @@ export const SellerProductsPage: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* Archive Product Confirmation Modal */}
+            <Modal
+                isOpen={Boolean(assetToDelete)}
+                onClose={() => setAssetToDelete(null)}
+                title="Archive Product"
+            >
+                <div className="space-y-4">
+                    <p className="text-sm text-on-surface-variant">
+                        Are you sure you want to archive <strong className="text-on-surface">&quot;{assetToDelete?.title}&quot;</strong>? This product will be hidden from public search and cannot be purchased until republished.
+                    </p>
+                    <div className="flex items-center justify-end gap-3 pt-3">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setAssetToDelete(null)}
+                            className="cursor-pointer"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={confirmDelete}
+                            isLoading={deleteMutation.isPending}
+                            className="cursor-pointer"
+                        >
+                            Archive Asset
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 };

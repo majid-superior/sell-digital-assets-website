@@ -1,10 +1,11 @@
-// src/provider/AuthProvider.tsx
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import type { User } from "@/types/user.ts";
 import { AuthContext, type AuthContextType } from "@/context/authContext.ts";
 import { authService } from "@/services/v1/authService.ts";
 import { organizationService } from "@/services/v1/organizationService.ts";
 import { ApiError } from "@/services/api.ts";
+import { queryClient } from "@/services/queryClient.ts";
 import { toast } from "sonner";
 
 export interface AuthProviderProps {
@@ -12,6 +13,9 @@ export interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+    const navigate = useNavigate();
+    const location = useLocation();
+
     const [user, setUser] = useState<User | null>(() => authService.getStoredUser());
     const [token, setToken] = useState<string | null>(() => authService.getStoredToken());
     const [isLoading, setIsLoading] = useState<boolean>(() => !authService.getStoredToken());
@@ -35,34 +39,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         authService.signOut();
         setUser(null);
         setToken(null);
+        queryClient.clear();
         toast.success("Signed out successfully", {
             description: "You have returned to the marketplace.",
         });
-        if (typeof window !== "undefined" && window.location.pathname !== redirectTo) {
-            window.location.href = redirectTo;
-        }
-    }, []);
+        void navigate(redirectTo, { replace: true });
+    }, [navigate]);
 
     const handleSessionExpired = useCallback((customMessage?: string) => {
         const hadSession = Boolean(authService.getStoredToken() || authService.getStoredRefreshToken() || userRef.current);
         authService.clearSession();
         setUser(null);
         setToken(null);
+        queryClient.clear();
 
-        const currentPath = typeof window !== "undefined" ? window.location.pathname : "";
+        const currentPath = location.pathname;
         const isAuthPage = currentPath === "/signin" || currentPath === "/signup";
 
         if (hadSession && !isAuthPage) {
             toast.error("Session Expired", {
                 description: customMessage || "Your session has ended. Please sign in again.",
             });
-            if (typeof window !== "undefined") {
-                const search = window.location.search || "";
-                const redirectParam = encodeURIComponent(`${currentPath}${search}`);
-                window.location.href = `/signin?redirect=${redirectParam}`;
-            }
+            const search = location.search || "";
+            const redirectParam = encodeURIComponent(`${currentPath}${search}`);
+            void navigate(`/signin?redirect=${redirectParam}`, { replace: true });
         }
-    }, []);
+    }, [location.pathname, location.search, navigate]);
 
     // Verify session integrity against the backend ONLY once on initial mount
     useEffect(() => {
@@ -138,9 +140,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const timeoutMs = timeoutMinutes * 60 * 1000;
 
         let lastActivity = Date.now();
+        let lastRecorded = Date.now();
 
         const updateActivity = () => {
-            lastActivity = Date.now();
+            const now = Date.now();
+            if (now - lastRecorded > 10000) {
+                lastRecorded = now;
+                lastActivity = now;
+            }
         };
 
         const events = ["mousedown", "mousemove", "keydown", "scroll", "touchstart"];
@@ -166,25 +173,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             handleSessionExpired("Your session has ended. Please sign in again.");
         };
 
+        const handleTokenRefreshed = (e: Event) => {
+            const custom = e as CustomEvent<{ token: string; user?: User }>;
+            if (custom.detail) {
+                if (custom.detail.token) setToken(custom.detail.token);
+                if (custom.detail.user) setUser(custom.detail.user);
+            }
+        };
+
         const handleSignOut = () => {
             authService.clearSession();
             setUser(null);
             setToken(null);
-            if (typeof window !== "undefined" && window.location.pathname !== "/") {
-                window.location.href = "/";
+            queryClient.clear();
+            if (location.pathname.startsWith("/dashboard")) {
+                void navigate("/", { replace: true });
             }
         };
 
         window.addEventListener("auth:session-expired", onSessionExpired);
         window.addEventListener("auth:unauthorized", onSessionExpired);
         window.addEventListener("auth:signout", handleSignOut);
+        window.addEventListener("auth:token-refreshed", handleTokenRefreshed);
 
         return () => {
             window.removeEventListener("auth:session-expired", onSessionExpired);
             window.removeEventListener("auth:unauthorized", onSessionExpired);
             window.removeEventListener("auth:signout", handleSignOut);
+            window.removeEventListener("auth:token-refreshed", handleTokenRefreshed);
         };
-    }, [handleSessionExpired]);
+    }, [handleSessionExpired, location.pathname, navigate]);
 
     const value = useMemo<AuthContextType>(
         () => ({
