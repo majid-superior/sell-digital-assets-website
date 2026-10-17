@@ -50,6 +50,17 @@ export interface SellerAssetListResponse {
   };
 }
 
+export interface LicenseTierConfig {
+  tier_type: TierType;
+  name: string;
+  default_price: number;
+  description: string;
+  license_terms_summary: string;
+  max_activations: number;
+  display_order: number;
+  is_active: boolean;
+}
+
 export interface CreateAssetTierInput {
   tierType: TierType;
   price: number;
@@ -61,7 +72,7 @@ export interface CreateAssetInput {
   title: string;
   slug?: string;
   shortDescription: string;
-  fullDescription: string;
+  fullDescription?: string | null;
   tags?: string[];
   technicalSpecs?: Record<string, unknown>;
   tiers: CreateAssetTierInput[];
@@ -72,7 +83,7 @@ export interface UpdateAssetInput {
   title?: string;
   slug?: string;
   shortDescription?: string;
-  fullDescription?: string;
+  fullDescription?: string | null;
   tags?: string[];
   technicalSpecs?: Record<string, unknown>;
   tiers?: CreateAssetTierInput[];
@@ -409,6 +420,29 @@ class AssetService {
       payload
     );
     return res.data;
+  }
+
+  /**
+   * Delete uploaded media showcase item.
+   */
+  async deleteMedia(
+    assetId: string,
+    mediaId: string
+  ): Promise<{ id: string; deleted: boolean }> {
+    const res = await apiClient.delete<ApiResponseEnvelope<{ id: string; deleted: boolean }>>(
+      `/api/v1/assets/seller/${encodeURIComponent(assetId)}/media/${encodeURIComponent(mediaId)}`
+    );
+    return res.data;
+  }
+
+  /**
+   * Fetch default licensing tiers configured in the marketplace database.
+   */
+  async getLicenseTiers(): Promise<LicenseTierConfig[]> {
+    const res = await apiClient.get<ApiResponseEnvelope<LicenseTierConfig[]>>(
+      "/api/v1/licenses/tiers"
+    );
+    return res.data || [];
   }
 }
 

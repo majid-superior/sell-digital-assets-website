@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { assetService } from "@/services/v1/assetService.ts";
 import { queryKeys } from "@/services/queryKeys.ts";
 import { useCategoryTaxonomy } from "@/hooks/useCategoryTaxonomy.ts";
-import { formatCurrency } from "@/utils/currency.ts";
+import { formatCurrency, getCurrencyInfo } from "@/utils/currency.ts";
 import { formatBytes } from "@/utils/file.ts";
 import { resolveMediaUrl } from "@/utils/media.ts";
 import { Icons } from "@/lib/icons/index.ts";
@@ -30,7 +30,7 @@ const basicInfoSchema = z.object({
     title: z.string().trim().min(3, "Title must be at least 3 characters").max(180),
     categoryId: z.number().int().positive("Please select a category"),
     shortDescription: z.string().trim().min(10, "Short description must be at least 10 characters").max(450),
-    fullDescription: z.string().trim().min(20, "Full description must be at least 20 characters"),
+    fullDescription: z.string().trim().optional().or(z.literal("")),
 });
 
 type BasicInfoFormData = z.infer<typeof basicInfoSchema>;
@@ -48,6 +48,7 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
 }) => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
+    const currencyInfo = getCurrencyInfo();
 
     const [currentStep, setCurrentStep] = useState<WizardStep>("info");
     const [assetId, setAssetId] = useState<string | null>(() => initialAsset?.id || null);
@@ -70,20 +71,44 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
     const [newSpecKey, setNewSpecKey] = useState("");
     const [newSpecValue, setNewSpecValue] = useState("");
 
-    // Tiers state
-    const [tiers, setTiers] = useState<Array<{ tierType: TierType; price: number; licenseTermsSummary: string }>>(() => {
+    // Query database license tiers for marketplace standard configurations
+    const { data: dbLicenseTiers } = useQuery({
+        queryKey: ["license-tiers", "all"],
+        queryFn: () => assetService.getLicenseTiers(),
+        staleTime: 1000 * 60 * 10,
+    });
+
+    // Custom tier prices edited by seller
+    const [tierPriceOverrides, setTierPriceOverrides] = useState<Partial<Record<TierType, number>>>(() => {
         if (initialAsset?.tiers && Array.isArray(initialAsset.tiers) && initialAsset.tiers.length > 0) {
-            return initialAsset.tiers.map((t) => ({
-                tierType: t.tier_type,
-                price: Number(t.price ?? 29),
-                licenseTermsSummary: t.license_terms_summary || "",
-            }));
+            const map: Partial<Record<TierType, number>> = {};
+            for (const t of initialAsset.tiers) {
+                map[t.tier_type] = Number(t.price);
+            }
+            return map;
         }
-        return [
-            { tierType: "personal", price: 29, licenseTermsSummary: "Single personal non-commercial project" },
-            { tierType: "commercial", price: 79, licenseTermsSummary: "Up to 5 commercial commercial applications" },
-            { tierType: "extended", price: 199, licenseTermsSummary: "Unlimited SaaS projects & resale permission" },
-        ];
+        return {};
+    });
+
+    const defaultTierConfigs: Array<{ tierType: TierType; name: string; defaultPrice: number; licenseTermsSummary: string }> = [
+        { tierType: "personal", name: "Personal License", defaultPrice: 9, licenseTermsSummary: "Single personal non-commercial project" },
+        { tierType: "commercial", name: "Commercial License", defaultPrice: 19, licenseTermsSummary: "Up to 5 commercial applications" },
+        { tierType: "extended", name: "Extended License", defaultPrice: 39, licenseTermsSummary: "Unlimited SaaS projects & resale permission" },
+    ];
+
+    // Compute effective tiers: database defaults merged with any seller price overrides
+    const tiers = defaultTierConfigs.map((cfg) => {
+        const dbTier = dbLicenseTiers?.find((d) => d.tier_type === cfg.tierType);
+        const name = dbTier?.name || cfg.name;
+        const defaultPrice = dbTier ? Number(dbTier.default_price) : cfg.defaultPrice;
+        const price = tierPriceOverrides[cfg.tierType] !== undefined ? tierPriceOverrides[cfg.tierType]! : defaultPrice;
+        const licenseTermsSummary = dbTier?.license_terms_summary || cfg.licenseTermsSummary;
+        return {
+            tierType: cfg.tierType,
+            name,
+            price,
+            licenseTermsSummary,
+        };
     });
 
     // Deliverable upload state
@@ -97,7 +122,6 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
     const [mediaList, setMediaList] = useState<AssetMedia[]>(() => initialAsset?.media || []);
     const [mediaUploadProgress, setMediaUploadProgress] = useState<number | null>(null);
     const [isUploadingMedia, setIsUploadingMedia] = useState(false);
-    const [mediaType, setMediaType] = useState<MediaType>("thumbnail");
     const blobUrlsRef = useRef<Set<string>>(new Set());
 
     // Cleanup any pending object URLs on unmount to prevent memory leaks
@@ -172,14 +196,9 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
         setSpecs(specs.filter((_, i) => i !== index));
     };
 
-    // Update Tier Price
+    // Update Tier Price (only price is editable by seller)
     const handleUpdateTierPrice = (tierType: TierType, newPrice: number) => {
-        setTiers(tiers.map((t) => (t.tierType === tierType ? { ...t, price: Math.max(0, newPrice) } : t)));
-    };
-
-    // Update Tier Summary
-    const handleUpdateTierSummary = (tierType: TierType, summary: string) => {
-        setTiers(tiers.map((t) => (t.tierType === tierType ? { ...t, licenseTermsSummary: summary } : t)));
+        setTierPriceOverrides((prev) => ({ ...prev, [tierType]: Math.max(0, newPrice) }));
     };
 
     // Save Basic Info & Create Draft Asset in PostgreSQL
@@ -190,13 +209,15 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                 technicalSpecsObj[s.key] = s.value;
             }
 
+            const fullDescClean = data.fullDescription ? data.fullDescription.trim() : null;
+
             if (!assetId) {
                 // Phase 1 Creation: Create draft asset
                 const created = await assetService.createDraftAsset({
                     categoryId: data.categoryId,
                     title: data.title,
                     shortDescription: data.shortDescription,
-                    fullDescription: data.fullDescription,
+                    fullDescription: fullDescClean,
                     tags,
                     technicalSpecs: technicalSpecsObj,
                     tiers: tiers.map((t) => ({
@@ -216,7 +237,7 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                     categoryId: data.categoryId,
                     title: data.title,
                     shortDescription: data.shortDescription,
-                    fullDescription: data.fullDescription,
+                    fullDescription: fullDescClean,
                     tags,
                     technicalSpecs: technicalSpecsObj,
                     tiers: tiers.map((t) => ({
@@ -275,7 +296,7 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
         }
     };
 
-    // 2-Phase Presigned Upload: Deliverable File (Auto-upload when browsed or dropped)
+    // Deliverable File Upload (Direct upload when browsed or dropped)
     const handleUploadDeliverable = async (fileToUpload?: File) => {
         const file = fileToUpload || deliverableFile;
         if (!assetId) {
@@ -283,7 +304,7 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
             return;
         }
         if (!file) {
-            toast.error("Please select a ZIP file to upload");
+            toast.error("Please select a deliverable file to upload");
             return;
         }
 
@@ -292,22 +313,19 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
             setDeliverableUploadProgress(0);
             setDeliverableFile(file);
 
-            // Phase 1: Request presigned upload URL
-            toast.loading("Generating presigned upload authorization...", { id: "deliverable-upload" });
+            toast.loading("Generating upload authorization...", { id: "deliverable-upload" });
             const presigned = await assetService.presignFileUpload(assetId, {
                 fileName: file.name,
-                contentType: file.type || "application/zip",
+                contentType: file.type || "application/octet-stream",
                 version: deliverableVersion,
                 fileSizeBytes: file.size,
             });
 
-            // Phase 2: Stream binary direct to storage
-            toast.loading("Streaming binary deliverable to storage disk...", { id: "deliverable-upload" });
+            toast.loading("Uploading deliverable package...", { id: "deliverable-upload" });
             await assetService.uploadBinary(presigned.uploadUrl, file, (percent) => {
                 setDeliverableUploadProgress(percent);
             });
 
-            // Phase 3: Confirm file in database
             toast.loading("Confirming file version in database...", { id: "deliverable-upload" });
             const confirmed = await assetService.confirmFileUpload(assetId, {
                 storageKey: presigned.storageKey,
@@ -331,8 +349,8 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
         }
     };
 
-    // 2-Phase Presigned Upload: Media File
-    const handleUploadMedia = async (file: File) => {
+    // Media File Upload (Dedicated handling for thumbnail vs screenshot)
+    const handleUploadMedia = async (file: File, uploadType: MediaType = "thumbnail") => {
         if (!assetId) {
             toast.error("Save basic asset details first", { description: "Please complete Step 1 before uploading media." });
             return;
@@ -341,28 +359,30 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
         const localPreviewUrl = URL.createObjectURL(file);
         blobUrlsRef.current.add(localPreviewUrl);
 
+        const toastId = `${uploadType}-upload`;
+
         try {
             setIsUploadingMedia(true);
             setMediaUploadProgress(0);
 
-            toast.loading("Requesting media presigned upload...", { id: "media-upload" });
+            toast.loading(`Requesting ${uploadType} upload authorization...`, { id: toastId });
             const presigned = await assetService.presignMediaUpload(assetId, {
                 fileName: file.name,
                 contentType: file.type || "image/png",
-                mediaType,
-                displayOrder: mediaList.length + 1,
+                mediaType: uploadType,
+                displayOrder: uploadType === "thumbnail" ? 1 : mediaList.length + 1,
             });
 
-            toast.loading("Streaming image to media storage...", { id: "media-upload" });
+            toast.loading(`Uploading ${uploadType} image...`, { id: toastId });
             await assetService.uploadBinary(presigned.uploadUrl, file, (percent) => {
                 setMediaUploadProgress(percent);
             });
 
-            toast.loading("Finalizing media showcase entry...", { id: "media-upload" });
+            toast.loading("Finalizing media showcase entry...", { id: toastId });
             const confirmed = await assetService.confirmMediaUpload(assetId, {
                 storageKey: presigned.storageKey,
-                mediaType,
-                displayOrder: mediaList.length + 1,
+                mediaType: uploadType,
+                displayOrder: uploadType === "thumbnail" ? 1 : mediaList.length + 1,
             });
 
             if (confirmed.url) {
@@ -375,19 +395,46 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                 url: confirmed.url || localPreviewUrl,
             };
 
-            setMediaList((prev) => [...prev, mediaWithUrl]);
-            toast.success("Media Uploaded Successfully!", {
-                id: "media-upload",
-                description: `Showcase ${confirmed.media_type} preview is now live.`,
-            });
+            // If thumbnail uploaded, replace existing thumbnail in display
+            if (uploadType === "thumbnail") {
+                setMediaList((prev) => [...prev.filter((m) => m.media_type !== "thumbnail"), mediaWithUrl]);
+            } else {
+                setMediaList((prev) => [...prev, mediaWithUrl]);
+            }
+
+            toast.success(
+                uploadType === "thumbnail" ? "Thumbnail Uploaded Successfully!" : "Screenshot Added Successfully!",
+                {
+                    id: toastId,
+                    description: `Showcase ${uploadType} preview is now active.`,
+                }
+            );
         } catch (err) {
             URL.revokeObjectURL(localPreviewUrl);
             blobUrlsRef.current.delete(localPreviewUrl);
             const msg = err instanceof Error ? err.message : "Media upload failed";
-            toast.error("Upload Error", { id: "media-upload", description: msg });
+            toast.error("Upload Error", { id: toastId, description: msg });
         } finally {
             setIsUploadingMedia(false);
             setMediaUploadProgress(null);
+        }
+    };
+
+    // Remove uploaded media
+    const handleDeleteMedia = async (mediaId: string) => {
+        if (!assetId) {
+            setMediaList((prev) => prev.filter((m) => m.id !== mediaId));
+            return;
+        }
+
+        try {
+            await assetService.deleteMedia(assetId, mediaId);
+            setMediaList((prev) => prev.filter((m) => m.id !== mediaId));
+            toast.success("Media Removed");
+            void queryClient.invalidateQueries({ queryKey: queryKeys.assets.all });
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : "Failed to remove media item";
+            toast.error("Removal Error", { description: msg });
         }
     };
 
@@ -399,7 +446,7 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
         }
 
         if (shouldPublish && uploadedFiles.length === 0) {
-            toast.error("Deliverable ZIP Required", {
+            toast.error("Deliverable File Required", {
                 description: "You must upload at least one deliverable package in Step 3 before submitting for review.",
             });
             setCurrentStep("deliverables");
@@ -426,12 +473,15 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
     };
 
     const stepsList: Array<{ id: WizardStep; label: string }> = [
-        { id: "info", label: "1. Basic Details" },
-        { id: "tiers_specs", label: "2. Pricing & Specs" },
-        { id: "deliverables", label: "3. Deliverable ZIP" },
-        { id: "media", label: "4. Media Showcase" },
-        { id: "review", label: "5. Review & Publish" },
+        { id: "info", label: "1. Details" },
+        { id: "tiers_specs", label: "2. Pricing" },
+        { id: "deliverables", label: "3. Deliverables" },
+        { id: "media", label: "4. Media" },
+        { id: "review", label: "5. Review" },
     ];
+
+    const thumbnailItem = mediaList.find((m) => m.media_type === "thumbnail");
+    const screenshotItems = mediaList.filter((m) => m.media_type === "screenshot");
 
     return (
         <div className="space-y-6 max-w-4xl mx-auto w-full animate-fade-in pb-16">
@@ -533,13 +583,15 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                                 />
                             </div>
 
-                            {/* Full Description */}
+                            {/* Full Description (Optional) */}
                             <div className="space-y-1.5">
-                                <Label htmlFor="fullDescription">Full Description &amp; Documentation *</Label>
+                                <Label htmlFor="fullDescription">
+                                    Full Description &amp; Documentation <span className="text-on-surface-variant font-normal text-xs">(Optional)</span>
+                                </Label>
                                 <textarea
                                     id="fullDescription"
                                     rows={5}
-                                    placeholder="Detailed description, setup instructions, feature list..."
+                                    placeholder="Detailed description, setup instructions, feature list (optional)..."
                                     {...register("fullDescription")}
                                     className={`w-full px-3 py-2 text-sm rounded-xl bg-surface border text-on-surface placeholder:text-on-surface-variant/60 focus:outline-hidden resize-y ${
                                         errors.fullDescription
@@ -581,8 +633,14 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                             </div>
 
                             <div className="pt-4 flex justify-end">
-                                <Button type="submit" variant="primary" size="md" className="cursor-pointer">
-                                    Save &amp; Continue to Step 2 <Icons.Next size={14} className="ml-1" />
+                                <Button
+                                    type="submit"
+                                    variant="primary"
+                                    size="md"
+                                    rightIcon={<Icons.Next size={14} />}
+                                    className="cursor-pointer"
+                                >
+                                    Continue
                                 </Button>
                             </div>
                         </form>
@@ -596,7 +654,12 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                     {/* Tiers Builder */}
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-base font-bold">Pricing Tiers (USD)</CardTitle>
+                            <CardTitle className="text-base font-bold">
+                                Pricing Tiers ({currencyInfo.code})
+                            </CardTitle>
+                            <p className="text-xs text-on-surface-variant mt-1">
+                                License terms are standardized across the marketplace. You can customize the price for each licensing tier below.
+                            </p>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {tiers.map((tier) => (
@@ -604,32 +667,33 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                                     key={tier.tierType}
                                     className="p-4 rounded-xl border border-outline-variant/30 bg-surface-container-low space-y-3"
                                 >
-                                    <div className="flex items-center justify-between">
-                                        <span className="font-bold text-sm capitalize text-on-surface">
-                                            {tier.tierType} License
-                                        </span>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xs text-on-surface-variant font-semibold">Price ($):</span>
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-bold text-sm text-on-surface">
+                                                    {tier.name || `${tier.tierType.charAt(0).toUpperCase() + tier.tierType.slice(1)} License`}
+                                                </span>
+                                                <Badge variant="outline" size="sm" className="capitalize text-[10px]">
+                                                    {tier.tierType}
+                                                </Badge>
+                                            </div>
+                                            <p className="text-xs text-on-surface-variant mt-1">
+                                                {tier.licenseTermsSummary}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <span className="text-xs text-on-surface-variant font-semibold">
+                                                Price ({currencyInfo.symbol}):
+                                            </span>
                                             <input
                                                 type="number"
                                                 min="0"
+                                                step="1"
                                                 value={tier.price}
                                                 onChange={(e) => handleUpdateTierPrice(tier.tierType, Number(e.target.value))}
-                                                className="w-24 px-2 py-1 text-sm font-bold text-center rounded-lg bg-surface border border-outline-variant/40 text-on-surface"
+                                                className="w-24 px-2.5 py-1.5 text-sm font-bold text-center rounded-lg bg-surface border border-outline-variant/40 text-on-surface focus:outline-none focus:border-primary"
                                             />
                                         </div>
-                                    </div>
-                                    <div>
-                                        <Label htmlFor={`terms-${tier.tierType}`} className="text-xs">
-                                            License Terms Summary
-                                        </Label>
-                                        <input
-                                            id={`terms-${tier.tierType}`}
-                                            type="text"
-                                            value={tier.licenseTermsSummary}
-                                            onChange={(e) => handleUpdateTierSummary(tier.tierType, e.target.value)}
-                                            className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-surface border border-outline-variant/40 text-on-surface mt-1"
-                                        />
                                     </div>
                                 </div>
                             ))}
@@ -686,34 +750,40 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                     </Card>
 
                     <div className="flex justify-between">
-                        <Button variant="outline" size="md" onClick={() => setCurrentStep("info")} className="cursor-pointer">
-                            <Icons.Back size={14} className="mr-1" /> Back to Details
+                        <Button
+                            variant="outline"
+                            size="md"
+                            leftIcon={<Icons.Back size={14} />}
+                            onClick={() => setCurrentStep("info")}
+                            className="cursor-pointer"
+                        >
+                            Back
                         </Button>
                         <Button
                             variant="primary"
                             size="md"
+                            rightIcon={<Icons.Next size={14} />}
                             onClick={handleSaveStep2AndAdvance}
                             isLoading={isSavingStep2}
                             className="cursor-pointer"
                         >
-                            Next: Upload Deliverables <Icons.Next size={14} className="ml-1" />
+                            Continue
                         </Button>
                     </div>
                 </div>
             )}
 
-            {/* STEP 3: Deliverables Upload (2-Phase Presigned Upload) */}
+            {/* STEP 3: Deliverables Upload */}
             {currentStep === "deliverables" && (
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-base font-bold">
-                            Step 3: Deliverable ZIP Upload (2-Phase Presigned Upload)
+                            Step 3: Upload Deliverable Files
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <p className="text-xs text-on-surface-variant leading-relaxed">
-                            Upload your product binary deliverable as a ZIP archive. The client requests a presigned signed URL
-                            from the backend, uploads binary bytes directly to disk, and confirms the package version.
+                            Upload the digital deliverable package that buyers receive upon purchasing. Supports archives (ZIP, RAR, 7Z), documents, graphics, audio, video, or code packages up to 500 MB.
                         </p>
 
                         {/* File Version Input */}
@@ -757,20 +827,20 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                             <Icons.Upload size={36} className="text-primary mb-2 transition-transform group-hover:scale-110" />
                             <h4 className="font-bold text-sm text-on-surface">
                                 {isUploadingDeliverable
-                                    ? `Uploading ${deliverableFile?.name || "ZIP"}...`
+                                    ? `Uploading ${deliverableFile?.name || "file"}...`
                                     : deliverableFile
                                     ? deliverableFile.name
-                                    : "Drag & drop ZIP archive here"}
+                                    : "Drag & drop deliverable file here"}
                             </h4>
                             <p className="text-xs text-on-surface-variant mt-1">
                                 {isUploadingDeliverable
                                     ? "Streaming payload direct to storage server..."
-                                    : "or click anywhere in this box to browse and auto-upload .zip"}
+                                    : "or click anywhere in this box to browse and auto-upload (.zip, .rar, .7z, .pdf, media, etc.)"}
                             </p>
 
                             <input
                                 type="file"
-                                accept=".zip,.tar,.gz,.7z"
+                                accept=".zip,.rar,.7z,.tar,.gz,.pdf,.png,.jpg,.jpeg,.svg,.mp4,.mov,.mp3,.wav,.blend,.obj,.fbx"
                                 id="deliverable-file-input"
                                 className="hidden"
                                 onChange={(e) => {
@@ -839,184 +909,326 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                         )}
 
                         <div className="flex justify-between pt-4">
-                            <Button variant="outline" size="md" onClick={() => setCurrentStep("tiers_specs")} className="cursor-pointer">
-                                <Icons.Back size={14} className="mr-1" /> Back
+                            <Button
+                                variant="outline"
+                                size="md"
+                                leftIcon={<Icons.Back size={14} />}
+                                onClick={() => setCurrentStep("tiers_specs")}
+                                className="cursor-pointer"
+                            >
+                                Back
                             </Button>
                             <Button
                                 variant="primary"
                                 size="md"
+                                rightIcon={<Icons.Next size={14} />}
                                 onClick={() => setCurrentStep("media")}
                                 className="cursor-pointer"
                             >
-                                Next: Media Showcase <Icons.Next size={14} className="ml-1" />
+                                Continue
                             </Button>
                         </div>
                     </CardContent>
                 </Card>
             )}
 
-            {/* STEP 4: Media Showcase */}
+            {/* STEP 4: Media Showcase (Separate Blocks for Thumbnail & Screenshots) */}
             {currentStep === "media" && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-base font-bold">Step 4: Media &amp; Preview Images</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="flex items-center gap-3">
-                            <Label htmlFor="mediaTypeSelect">Media Type:</Label>
-                            <select
-                                id="mediaTypeSelect"
-                                value={mediaType}
-                                onChange={(e) => setMediaType(e.target.value as MediaType)}
-                                className="px-3 py-1.5 text-xs rounded-xl bg-surface border border-outline-variant/40 text-on-surface cursor-pointer"
-                            >
-                                <option value="thumbnail">Main Thumbnail</option>
-                                <option value="screenshot">Product Screenshot</option>
-                            </select>
-                        </div>
-
-                        {/* Drag and Drop Box for Image */}
-                        <div
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                    e.preventDefault();
-                                    if (!isUploadingMedia) {
-                                        document.getElementById("media-file-input")?.click();
-                                    }
-                                }
-                            }}
-                            onDragOver={(e) => e.preventDefault()}
-                            onDrop={(e) => {
-                                e.preventDefault();
-                                if (e.dataTransfer.files?.[0]) {
-                                    void handleUploadMedia(e.dataTransfer.files[0]);
-                                }
-                            }}
-                            onClick={() => {
-                                if (!isUploadingMedia) {
-                                    document.getElementById("media-file-input")?.click();
-                                }
-                            }}
-                            className="p-8 border-2 border-dashed border-outline-variant/50 rounded-2xl bg-surface-container-lowest/50 text-center flex flex-col items-center justify-center cursor-pointer hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary transition-colors group"
-                        >
-                            <Icons.Upload size={36} className="text-primary mb-2 transition-transform group-hover:scale-110" />
-                            <h4 className="font-bold text-sm text-on-surface">
-                                {isUploadingMedia ? `Uploading ${mediaType} Image...` : `Upload ${mediaType} Image`}
-                            </h4>
-                            <p className="text-xs text-on-surface-variant mt-1">
-                                {isUploadingMedia
-                                    ? "Streaming media bytes to storage server..."
-                                    : "PNG, JPG, or WebP up to 10MB (click anywhere to browse)"}
-                            </p>
+                <div className="space-y-6">
+                    {/* BLOCK 1: Main Thumbnail (Cover Image) */}
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <CardTitle className="text-base font-bold">Main Thumbnail (Cover Image)</CardTitle>
+                                    <p className="text-xs text-on-surface-variant mt-1">
+                                        The primary display card image shown in catalog search and marketplace showcases (Recommended 16:9, max 10MB).
+                                    </p>
+                                </div>
+                                {thumbnailItem && (
+                                    <Badge variant="outline" size="sm" className="bg-primary/10 text-primary border-primary/30">
+                                        Cover Set
+                                    </Badge>
+                                )}
+                            </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {thumbnailItem ? (
+                                <div className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-2xl bg-surface-container-low border border-outline-variant/30">
+                                    <div className="relative aspect-16/10 w-full sm:w-56 rounded-xl overflow-hidden border border-outline-variant/40 bg-surface-container shadow-2xs shrink-0">
+                                        <img
+                                            src={resolveMediaUrl(thumbnailItem.url || "")}
+                                            alt="Main Thumbnail"
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => {
+                                                const target = e.currentTarget;
+                                                target.style.display = "none";
+                                                const sibling = target.nextElementSibling;
+                                                if (sibling) (sibling as HTMLElement).style.display = "flex";
+                                            }}
+                                        />
+                                        <div className="w-full h-full hidden flex-col items-center justify-center p-2 text-center text-xs text-on-surface-variant">
+                                            <Icons.Image size={28} className="text-on-surface-variant/40 mb-1" />
+                                            <span>Cover Image</span>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2 flex-1 w-full">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs font-bold text-on-surface">Primary Storefront Thumbnail</span>
+                                            <Badge variant="outline" size="sm" className="text-[10px]">
+                                                16:9 Aspect
+                                            </Badge>
+                                        </div>
+                                        <p className="text-xs text-on-surface-variant">
+                                            This image will be rendered on listing cards and product details hero view.
+                                        </p>
+                                        <div className="flex items-center gap-2 pt-1">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                type="button"
+                                                onClick={() => document.getElementById("thumbnail-file-input")?.click()}
+                                                isLoading={isUploadingMedia}
+                                                className="cursor-pointer"
+                                            >
+                                                Change Thumbnail
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                type="button"
+                                                onClick={() => handleDeleteMedia(thumbnailItem.id)}
+                                                className="text-error hover:text-error/80 cursor-pointer"
+                                            >
+                                                Remove
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" || e.key === " ") {
+                                            e.preventDefault();
+                                            if (!isUploadingMedia) {
+                                                document.getElementById("thumbnail-file-input")?.click();
+                                            }
+                                        }
+                                    }}
+                                    onDragOver={(e) => e.preventDefault()}
+                                    onDrop={(e) => {
+                                        e.preventDefault();
+                                        if (e.dataTransfer.files?.[0]) {
+                                            void handleUploadMedia(e.dataTransfer.files[0], "thumbnail");
+                                        }
+                                    }}
+                                    onClick={() => {
+                                        if (!isUploadingMedia) {
+                                            document.getElementById("thumbnail-file-input")?.click();
+                                        }
+                                    }}
+                                    className="p-6 border-2 border-dashed border-outline-variant/50 rounded-2xl bg-surface-container-lowest/50 text-center flex flex-col items-center justify-center cursor-pointer hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary transition-colors group"
+                                >
+                                    <Icons.Upload size={32} className="text-primary mb-2 transition-transform group-hover:scale-110" />
+                                    <h4 className="font-bold text-sm text-on-surface">
+                                        Upload Main Thumbnail
+                                    </h4>
+                                    <p className="text-xs text-on-surface-variant mt-1">
+                                        PNG, JPG, or WebP up to 10MB (click anywhere to browse)
+                                    </p>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        type="button"
+                                        isLoading={isUploadingMedia}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            document.getElementById("thumbnail-file-input")?.click();
+                                        }}
+                                        className="mt-3 cursor-pointer"
+                                    >
+                                        Browse Thumbnail
+                                    </Button>
+                                </div>
+                            )}
 
                             <input
                                 type="file"
                                 accept="image/png,image/jpeg,image/webp"
-                                id="media-file-input"
+                                id="thumbnail-file-input"
                                 className="hidden"
                                 onChange={(e) => {
                                     if (e.target.files?.[0]) {
                                         const file = e.target.files[0];
-                                        void handleUploadMedia(file);
+                                        void handleUploadMedia(file, "thumbnail");
                                         e.target.value = "";
                                     }
                                 }}
                             />
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    document.getElementById("media-file-input")?.click();
+                        </CardContent>
+                    </Card>
+
+                    {/* BLOCK 2: Screenshots & Showcase Gallery */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-base font-bold">Screenshots &amp; Showcase Gallery</CardTitle>
+                            <p className="text-xs text-on-surface-variant mt-1">
+                                Add feature screenshots, UI previews, or sample renders to display on your product detail gallery.
+                            </p>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {/* Drag and Drop Box for Screenshots */}
+                            <div
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        if (!isUploadingMedia) {
+                                            document.getElementById("screenshot-file-input")?.click();
+                                        }
+                                    }
                                 }}
-                                isLoading={isUploadingMedia}
-                                className="mt-3 cursor-pointer"
+                                onDragOver={(e) => e.preventDefault()}
+                                onDrop={(e) => {
+                                    e.preventDefault();
+                                    if (e.dataTransfer.files?.[0]) {
+                                        void handleUploadMedia(e.dataTransfer.files[0], "screenshot");
+                                    }
+                                }}
+                                onClick={() => {
+                                    if (!isUploadingMedia) {
+                                        document.getElementById("screenshot-file-input")?.click();
+                                    }
+                                }}
+                                className="p-6 border-2 border-dashed border-outline-variant/50 rounded-2xl bg-surface-container-lowest/50 text-center flex flex-col items-center justify-center cursor-pointer hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary transition-colors group"
                             >
-                                Browse Image
-                            </Button>
-                        </div>
-
-                        {mediaUploadProgress !== null && (
-                            <div className="space-y-1.5 animate-fade-in">
-                                <div className="flex justify-between text-xs font-semibold">
-                                    <span className="text-on-surface">Streaming Media Image...</span>
-                                    <span className="text-primary font-mono">{mediaUploadProgress}%</span>
-                                </div>
-                                <div className="w-full h-2 rounded-full bg-surface-container overflow-hidden">
-                                    <div
-                                        className="h-full bg-primary transition-all duration-200"
-                                        style={{ width: `${mediaUploadProgress}%` }}
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Gallery Preview of uploaded media */}
-                        {mediaList.length > 0 && (
-                            <div className="pt-4 border-t border-outline-variant/30 space-y-2">
-                                <h4 className="text-xs font-bold text-on-surface uppercase tracking-wider">
-                                    Uploaded Showcase Items ({mediaList.length})
+                                <Icons.Upload size={32} className="text-primary mb-2 transition-transform group-hover:scale-110" />
+                                <h4 className="font-bold text-sm text-on-surface">
+                                    Add Product Screenshot
                                 </h4>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                    {mediaList.map((m) => (
-                                        <div
-                                            key={m.id}
-                                            className="relative aspect-16/10 rounded-xl overflow-hidden border border-outline-variant/30 bg-surface-container group shadow-2xs"
-                                        >
-                                            {m.url ? (
-                                                <img
-                                                    src={resolveMediaUrl(m.url)}
-                                                    alt={m.media_type}
-                                                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                                                    onError={(e) => {
-                                                        const target = e.currentTarget;
-                                                        target.style.display = "none";
-                                                        const sibling = target.nextElementSibling;
-                                                        if (sibling) (sibling as HTMLElement).style.display = "flex";
-                                                    }}
-                                                />
-                                            ) : null}
-                                            <div
-                                                className={`w-full h-full flex flex-col items-center justify-center p-2 text-center text-xs text-on-surface-variant ${
-                                                    m.url ? "hidden" : "flex"
-                                                }`}
-                                            >
-                                                <Icons.Image size={24} className="text-on-surface-variant/40 mb-1" />
-                                                <span className="truncate max-w-full text-[10px] font-mono">
-                                                    {m.storage_key ? m.storage_key.split("/").pop() : "Preview"}
-                                                </span>
-                                            </div>
-                                            <Badge
-                                                variant="outline"
-                                                size="sm"
-                                                className="absolute top-1.5 left-1.5 text-[9px] uppercase bg-surface/90 backdrop-blur-xs font-semibold"
-                                            >
-                                                {m.media_type}
-                                            </Badge>
-                                        </div>
-                                    ))}
-                                </div>
+                                <p className="text-xs text-on-surface-variant mt-1">
+                                    PNG, JPG, or WebP up to 10MB (click anywhere to browse)
+                                </p>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    type="button"
+                                    isLoading={isUploadingMedia}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        document.getElementById("screenshot-file-input")?.click();
+                                    }}
+                                    className="mt-3 cursor-pointer"
+                                >
+                                    Browse Screenshots
+                                </Button>
                             </div>
-                        )}
 
-                        <div className="flex justify-between pt-4">
-                            <Button variant="outline" size="md" onClick={() => setCurrentStep("deliverables")} className="cursor-pointer">
-                                <Icons.Back size={14} className="mr-1" /> Back
-                            </Button>
-                            <Button
-                                variant="primary"
-                                size="md"
-                                onClick={() => setCurrentStep("review")}
-                                className="cursor-pointer"
-                            >
-                                Next: Review &amp; Submit <Icons.Next size={14} className="ml-1" />
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
+                            <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                id="screenshot-file-input"
+                                className="hidden"
+                                onChange={(e) => {
+                                    if (e.target.files?.[0]) {
+                                        const file = e.target.files[0];
+                                        void handleUploadMedia(file, "screenshot");
+                                        e.target.value = "";
+                                    }
+                                }}
+                            />
+
+                            {/* Upload Progress */}
+                            {mediaUploadProgress !== null && (
+                                <div className="space-y-1.5 animate-fade-in">
+                                    <div className="flex justify-between text-xs font-semibold">
+                                        <span className="text-on-surface">Uploading Showcase Media...</span>
+                                        <span className="text-primary font-mono">{mediaUploadProgress}%</span>
+                                    </div>
+                                    <div className="w-full h-2 rounded-full bg-surface-container overflow-hidden">
+                                        <div
+                                            className="h-full bg-primary transition-all duration-200"
+                                            style={{ width: `${mediaUploadProgress}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Gallery of Uploaded Screenshots */}
+                            {screenshotItems.length > 0 && (
+                                <div className="pt-2 space-y-2">
+                                    <h4 className="text-xs font-bold text-on-surface uppercase tracking-wider">
+                                        Screenshots ({screenshotItems.length})
+                                    </h4>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                        {screenshotItems.map((m) => (
+                                            <div
+                                                key={m.id}
+                                                className="relative aspect-16/10 rounded-xl overflow-hidden border border-outline-variant/30 bg-surface-container group shadow-2xs"
+                                            >
+                                                {m.url ? (
+                                                    <img
+                                                        src={resolveMediaUrl(m.url)}
+                                                        alt="Screenshot"
+                                                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                                        onError={(e) => {
+                                                            const target = e.currentTarget;
+                                                            target.style.display = "none";
+                                                            const sibling = target.nextElementSibling;
+                                                            if (sibling) (sibling as HTMLElement).style.display = "flex";
+                                                        }}
+                                                    />
+                                                ) : null}
+                                                <div
+                                                    className={`w-full h-full flex flex-col items-center justify-center p-2 text-center text-xs text-on-surface-variant ${
+                                                        m.url ? "hidden" : "flex"
+                                                    }`}
+                                                >
+                                                    <Icons.Image size={24} className="text-on-surface-variant/40 mb-1" />
+                                                    <span className="truncate max-w-full text-[10px] font-mono">
+                                                        {m.storage_key ? m.storage_key.split("/").pop() : "Screenshot"}
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteMedia(m.id)}
+                                                    className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-surface/90 text-error hover:bg-error hover:text-white flex items-center justify-center text-xs font-bold shadow-xs cursor-pointer transition-colors"
+                                                    title="Delete screenshot"
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    <div className="flex justify-between pt-4">
+                        <Button
+                            variant="outline"
+                            size="md"
+                            leftIcon={<Icons.Back size={14} />}
+                            onClick={() => setCurrentStep("deliverables")}
+                            className="cursor-pointer"
+                        >
+                            Back
+                        </Button>
+                        <Button
+                            variant="primary"
+                            size="md"
+                            rightIcon={<Icons.Next size={14} />}
+                            onClick={() => setCurrentStep("review")}
+                            className="cursor-pointer"
+                        >
+                            Continue
+                        </Button>
+                    </div>
+                </div>
             )}
 
             {/* STEP 5: Review & Publish */}
@@ -1038,7 +1250,7 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                                 <span className="font-semibold text-on-surface-variant">Tiers:</span>
                                 {tiers.map((t) => (
                                     <Badge key={t.tierType} variant="outline" size="sm">
-                                        {t.tierType}: {formatCurrency(t.price)}
+                                        {t.name || t.tierType}: {formatCurrency(t.price)}
                                     </Badge>
                                 ))}
                             </div>
@@ -1061,9 +1273,30 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                             )}
                         </div>
 
+                        {/* Media summary */}
+                        <div className="p-4 rounded-xl border border-outline-variant/30 flex items-center justify-between">
+                            <div>
+                                <span className="text-xs font-semibold text-on-surface block">Showcase Media</span>
+                                <span className="text-[11px] text-on-surface-variant">
+                                    {thumbnailItem ? "Cover Thumbnail set" : "No cover thumbnail"}, {screenshotItems.length} screenshot(s)
+                                </span>
+                            </div>
+                            {thumbnailItem ? (
+                                <Icons.Check size={20} className="text-primary" />
+                            ) : (
+                                <Badge variant="outline" size="sm">Optional</Badge>
+                            )}
+                        </div>
+
                         <div className="pt-4 flex flex-col sm:flex-row justify-between gap-3">
-                            <Button variant="outline" size="md" onClick={() => setCurrentStep("media")} className="cursor-pointer">
-                                <Icons.Back size={14} className="mr-1" /> Back
+                            <Button
+                                variant="outline"
+                                size="md"
+                                leftIcon={<Icons.Back size={14} />}
+                                onClick={() => setCurrentStep("media")}
+                                className="cursor-pointer"
+                            >
+                                Back
                             </Button>
 
                             <div className="flex gap-2">
@@ -1073,7 +1306,7 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                                     onClick={() => handleFinalPublish(false)}
                                     className="cursor-pointer"
                                 >
-                                    Save as Draft
+                                    Save Draft
                                 </Button>
                                 <Button
                                     variant="primary"

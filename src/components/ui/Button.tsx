@@ -62,7 +62,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={isDisabled}
         aria-busy={isLoading ? "true" : undefined}
         className={cn(
-          "inline-flex items-center justify-center select-none font-medium transition-all duration-150 cursor-pointer",
+          "inline-flex items-center justify-center select-none font-medium transition-all duration-150 cursor-pointer whitespace-nowrap",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
           "disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed",
           variantStyles[variant],
@@ -80,7 +80,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ) : (
           leftIcon && <span className="inline-flex shrink-0 items-center">{leftIcon}</span>
         )}
-        {children && <span>{children}</span>}
+        {children && <span className="inline-flex items-center justify-center gap-1.5">{children}</span>}
         {!isLoading && rightIcon && (
           <span className="inline-flex shrink-0 items-center">{rightIcon}</span>
         )}

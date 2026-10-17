@@ -42,7 +42,7 @@ export interface DigitalAsset {
   title: string;
   slug: string;
   short_description: string;
-  full_description: string;
+  full_description: string | null;
   status: AssetStatus;
   tags: string[];
   technical_specs: Record<string, unknown>;

@@ -11,7 +11,23 @@ export class ApiError extends Error {
     data: unknown,
     options?: { cause?: unknown },
   ) {
-    super(`API Error ${status}: ${statusText}`, options);
+    let resolvedMessage = "";
+    if (data && typeof data === "object") {
+      const dataObj = data as Record<string, unknown>;
+      if (typeof dataObj.message === "string" && dataObj.message.trim()) {
+        resolvedMessage = dataObj.message.trim();
+      } else if (typeof dataObj.error === "string" && dataObj.error.trim()) {
+        resolvedMessage = dataObj.error.trim();
+      }
+    } else if (typeof data === "string" && data.trim()) {
+      resolvedMessage = data.trim();
+    }
+
+    if (!resolvedMessage) {
+      resolvedMessage = statusText ? `API Error ${status}: ${statusText}` : `API Error ${status}`;
+    }
+
+    super(resolvedMessage, options);
     this.name = "ApiError";
     this.status = status;
     this.statusText = statusText;

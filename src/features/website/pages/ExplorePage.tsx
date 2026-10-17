@@ -343,9 +343,10 @@ export const ExplorePage: React.FC = () => {
                         size="sm"
                         disabled={currentPage <= 1}
                         onClick={() => handlePageChange(currentPage - 1)}
+                        leftIcon={<Icons.Back size={14} />}
                         className="cursor-pointer"
                     >
-                        <Icons.Back size={14} className="mr-1" /> Previous
+                        Previous
                     </Button>
                     <div className="flex items-center gap-1 px-3 text-xs font-semibold text-on-surface">
                         <span>Page {currentPage} of {totalPages}</span>
@@ -355,9 +356,10 @@ export const ExplorePage: React.FC = () => {
                         size="sm"
                         disabled={currentPage >= totalPages}
                         onClick={() => handlePageChange(currentPage + 1)}
+                        rightIcon={<Icons.Next size={14} />}
                         className="cursor-pointer"
                     >
-                        Next <Icons.Next size={14} className="ml-1" />
+                        Next
                     </Button>
                 </div>
             )}
