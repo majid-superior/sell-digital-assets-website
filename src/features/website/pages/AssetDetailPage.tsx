@@ -21,6 +21,7 @@ import {
     Skeleton,
 } from "@/components/ui/index.ts";
 import { toast } from "sonner";
+import { WatermarkOverlay } from "@/components/common/WatermarkOverlay.tsx";
 import { assetService } from "@/services/v1/assetService.ts";
 import { downloadService } from "@/services/v1/downloadService.ts";
 import { licenseService } from "@/services/v1/licenseService.ts";
@@ -44,10 +45,10 @@ export const AssetDetailPage: React.FC = () => {
 
     useEffect(() => {
         if (asset?.title) {
-            const orgTitle = organization?.title || organization?.shortName || "AssetDrop";
+            const orgTitle = organization?.title || organization?.name || organization?.shortName || "AssetDrop";
             document.title = `${asset.title} | ${orgTitle} | Marketplace`;
         }
-    }, [asset?.title, organization?.title, organization?.shortName]);
+    }, [asset?.title, organization?.title, organization?.name, organization?.shortName]);
 
     // Media showcase state
     const [selectedImage, setSelectedImage] = useState<string>("");
@@ -278,10 +279,11 @@ export const AssetDetailPage: React.FC = () => {
                                     onError={() => setMainImageError(true)}
                                     className="h-full w-full object-cover transition-all duration-300 select-none pointer-events-none"
                                 />
-                                {/* Transparent protective overlay preventing casual right-click context menu and dragging */}
-                                <div
-                                    className="absolute inset-0 bg-transparent cursor-default"
-                                    aria-hidden="true"
+                                {/* Dynamic Watermark Overlay with repeating security grid, center emblem, and right-click interceptor */}
+                                <WatermarkOverlay
+                                    size="lg"
+                                    showCenterBadge={true}
+                                    showCornerBadge={true}
                                 />
                             </>
                         ) : (
@@ -323,6 +325,13 @@ export const AssetDetailPage: React.FC = () => {
                                             (e.currentTarget as HTMLElement).style.opacity = "0.3";
                                         }}
                                         className="h-full w-full object-cover"
+                                    />
+                                    {/* Compact Watermark on thumbnails to protect preview gallery from screenshot cropping */}
+                                    <WatermarkOverlay
+                                        size="sm"
+                                        showCenterBadge={false}
+                                        showCornerBadge={false}
+                                        interactiveShield={false}
                                     />
                                 </button>
                             ))}

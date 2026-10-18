@@ -51,7 +51,7 @@ class DownloadService {
       return res.data;
     }
     if ("downloadUrl" in res) {
-      return res as { downloadUrl: string; fileName?: string };
+      return res;
     }
     throw new Error("Invalid response format received from download service");
   }

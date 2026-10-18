@@ -164,7 +164,23 @@ function mapBackendToOrganizationInfo(input: unknown): OrganizationInfo {
     ? input.data
     : (input as BackendOrganizationPayload) || {};
 
-  const orgName = b.organization_name || b.legal_name || defaultOrganization.name;
+  const isPlaceholder = (val?: string | null) =>
+    !val || val.trim().toLowerCase() === "assetdrop";
+
+  // Determine effective organization name:
+  // If legal_name is customized and organization_name is still the default placeholder, prioritize legal_name.
+  // If organization_name is customized, use organization_name.
+  let effectiveName = b.organization_name || b.legal_name || defaultOrganization.name;
+  if (isPlaceholder(b.organization_name) && b.legal_name && !isPlaceholder(b.legal_name)) {
+    effectiveName = b.legal_name;
+  } else if (!b.organization_name && b.legal_name) {
+    effectiveName = b.legal_name;
+  }
+
+  const legalName = b.legal_name || effectiveName;
+  const shortName = (!isPlaceholder(b.organization_name) ? b.organization_name : null) || b.legal_name || defaultOrganization.shortName;
+  const orgTitle = effectiveName;
+
   const addressParts = [b.address_line1, b.city, b.state, b.country].filter(Boolean);
   const address = addressParts.join(", ") || b.address_line1 || "";
   const website = b.metadata?.links?.website || b.support_url || "";
@@ -172,9 +188,9 @@ function mapBackendToOrganizationInfo(input: unknown): OrganizationInfo {
   const currencySymbol = b.currency?.symbol || b.currency_symbol || (defaultCurrency === "USD" ? "$" : "₨");
 
   return {
-    name: b.legal_name || orgName,
-    shortName: orgName,
-    title: orgName,
+    name: legalName,
+    shortName: shortName,
+    title: orgTitle,
     tagline: b.tagline || defaultOrganization.tagline,
     description: b.description || defaultOrganization.description,
     address: address || defaultOrganization.address,
