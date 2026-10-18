@@ -11,7 +11,7 @@ describe("Zod jitless mode configuration", () => {
   it("prevents new Function eval probe from running under strict CSP", () => {
     const origFunction = globalThis.Function;
     const functionSpy = vi.fn((...args: string[]) => new origFunction(...args));
-    (globalThis as unknown as { Function: typeof origFunction }).Function = functionSpy as unknown as typeof origFunction;
+    (globalThis as unknown as { Function: typeof origFunction }).Function = functionSpy;
 
     try {
       expect(core.util.allowsEval.value).toBe(false);

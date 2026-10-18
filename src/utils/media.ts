@@ -1,4 +1,32 @@
 // src/utils/media.ts
+import { buildRequestUrl } from "@/services/interceptors/requestInterceptor.ts";
+
+/**
+ * Normalizes an upload or download storage URL returned from the backend.
+ * Ensures that if the backend generated a localhost/127.0.0.1 or relative path,
+ * it is mapped to the configured live backend API base URL in production,
+ * while preserving direct remote storage URLs (such as S3, Supabase Storage, R2).
+ */
+export function resolveStorageUrl(url?: string | null): string {
+  if (!url) return "";
+  const trimmed = url.trim();
+  if (!trimmed) return "";
+
+  // 1. If it's a relative path (/api/v1/storage/upload?...), route via buildRequestUrl
+  if (trimmed.startsWith("/")) {
+    return buildRequestUrl(trimmed);
+  }
+
+  // 2. If it points to localhost or 127.0.0.1 (any port, e.g. :5000), strip localhost and resolve
+  const localhostMatch = trimmed.match(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/.*)$/);
+  if (localhostMatch) {
+    const cleanPath = localhostMatch[3];
+    return buildRequestUrl(cleanPath);
+  }
+
+  // 3. Otherwise (e.g. S3, Supabase, Cloudflare R2 presigned URLs), return as-is
+  return trimmed;
+}
 
 /**
  * Normalizes an asset media or image URL to ensure compatibility across
@@ -9,13 +37,12 @@ export function resolveMediaUrl(url?: string | null): string {
   const trimmed = url.trim();
   if (!trimmed) return "";
 
-  // Convert absolute localhost backend URLs to relative /api paths
-  // to ensure smooth Vite proxying, same-origin CSP clearance, and no mixed-content issues
+  // If localhost or relative /api path, resolve to the actual API endpoint
   if (
-    trimmed.startsWith("http://localhost:5000/api/") ||
-    trimmed.startsWith("http://127.0.0.1:5000/api/")
+    trimmed.startsWith("/") ||
+    /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/.*)$/.test(trimmed)
   ) {
-    return trimmed.replace(/^http:\/\/(localhost|127\.0\.0\.1):5000/, "");
+    return resolveStorageUrl(trimmed);
   }
 
   return trimmed;

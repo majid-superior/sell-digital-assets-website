@@ -1,5 +1,6 @@
 // src/services/v1/downloadService.ts
 import { apiClient } from "@/services/api.ts";
+import { resolveStorageUrl } from "@/utils/media.ts";
 
 export interface GenerateDownloadLinkPayload {
   buyerId?: string;
@@ -42,8 +43,9 @@ class DownloadService {
    * Trigger direct browser download stream using an anchor element.
    */
   downloadFile(downloadUrl: string, fileName?: string): void {
+    const resolvedUrl = resolveStorageUrl(downloadUrl);
     const link = document.createElement("a");
-    link.href = downloadUrl;
+    link.href = resolvedUrl;
     if (fileName) {
       link.setAttribute("download", fileName);
     }

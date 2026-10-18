@@ -1,5 +1,6 @@
 // src/services/v1/assetService.ts
 import { apiClient } from "@/services/api.ts";
+import { resolveStorageUrl } from "@/utils/media.ts";
 import type {
   DigitalAsset,
   AssetFile,
@@ -351,8 +352,9 @@ class AssetService {
     onProgress?: (percent: number) => void
   ): Promise<void> {
     return new Promise((resolve, reject) => {
+      const targetUrl = resolveStorageUrl(uploadUrl);
       const xhr = new XMLHttpRequest();
-      xhr.open("PUT", uploadUrl);
+      xhr.open("PUT", targetUrl);
       xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
 
       if (xhr.upload && onProgress) {
