@@ -16,6 +16,9 @@
     <script>
       (function () {
         try {
+          // Pre-populate Zod v4 global config with jitless: true for strict CSP compatibility (skips new Function probe)
+          window.__zod_globalConfig = Object.assign(window.__zod_globalConfig || {}, { jitless: true });
+
           var stored = localStorage.getItem("theme");
           var prefersDark = window.matchMedia(
             "(prefers-color-scheme: dark)",
