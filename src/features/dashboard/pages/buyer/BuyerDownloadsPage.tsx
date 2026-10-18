@@ -13,7 +13,7 @@ import { Button, Badge, Skeleton, EmptyState, Modal, Input, Label } from "@/comp
 import type { BuyerLicenseItem } from "@/types/license.ts";
 
 export const BuyerDownloadsPage: React.FC = () => {
-    const [downloadingKey, setDownloadingKey] = useState<string | null>(null);
+    const [downloadingAssetId, setDownloadingAssetId] = useState<string | null>(null);
 
     // Direct License Download Modal
     const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
@@ -26,31 +26,48 @@ export const BuyerDownloadsPage: React.FC = () => {
         queryFn: () => licenseService.getBuyerLicenses(),
     });
 
-    const handleExecuteDownload = async (item: BuyerLicenseItem) => {
+    /**
+     * Authenticated Buyer Download:
+     * Calls GET /api/assets/:id/download with Authorization header,
+     * handles 403 Forbidden cleanly, and redirects browser to short-lived signed URL.
+     */
+    const handleDownload = async (assetId: string) => {
         try {
-            setDownloadingKey(item.license_key);
-            toast.loading("Generating secure time-limited signed link...", { id: `dl-${item.id}` });
+            setDownloadingAssetId(assetId);
+            toast.loading("Generating secure download authorization...", { id: `dl-${assetId}` });
 
-            const file = item.files && item.files.length > 0 ? item.files[0] : null;
-            const result = await downloadService.generateDownloadLink(item.asset_id, {
-                licenseKey: item.license_key,
-                fileId: file?.id,
+            const data = await downloadService.downloadAsset(assetId);
+
+            if (!data?.downloadUrl) {
+                throw new Error("No download URL returned from server.");
+            }
+
+            toast.success("Download Ready", {
+                id: `dl-${assetId}`,
+                description: "Signed download link generated. Starting download...",
             });
 
-            downloadService.downloadFile(result.downloadUrl, result.fileName);
+            window.location.assign(data.downloadUrl);
+        } catch (err: unknown) {
+            const errorMsg = err instanceof Error ? err.message : "Failed to download asset";
+            const isForbidden =
+                (typeof err === "object" && err !== null && "status" in err && (err as { status: number }).status === 403) ||
+                errorMsg.includes("403") ||
+                errorMsg.toLowerCase().includes("forbidden");
 
-            toast.success("Download Started", {
-                id: `dl-${item.id}`,
-                description: `${result.fileName} (v${result.version || "1.0.0"}) — signed link expires in 15 minutes.`,
-            });
-        } catch (err) {
-            const msg = err instanceof Error ? err.message : "Failed to generate download link";
-            toast.error("Download Authorization Error", {
-                id: `dl-${item.id}`,
-                description: msg,
-            });
+            if (isForbidden) {
+                toast.error("Access Forbidden (403)", {
+                    id: `dl-${assetId}`,
+                    description: "You do not have a verified active purchase for this asset.",
+                });
+            } else {
+                toast.error("Download Error", {
+                    id: `dl-${assetId}`,
+                    description: errorMsg,
+                });
+            }
         } finally {
-            setDownloadingKey(null);
+            setDownloadingAssetId(null);
         }
     };
 
@@ -204,12 +221,12 @@ export const BuyerDownloadsPage: React.FC = () => {
                                         <Button
                                             variant="primary"
                                             size="sm"
-                                            onClick={() => handleExecuteDownload(item)}
-                                            isLoading={downloadingKey === item.license_key}
+                                            onClick={() => handleDownload(item.asset_id)}
+                                            isLoading={downloadingAssetId === item.asset_id}
                                             leftIcon={<Icons.Download size={14} />}
                                             className="cursor-pointer text-xs shadow-xs"
                                         >
-                                            Download ZIP
+                                            Download Asset
                                         </Button>
                                     </div>
                                 </div>

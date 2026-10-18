@@ -40,6 +40,23 @@ class DownloadService {
   }
 
   /**
+   * Request an authenticated buyer download link from the private bucket (GET /api/assets/:id/download).
+   * Verifies purchase ownership or admin privileges and generates a short-lived 60-second signed URL.
+   */
+  async downloadAsset(assetId: string): Promise<{ downloadUrl: string; fileName?: string }> {
+    const res = await apiClient.get<ApiResponseEnvelope<{ downloadUrl: string; fileName?: string }> | { downloadUrl: string; fileName?: string }>(
+      `/api/assets/${encodeURIComponent(assetId)}/download`
+    );
+    if ("data" in res && res.data && "downloadUrl" in res.data) {
+      return res.data;
+    }
+    if ("downloadUrl" in res) {
+      return res as { downloadUrl: string; fileName?: string };
+    }
+    throw new Error("Invalid response format received from download service");
+  }
+
+  /**
    * Trigger direct browser download stream using an anchor element.
    */
   downloadFile(downloadUrl: string, fileName?: string): void {

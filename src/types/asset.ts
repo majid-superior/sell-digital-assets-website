@@ -43,6 +43,8 @@ export interface DigitalAsset {
   slug: string;
   short_description: string;
   full_description: string | null;
+  preview_url?: string;
+  storage_path?: string;
   status: AssetStatus;
   tags: string[];
   technical_specs: Record<string, unknown>;

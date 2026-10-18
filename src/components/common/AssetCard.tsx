@@ -19,7 +19,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
     asset.media?.find((m) => m.media_type === "thumbnail") ||
     asset.media?.find((m) => Boolean(m.url)) ||
     asset.media?.[0];
-  const rawThumbnailUrl = thumbnailMedia?.url || asset.thumbnailUrl;
+  const rawThumbnailUrl = asset.preview_url || thumbnailMedia?.url || asset.thumbnailUrl;
   const thumbnailUrl = resolveMediaUrl(rawThumbnailUrl);
   const [hasImageError, setHasImageError] = useState(false);
 

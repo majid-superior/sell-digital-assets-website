@@ -134,6 +134,10 @@ export const AssetDetailPage: React.FC = () => {
 
     // Media previews
     const allMediaUrls: string[] = [];
+    if (asset.preview_url) {
+        const resolvedPreview = resolveMediaUrl(asset.preview_url);
+        if (resolvedPreview && !allMediaUrls.includes(resolvedPreview)) allMediaUrls.push(resolvedPreview);
+    }
     if (asset.media && asset.media.length > 0) {
         for (const m of asset.media) {
             if (m.url) {
@@ -258,17 +262,28 @@ export const AssetDetailPage: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
                 {/* Left: Gallery & Description (7 Cols) */}
                 <div className="lg:col-span-7 space-y-6">
-                    {/* Main Image Display */}
-                    <div className="overflow-hidden rounded-3xl border border-outline-variant/30 bg-surface-container-high aspect-16/10 shadow-lg relative flex items-center justify-center">
+                    {/* Main Image Display (Protected Watermarked Preview) */}
+                    <div
+                        onContextMenu={(e) => e.preventDefault()}
+                        className="overflow-hidden rounded-3xl border border-outline-variant/30 bg-surface-container-high aspect-16/10 shadow-lg relative flex items-center justify-center select-none"
+                    >
                         {activeImage && !mainImageError ? (
-                            <img
-                                src={activeImage}
-                                alt={asset.title}
-                                fetchPriority="high"
-                                decoding="async"
-                                onError={() => setMainImageError(true)}
-                                className="h-full w-full object-cover transition-all duration-300"
-                            />
+                            <>
+                                <img
+                                    src={activeImage}
+                                    alt={asset.title}
+                                    fetchPriority="high"
+                                    decoding="async"
+                                    draggable={false}
+                                    onError={() => setMainImageError(true)}
+                                    className="h-full w-full object-cover transition-all duration-300 select-none pointer-events-none"
+                                />
+                                {/* Transparent protective overlay preventing casual right-click context menu and dragging */}
+                                <div
+                                    className="absolute inset-0 bg-transparent cursor-default"
+                                    aria-hidden="true"
+                                />
+                            </>
                         ) : (
                             <div className="flex flex-col items-center justify-center text-on-surface-variant p-6 text-center">
                                 <div className="w-16 h-16 rounded-2xl bg-surface/70 flex items-center justify-center mb-3">
