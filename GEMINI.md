@@ -27,6 +27,15 @@
    - **Form Validation via Popups**: When form schema validation (Zod / React Hook Form) or backend API validation fails, the error message must be dispatched immediately via `toast.error("Validation Error", { description: ... })`. Inputs may retain accessible border/ring visual styling (`aria-invalid="true"`, `border-error`), but textual error feedback must appear strictly in the popup window.
    - Never render raw unhandled stack traces or unformatted error payloads in client views.
 
+5. **Human-Understandable Error Messages (Zero Raw HTTP / Zero Cryptic Codes)**:
+   - **No Raw Technical Numbers**: Never show raw HTTP status numbers (e.g., `Upload failed with HTTP status 413`, `API Error 500`, `status 404`) to users in toasts or UI.
+   - **Universal Error Translation**: All errors must be resolved through `getHumanErrorMessage(error)` (`src/utils/errors.ts`) or human-friendly status mappings that explain **what failed**, **why**, and **how to fix it**.
+   - **Pre-flight Client-Side Validation**: Validate file size limits (10 MB for showcase images, 500 MB for deliverable packages) and allowed MIME types BEFORE initiating upload requests. Immediately inform the user if their file exceeds the limit with the exact file size and allowed threshold.
+   - **Independent & Parallel Media Uploads**:
+     - Cover Thumbnail and Product Screenshots must be treated as separate, decoupled upload pipelines.
+     - Uploading a thumbnail must never block or disable uploading screenshots, and vice versa.
+     - Multiple screenshot files must upload concurrently in parallel (`Promise.allSettled`), with per-file progress tracking and isolated error handling so valid files succeed even if one file fails.
+
 ---
 
 ## 2. Authentication & Session Strategy
@@ -61,4 +70,6 @@ Before declaring any website frontend task complete, verify:
 4. Active theme colors and dark mode toggle operate seamlessly without layout shifts.
 5. Tree-shakeable SVG icons from `@/lib/icons` are used instead of heavy icon fonts.
 6. Zero inline error text or alert banners exist anywhere in client views; all error and success messages use Sonner popup notifications.
+7. All file uploads perform pre-flight validation (file size, format) and present clear, human-understandable error messages on failure without raw HTTP status codes.
+8. Thumbnail and screenshot uploads operate independently with separate states and support concurrent parallel uploading.
 

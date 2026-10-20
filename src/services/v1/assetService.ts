@@ -371,12 +371,75 @@ class AssetService {
           onProgress?.(100);
           resolve();
         } else {
-          reject(new Error(`Upload failed with HTTP status ${xhr.status}`));
+          // Parse server response or provide clear, human-understandable status explanation
+          let humanMessage = "";
+          const text = xhr.responseText?.trim();
+          if (text) {
+            try {
+              const parsed = JSON.parse(text) as Record<string, unknown>;
+              if (typeof parsed.message === "string" && parsed.message.trim()) {
+                humanMessage = parsed.message.trim();
+              } else if (typeof parsed.error === "string" && parsed.error.trim()) {
+                humanMessage = parsed.error.trim();
+              }
+            } catch {
+              // Not JSON
+            }
+
+            if (!humanMessage) {
+              const xmlMatch = text.match(/<Message>([^<]+)<\/Message>/i);
+              if (xmlMatch?.[1]) {
+                humanMessage = xmlMatch[1].trim();
+              }
+            }
+          }
+
+          if (!humanMessage) {
+            switch (xhr.status) {
+              case 413:
+                humanMessage = "The file is too large and exceeds the storage upload limit (HTTP 413 Payload Too Large). Please choose a smaller file or compress it.";
+                break;
+              case 400:
+                humanMessage = "The upload request was invalid or rejected by the storage server. Please verify the file format.";
+                break;
+              case 401:
+                humanMessage = "Your session has expired. Please sign in again to upload files.";
+                break;
+              case 403:
+                humanMessage = "Upload authorization token has expired or is invalid. Please refresh the page and try again.";
+                break;
+              case 404:
+                humanMessage = "The upload storage endpoint was not found.";
+                break;
+              case 415:
+                humanMessage = "The server rejected this file format as unsupported.";
+                break;
+              case 429:
+                humanMessage = "Too many upload requests. Please wait a moment before trying again.";
+                break;
+              case 500:
+              case 502:
+              case 503:
+              case 504:
+                humanMessage = "The storage server encountered a temporary error. Please try uploading again in a few moments.";
+                break;
+              default:
+                humanMessage = `Upload failed (Server responded with HTTP status ${xhr.status}${xhr.statusText ? `: ${xhr.statusText}` : ""}).`;
+                break;
+            }
+          }
+
+          reject(new Error(humanMessage));
         }
       };
 
-      xhr.onerror = () => reject(new Error("Network connection error during binary upload"));
-      xhr.onabort = () => reject(new Error("Binary upload was aborted"));
+      xhr.onerror = () =>
+        reject(
+          new Error(
+            "Network connection error: Unable to connect to the upload storage server. Please check your internet connection."
+          )
+        );
+      xhr.onabort = () => reject(new Error("File upload was cancelled."));
 
       xhr.send(file);
     });

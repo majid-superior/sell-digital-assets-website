@@ -12,6 +12,7 @@ import { useCategoryTaxonomy } from "@/hooks/useCategoryTaxonomy.ts";
 import { formatCurrency, getCurrencyInfo } from "@/utils/currency.ts";
 import { formatBytes } from "@/utils/file.ts";
 import { resolveMediaUrl } from "@/utils/media.ts";
+import { getHumanErrorMessage } from "@/utils/errors.ts";
 import { Icons } from "@/lib/icons/index.ts";
 import {
     Button,
@@ -24,7 +25,7 @@ import {
     Badge,
 } from "@/components/ui/index.ts";
 import { Spinner } from "@/components/ui/Spinner.tsx";
-import type { TierType, MediaType, AssetMedia, AssetFile, DigitalAsset } from "@/types/asset.ts";
+import type { TierType, AssetMedia, AssetFile, DigitalAsset } from "@/types/asset.ts";
 
 const basicInfoSchema = z.object({
     title: z.string().trim().min(3, "Title must be at least 3 characters").max(180),
@@ -118,10 +119,14 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
     const [uploadedFiles, setUploadedFiles] = useState<AssetFile[]>(() => initialAsset?.files || []);
     const [isUploadingDeliverable, setIsUploadingDeliverable] = useState(false);
 
-    // Media upload state
+    // Media upload state - SEPARATE states for thumbnail vs screenshots (parallel uploading)
     const [mediaList, setMediaList] = useState<AssetMedia[]>(() => initialAsset?.media || []);
-    const [mediaUploadProgress, setMediaUploadProgress] = useState<number | null>(null);
-    const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+    const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
+    const [thumbnailUploadProgress, setThumbnailUploadProgress] = useState<number | null>(null);
+
+    const [activeScreenshotUploads, setActiveScreenshotUploads] = useState<
+        Array<{ id: string; fileName: string; progress: number }>
+    >([]);
     const blobUrlsRef = useRef<Set<string>>(new Set());
 
     // Cleanup any pending object URLs on unmount to prevent memory leaks
@@ -297,6 +302,37 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
     };
 
     // Deliverable File Upload (Direct upload when browsed or dropped)
+    const MAX_MEDIA_BYTES = 10 * 1024 * 1024; // 10MB
+    const ALLOWED_MEDIA_TYPES = ["image/png", "image/jpeg", "image/webp"];
+
+    const validateMediaFile = (file: File, label: "thumbnail" | "screenshot"): boolean => {
+        if (!file || file.size === 0) {
+            toast.error("Empty File", {
+                description: `"${file?.name || "Selected file"}" contains no data (0 bytes). Please choose a valid image.`
+            });
+            return false;
+        }
+
+        const fileType = file.type.toLowerCase();
+        const hasValidExt = /\.(png|jpe?g|webp)$/i.test(file.name);
+        if (!ALLOWED_MEDIA_TYPES.includes(fileType) && !hasValidExt) {
+            toast.error("Unsupported Image Format", {
+                description: `"${file.name}" has an unsupported format (${file.type || "unknown"}). Only PNG, JPG, and WebP images are allowed for ${label}s.`
+            });
+            return false;
+        }
+
+        if (file.size > MAX_MEDIA_BYTES) {
+            const actualMb = (file.size / (1024 * 1024)).toFixed(1);
+            toast.error("Image Exceeds 10MB Limit", {
+                description: `"${file.name}" is ${actualMb} MB. Maximum allowed size for product ${label}s is 10 MB. Please compress the image or choose a smaller file.`
+            });
+            return false;
+        }
+
+        return true;
+    };
+
     const handleUploadDeliverable = async (fileToUpload?: File) => {
         const file = fileToUpload || deliverableFile;
         if (!assetId) {
@@ -305,6 +341,14 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
         }
         if (!file) {
             toast.error("Please select a deliverable file to upload");
+            return;
+        }
+
+        if (file.size > 500 * 1024 * 1024) {
+            const actualMb = (file.size / (1024 * 1024)).toFixed(1);
+            toast.error("Deliverable Package Too Large", {
+                description: `"${file.name}" is ${actualMb} MB. The maximum allowed deliverable size is 500 MB. Please compress or split the archive.`
+            });
             return;
         }
 
@@ -341,48 +385,51 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
             });
             setDeliverableFile(null);
         } catch (err) {
-            const msg = err instanceof Error ? err.message : "Deliverable upload failed";
-            toast.error("Upload Error", { id: "deliverable-upload", description: msg });
+            const msg = getHumanErrorMessage(err, "Deliverable upload failed");
+            toast.error("Deliverable Upload Error", { id: "deliverable-upload", description: msg });
         } finally {
             setIsUploadingDeliverable(false);
             setDeliverableUploadProgress(null);
         }
     };
 
-    // Media File Upload (Dedicated handling for thumbnail vs screenshot)
-    const handleUploadMedia = async (file: File, uploadType: MediaType = "thumbnail") => {
+    // Dedicated Thumbnail Upload (Independent of Screenshots)
+    const handleUploadThumbnail = async (file: File) => {
         if (!assetId) {
             toast.error("Save basic asset details first", { description: "Please complete Step 1 before uploading media." });
             return;
         }
 
+        if (!validateMediaFile(file, "thumbnail")) {
+            return;
+        }
+
         const localPreviewUrl = URL.createObjectURL(file);
         blobUrlsRef.current.add(localPreviewUrl);
-
-        const toastId = `${uploadType}-upload`;
+        const toastId = "thumbnail-upload";
 
         try {
-            setIsUploadingMedia(true);
-            setMediaUploadProgress(0);
+            setIsUploadingThumbnail(true);
+            setThumbnailUploadProgress(0);
 
-            toast.loading(`Requesting ${uploadType} upload authorization...`, { id: toastId });
+            toast.loading("Requesting thumbnail upload authorization...", { id: toastId });
             const presigned = await assetService.presignMediaUpload(assetId, {
                 fileName: file.name,
                 contentType: file.type || "image/png",
-                mediaType: uploadType,
-                displayOrder: uploadType === "thumbnail" ? 1 : mediaList.length + 1,
+                mediaType: "thumbnail",
+                displayOrder: 1,
             });
 
-            toast.loading(`Uploading ${uploadType} image...`, { id: toastId });
+            toast.loading("Uploading thumbnail image...", { id: toastId });
             await assetService.uploadBinary(presigned.uploadUrl, file, (percent) => {
-                setMediaUploadProgress(percent);
+                setThumbnailUploadProgress(percent);
             });
 
-            toast.loading("Finalizing media showcase entry...", { id: toastId });
+            toast.loading("Finalizing thumbnail entry...", { id: toastId });
             const confirmed = await assetService.confirmMediaUpload(assetId, {
                 storageKey: presigned.storageKey,
-                mediaType: uploadType,
-                displayOrder: uploadType === "thumbnail" ? 1 : mediaList.length + 1,
+                mediaType: "thumbnail",
+                displayOrder: 1,
             });
 
             if (confirmed.url) {
@@ -395,29 +442,107 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                 url: confirmed.url || localPreviewUrl,
             };
 
-            // If thumbnail uploaded, replace existing thumbnail in display
-            if (uploadType === "thumbnail") {
-                setMediaList((prev) => [...prev.filter((m) => m.media_type !== "thumbnail"), mediaWithUrl]);
-            } else {
-                setMediaList((prev) => [...prev, mediaWithUrl]);
-            }
+            setMediaList((prev) => [...prev.filter((m) => m.media_type !== "thumbnail"), mediaWithUrl]);
 
-            toast.success(
-                uploadType === "thumbnail" ? "Thumbnail Uploaded Successfully!" : "Screenshot Added Successfully!",
-                {
-                    id: toastId,
-                    description: `Showcase ${uploadType} preview is now active.`,
-                }
-            );
+            toast.success("Thumbnail Uploaded Successfully!", {
+                id: toastId,
+                description: "Product cover thumbnail is now active.",
+            });
         } catch (err) {
             URL.revokeObjectURL(localPreviewUrl);
             blobUrlsRef.current.delete(localPreviewUrl);
-            const msg = err instanceof Error ? err.message : "Media upload failed";
-            toast.error("Upload Error", { id: toastId, description: msg });
+            const msg = getHumanErrorMessage(err, "Thumbnail upload failed");
+            toast.error("Thumbnail Upload Error", { id: toastId, description: msg });
         } finally {
-            setIsUploadingMedia(false);
-            setMediaUploadProgress(null);
+            setIsUploadingThumbnail(false);
+            setThumbnailUploadProgress(null);
         }
+    };
+
+    // Dedicated Screenshots Upload (Supports Parallel Multi-File Uploading)
+    const handleUploadScreenshots = async (files: FileList | File[]) => {
+        if (!assetId) {
+            toast.error("Save basic asset details first", { description: "Please complete Step 1 before uploading media." });
+            return;
+        }
+
+        const fileArray = Array.from(files);
+        if (fileArray.length === 0) return;
+
+        // Pre-validate all files individually
+        const validFiles: File[] = [];
+        for (const file of fileArray) {
+            if (validateMediaFile(file, "screenshot")) {
+                validFiles.push(file);
+            }
+        }
+
+        if (validFiles.length === 0) return;
+
+        // Process all valid screenshots in parallel
+        await Promise.allSettled(
+            validFiles.map(async (file, idx) => {
+                const uploadId = `${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`;
+                const toastId = `screenshot-upload-${uploadId}`;
+                const localPreviewUrl = URL.createObjectURL(file);
+                blobUrlsRef.current.add(localPreviewUrl);
+
+                setActiveScreenshotUploads((prev) => [
+                    ...prev,
+                    { id: uploadId, fileName: file.name, progress: 0 },
+                ]);
+
+                try {
+                    toast.loading(`Authorizing "${file.name}"...`, { id: toastId });
+                    const presigned = await assetService.presignMediaUpload(assetId, {
+                        fileName: file.name,
+                        contentType: file.type || "image/png",
+                        mediaType: "screenshot",
+                        displayOrder: mediaList.length + idx + 1,
+                    });
+
+                    toast.loading(`Uploading "${file.name}"...`, { id: toastId });
+                    await assetService.uploadBinary(presigned.uploadUrl, file, (percent) => {
+                        setActiveScreenshotUploads((prev) =>
+                            prev.map((item) =>
+                                item.id === uploadId ? { ...item, progress: percent } : item
+                            )
+                        );
+                    });
+
+                    toast.loading(`Finalizing "${file.name}"...`, { id: toastId });
+                    const confirmed = await assetService.confirmMediaUpload(assetId, {
+                        storageKey: presigned.storageKey,
+                        mediaType: "screenshot",
+                        displayOrder: mediaList.length + idx + 1,
+                    });
+
+                    if (confirmed.url) {
+                        URL.revokeObjectURL(localPreviewUrl);
+                        blobUrlsRef.current.delete(localPreviewUrl);
+                    }
+
+                    const mediaWithUrl: AssetMedia = {
+                        ...confirmed,
+                        url: confirmed.url || localPreviewUrl,
+                    };
+
+                    setMediaList((prev) => [...prev, mediaWithUrl]);
+
+                    toast.success("Screenshot Uploaded!", {
+                        id: toastId,
+                        description: `"${file.name}" added to showcase gallery.`,
+                    });
+                } catch (err) {
+                    URL.revokeObjectURL(localPreviewUrl);
+                    blobUrlsRef.current.delete(localPreviewUrl);
+                    const msg = getHumanErrorMessage(err, `Screenshot "${file.name}" upload failed`);
+                    toast.error("Screenshot Upload Error", { id: toastId, description: msg });
+                } finally {
+                    setActiveScreenshotUploads((prev) => prev.filter((item) => item.id !== uploadId));
+                }
+            })
+        );
     };
 
     // Remove uploaded media
@@ -988,7 +1113,7 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                                                 size="sm"
                                                 type="button"
                                                 onClick={() => document.getElementById("thumbnail-file-input")?.click()}
-                                                isLoading={isUploadingMedia}
+                                                isLoading={isUploadingThumbnail}
                                                 className="cursor-pointer"
                                             >
                                                 Change Thumbnail
@@ -1012,7 +1137,7 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                                     onKeyDown={(e) => {
                                         if (e.key === "Enter" || e.key === " ") {
                                             e.preventDefault();
-                                            if (!isUploadingMedia) {
+                                            if (!isUploadingThumbnail) {
                                                 document.getElementById("thumbnail-file-input")?.click();
                                             }
                                         }
@@ -1021,11 +1146,11 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                                     onDrop={(e) => {
                                         e.preventDefault();
                                         if (e.dataTransfer.files?.[0]) {
-                                            void handleUploadMedia(e.dataTransfer.files[0], "thumbnail");
+                                            void handleUploadThumbnail(e.dataTransfer.files[0]);
                                         }
                                     }}
                                     onClick={() => {
-                                        if (!isUploadingMedia) {
+                                        if (!isUploadingThumbnail) {
                                             document.getElementById("thumbnail-file-input")?.click();
                                         }
                                     }}
@@ -1042,7 +1167,7 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                                         variant="outline"
                                         size="sm"
                                         type="button"
-                                        isLoading={isUploadingMedia}
+                                        isLoading={isUploadingThumbnail}
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             document.getElementById("thumbnail-file-input")?.click();
@@ -1054,6 +1179,22 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                                 </div>
                             )}
 
+                            {/* Thumbnail Upload Progress */}
+                            {thumbnailUploadProgress !== null && (
+                                <div className="space-y-1.5 animate-fade-in pt-2">
+                                    <div className="flex justify-between text-xs font-semibold">
+                                        <span className="text-on-surface">Uploading Thumbnail Image...</span>
+                                        <span className="text-primary font-mono">{thumbnailUploadProgress}%</span>
+                                    </div>
+                                    <div className="w-full h-2 rounded-full bg-surface-container overflow-hidden">
+                                        <div
+                                            className="h-full bg-primary transition-all duration-200"
+                                            style={{ width: `${thumbnailUploadProgress}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
                             <input
                                 type="file"
                                 accept="image/png,image/jpeg,image/webp"
@@ -1062,7 +1203,7 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                                 onChange={(e) => {
                                     if (e.target.files?.[0]) {
                                         const file = e.target.files[0];
-                                        void handleUploadMedia(file, "thumbnail");
+                                        void handleUploadThumbnail(file);
                                         e.target.value = "";
                                     }
                                 }}
@@ -1075,7 +1216,7 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                         <CardHeader>
                             <CardTitle className="text-base font-bold">Screenshots &amp; Showcase Gallery</CardTitle>
                             <p className="text-xs text-on-surface-variant mt-1">
-                                Add feature screenshots, UI previews, or sample renders to display on your product detail gallery.
+                                Add feature screenshots, UI previews, or sample renders to display on your product detail gallery (multi-file parallel upload supported).
                             </p>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -1086,44 +1227,40 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                                 onKeyDown={(e) => {
                                     if (e.key === "Enter" || e.key === " ") {
                                         e.preventDefault();
-                                        if (!isUploadingMedia) {
-                                            document.getElementById("screenshot-file-input")?.click();
-                                        }
+                                        document.getElementById("screenshot-file-input")?.click();
                                     }
                                 }}
                                 onDragOver={(e) => e.preventDefault()}
                                 onDrop={(e) => {
                                     e.preventDefault();
-                                    if (e.dataTransfer.files?.[0]) {
-                                        void handleUploadMedia(e.dataTransfer.files[0], "screenshot");
+                                    if (e.dataTransfer.files?.length) {
+                                        void handleUploadScreenshots(e.dataTransfer.files);
                                     }
                                 }}
                                 onClick={() => {
-                                    if (!isUploadingMedia) {
-                                        document.getElementById("screenshot-file-input")?.click();
-                                    }
+                                    document.getElementById("screenshot-file-input")?.click();
                                 }}
                                 className="p-6 border-2 border-dashed border-outline-variant/50 rounded-2xl bg-surface-container-lowest/50 text-center flex flex-col items-center justify-center cursor-pointer hover:border-primary focus:outline-none focus:ring-2 focus:ring-primary transition-colors group"
                             >
                                 <Icons.Upload size={32} className="text-primary mb-2 transition-transform group-hover:scale-110" />
                                 <h4 className="font-bold text-sm text-on-surface">
-                                    Add Product Screenshot
+                                    Add Product Screenshots
                                 </h4>
                                 <p className="text-xs text-on-surface-variant mt-1">
-                                    PNG, JPG, or WebP up to 10MB (click anywhere to browse)
+                                    PNG, JPG, or WebP up to 10MB each (drag multiple files or click to browse)
                                 </p>
                                 <Button
                                     variant="outline"
                                     size="sm"
                                     type="button"
-                                    isLoading={isUploadingMedia}
+                                    isLoading={activeScreenshotUploads.length > 0}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         document.getElementById("screenshot-file-input")?.click();
                                     }}
                                     className="mt-3 cursor-pointer"
                                 >
-                                    Browse Screenshots
+                                    Browse Screenshots (Multiple)
                                 </Button>
                             </div>
 
@@ -1131,28 +1268,46 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                                 type="file"
                                 accept="image/png,image/jpeg,image/webp"
                                 id="screenshot-file-input"
+                                multiple
                                 className="hidden"
                                 onChange={(e) => {
-                                    if (e.target.files?.[0]) {
-                                        const file = e.target.files[0];
-                                        void handleUploadMedia(file, "screenshot");
+                                    if (e.target.files?.length) {
+                                        void handleUploadScreenshots(e.target.files);
                                         e.target.value = "";
                                     }
                                 }}
                             />
 
-                            {/* Upload Progress */}
-                            {mediaUploadProgress !== null && (
-                                <div className="space-y-1.5 animate-fade-in">
+                            {/* Parallel Screenshot Uploads Progress */}
+                            {activeScreenshotUploads.length > 0 && (
+                                <div className="space-y-2 animate-fade-in pt-2">
                                     <div className="flex justify-between text-xs font-semibold">
-                                        <span className="text-on-surface">Uploading Showcase Media...</span>
-                                        <span className="text-primary font-mono">{mediaUploadProgress}%</span>
+                                        <span className="text-on-surface">
+                                            Uploading Screenshots ({activeScreenshotUploads.length} active)...
+                                        </span>
                                     </div>
-                                    <div className="w-full h-2 rounded-full bg-surface-container overflow-hidden">
-                                        <div
-                                            className="h-full bg-primary transition-all duration-200"
-                                            style={{ width: `${mediaUploadProgress}%` }}
-                                        />
+                                    <div className="space-y-2">
+                                        {activeScreenshotUploads.map((upload) => (
+                                            <div
+                                                key={upload.id}
+                                                className="p-2.5 rounded-xl border border-outline-variant/30 bg-surface-container-low space-y-1"
+                                            >
+                                                <div className="flex justify-between text-xs">
+                                                    <span className="truncate max-w-[240px] text-on-surface font-medium">
+                                                        {upload.fileName}
+                                                    </span>
+                                                    <span className="text-primary font-mono font-semibold">
+                                                        {upload.progress}%
+                                                    </span>
+                                                </div>
+                                                <div className="w-full h-1.5 rounded-full bg-surface-container overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-primary transition-all duration-200"
+                                                        style={{ width: `${upload.progress}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
                             )}

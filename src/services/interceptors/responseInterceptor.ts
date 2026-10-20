@@ -19,12 +19,66 @@ export class ApiError extends Error {
       } else if (typeof dataObj.error === "string" && dataObj.error.trim()) {
         resolvedMessage = dataObj.error.trim();
       }
+
+      // If validation details exist, append field errors in human-readable format
+      if (dataObj.details && typeof dataObj.details === "object") {
+        const detailsObj = dataObj.details as { fieldErrors?: Record<string, string[]>; formErrors?: string[] };
+        if (detailsObj.fieldErrors && typeof detailsObj.fieldErrors === "object") {
+          const fieldEntries = Object.entries(detailsObj.fieldErrors);
+          if (fieldEntries.length > 0) {
+            const firstIssues = fieldEntries
+              .slice(0, 3)
+              .map(([field, errs]) => `${field}: ${Array.isArray(errs) ? errs.join(", ") : errs}`)
+              .join("; ");
+            resolvedMessage = resolvedMessage ? `${resolvedMessage} (${firstIssues})` : firstIssues;
+          }
+        }
+      }
     } else if (typeof data === "string" && data.trim()) {
       resolvedMessage = data.trim();
     }
 
     if (!resolvedMessage) {
-      resolvedMessage = statusText ? `API Error ${status}: ${statusText}` : `API Error ${status}`;
+      switch (status) {
+        case 400:
+          resolvedMessage = "The request could not be processed due to invalid parameters or formatting.";
+          break;
+        case 401:
+          resolvedMessage = "Authentication is required or your session has expired. Please sign in.";
+          break;
+        case 403:
+          resolvedMessage = "You do not have permission to perform this action.";
+          break;
+        case 404:
+          resolvedMessage = "The requested resource could not be found.";
+          break;
+        case 409:
+          resolvedMessage = "A resource conflict occurred (e.g. duplicate name, slug, or entry).";
+          break;
+        case 413:
+          resolvedMessage = "The uploaded file exceeds the allowed size limit (Payload Too Large). Please choose a smaller file.";
+          break;
+        case 415:
+          resolvedMessage = "The file format or media type is not supported.";
+          break;
+        case 422:
+          resolvedMessage = "Validation failed. Please verify the submitted information.";
+          break;
+        case 429:
+          resolvedMessage = "Too many requests. Please wait a moment and try again.";
+          break;
+        case 500:
+          resolvedMessage = "An internal server error occurred. Please try again in a few moments.";
+          break;
+        case 502:
+        case 503:
+        case 504:
+          resolvedMessage = "The server is temporarily unavailable or undergoing maintenance. Please try again shortly.";
+          break;
+        default:
+          resolvedMessage = statusText ? `Request failed (${status}: ${statusText})` : `Request failed with status ${status}`;
+          break;
+      }
     }
 
     super(resolvedMessage, options);
