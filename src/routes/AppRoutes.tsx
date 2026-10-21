@@ -9,7 +9,7 @@ import ProtectedRoute from "@/routes/ProtectedRoute.tsx";
 import { useAuth } from "@/hooks/useAuth.ts";
 import { getUserPortalAccess } from "@/features/dashboard/utils/navigationHelper.ts";
 
-const HomePage = lazy(() => import("@/features/website/pages/HomePage.tsx"));
+const HomePage = lazy(() => import("@/website/LandingPage.tsx"));
 const SignInPage = lazy(() => import("@/layouts/website/pages/signIn.tsx"));
 const SignUpPage = lazy(() => import("@/layouts/website/pages/signUp.tsx"));
 const ServerPage = lazy(() => import("@/layouts/website/pages/server.tsx"));
@@ -70,7 +70,7 @@ export const AppRoutes: React.FC = () => {
                             <Route path="seller/products/upload" element={<Navigate to="/dashboard/seller/products/upload/files" replace />} />
                             <Route path="seller/products/upload/files" element={<SellerProductWizardPage />} />
                             <Route path="seller/products/edit/:id" element={<SellerProductWizardPage />} />
-                            <Route path="seller/products/upload/media" element={<Navigate to="/dashboard/seller/products/upload/files" replace />} />
+                            <Route path="seller/products/upload/media" element={<SellerProductWizardPage />} />
                             <Route path="seller/products/upload/licenses" element={<Navigate to="/dashboard/seller/products/upload/files" replace />} />
                             <Route path="seller/products/bundles" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Bundles" />} />
                             <Route path="seller/products/coupons" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Coupons" />} />

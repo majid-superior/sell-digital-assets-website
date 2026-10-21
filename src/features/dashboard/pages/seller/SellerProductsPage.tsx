@@ -12,13 +12,26 @@ import { Button, Badge, Skeleton, EmptyState, Modal } from "@/components/ui/inde
 import { useDebounce } from "@/hooks/useDebounce.ts";
 import type { DigitalAsset, AssetStatus } from "@/types/asset.ts";
 
-type StatusTab = "all" | "published" | "draft" | "archived";
+type StatusTab = "all" | "published" | "pending" | "needs_update" | "rejected" | "draft" | "archived";
+
+const STATUS_TABS: Array<{ id: StatusTab; label: string }> = [
+    { id: "all", label: "All" },
+    { id: "published", label: "Published" },
+    { id: "pending", label: "Pending Review" },
+    { id: "needs_update", label: "Needs Update" },
+    { id: "rejected", label: "Rejected" },
+    { id: "draft", label: "Draft" },
+    { id: "archived", label: "Archived" },
+];
 
 export const SellerProductsPage: React.FC = () => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
 
     const [assetToDelete, setAssetToDelete] = useState<{ id: string; title: string } | null>(null);
+    const [replyingAsset, setReplyingAsset] = useState<DigitalAsset | null>(null);
+    const [sellerReply, setSellerReply] = useState<string>("");
+
     const [activeTab, setActiveTab] = useState<StatusTab>("all");
     const [searchQuery, setSearchQuery] = useState("");
     const debouncedSearch = useDebounce(searchQuery, 350);
@@ -41,14 +54,29 @@ export const SellerProductsPage: React.FC = () => {
     const stats = response?.stats;
     const pagination = response?.pagination || { total: assets.length, page: 1, limit, totalPages: 1 };
 
-    // Mutation: Transition Asset Status
+    // Mutation: Transition Asset Status (with optional seller reply/revision notes)
     const statusMutation = useMutation({
-        mutationFn: async ({ id, newStatus }: { id: string; newStatus: AssetStatus }) => {
-            return assetService.updateAssetStatus(id, newStatus);
+        mutationFn: async ({
+            id,
+            newStatus,
+            feedback,
+        }: {
+            id: string;
+            newStatus: AssetStatus;
+            feedback?: string;
+        }) => {
+            return assetService.updateAssetStatus(id, newStatus, feedback);
         },
         onSuccess: (updated) => {
-            toast.success(`Asset status transitioned to '${updated.status}'`);
+            const label =
+                updated.status === "pending"
+                    ? "Asset submitted for admin review"
+                    : `Asset status transitioned to '${updated.status}'`;
+            toast.success(label);
+            setReplyingAsset(null);
+            setSellerReply("");
             void queryClient.invalidateQueries({ queryKey: queryKeys.assets.all });
+            void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
         },
         onError: (err) => {
             const msg = err instanceof Error ? err.message : "Failed to update asset status";
@@ -72,8 +100,27 @@ export const SellerProductsPage: React.FC = () => {
     });
 
     const handleToggleStatus = (asset: DigitalAsset) => {
+        if (asset.status === "needs_update" || asset.status === "rejected" || asset.admin_feedback) {
+            setReplyingAsset(asset);
+            setSellerReply(asset.seller_feedback || "");
+            return;
+        }
         const nextStatus: AssetStatus = asset.status === "published" ? "draft" : "pending";
         statusMutation.mutate({ id: asset.id, newStatus: nextStatus });
+    };
+
+    const handleOpenFeedbackModal = (asset: DigitalAsset) => {
+        setReplyingAsset(asset);
+        setSellerReply(asset.seller_feedback || "");
+    };
+
+    const handleConfirmResubmit = () => {
+        if (!replyingAsset) return;
+        statusMutation.mutate({
+            id: replyingAsset.id,
+            newStatus: "pending",
+            feedback: sellerReply.trim() || undefined,
+        });
     };
 
     const handleDelete = (id: string, title: string) => {
@@ -106,6 +153,28 @@ export const SellerProductsPage: React.FC = () => {
         }
     };
 
+    const getTabCount = (tabId: StatusTab): number | undefined => {
+        if (!stats) return undefined;
+        switch (tabId) {
+            case "all":
+                return stats.totalAssets;
+            case "published":
+                return stats.publishedAssets;
+            case "pending":
+                return stats.pendingAssets;
+            case "needs_update":
+                return stats.needsUpdateAssets;
+            case "rejected":
+                return stats.rejectedAssets;
+            case "draft":
+                return stats.draftAssets;
+            case "archived":
+                return stats.archivedAssets;
+            default:
+                return undefined;
+        }
+    };
+
     return (
         <div className="space-y-6 animate-fade-in w-full">
             {/* Header with Title and Create Button */}
@@ -115,7 +184,7 @@ export const SellerProductsPage: React.FC = () => {
                         Seller Products &amp; Catalog
                     </h1>
                     <p className="text-xs text-on-surface-variant mt-1">
-                        Manage your digital products, file deliverables, release versions, and pricing tiers.
+                        Manage your digital products, file deliverables, release versions, and admin review feedback.
                     </p>
                 </div>
 
@@ -130,22 +199,26 @@ export const SellerProductsPage: React.FC = () => {
                 </Button>
             </div>
 
-            {/* Performance Stats Cards (if available from backend and assets exist) */}
+            {/* Performance Stats Cards */}
             {stats && stats.totalAssets > 0 && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                     <div className="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/30">
                         <span className="text-[11px] text-on-surface-variant uppercase font-semibold">Total Assets</span>
                         <div className="text-2xl font-extrabold text-on-surface mt-1">{stats.totalAssets}</div>
                     </div>
                     <div className="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/30">
                         <span className="text-[11px] text-on-surface-variant uppercase font-semibold">Published</span>
-                        <div className="text-2xl font-extrabold text-primary mt-1">{stats.publishedAssets}</div>
+                        <div className="text-2xl font-extrabold text-primary mt-1">{stats.publishedAssets ?? 0}</div>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/30">
+                        <span className="text-[11px] text-on-surface-variant uppercase font-semibold">Pending Review</span>
+                        <div className="text-2xl font-extrabold text-on-surface mt-1">{stats.pendingAssets ?? 0}</div>
                     </div>
                     <div className="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/30">
                         <span className="text-[11px] text-on-surface-variant uppercase font-semibold">Total Views</span>
                         <div className="text-2xl font-extrabold text-on-surface mt-1">{stats.totalViews}</div>
                     </div>
-                    <div className="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/30">
+                    <div className="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/30 col-span-2 sm:col-span-1">
                         <span className="text-[11px] text-on-surface-variant uppercase font-semibold">Downloads</span>
                         <div className="text-2xl font-extrabold text-on-surface mt-1">{stats.totalDownloads}</div>
                     </div>
@@ -153,26 +226,40 @@ export const SellerProductsPage: React.FC = () => {
             )}
 
             {/* Tab Navigation & Search Toolbar */}
-            <div className="flex flex-col sm:flex-row gap-3 justify-between items-stretch sm:items-center">
+            <div className="flex flex-col lg:flex-row gap-3 justify-between items-stretch lg:items-center">
                 {/* Status Tabs */}
-                <div className="flex items-center gap-1.5 p-1 rounded-xl bg-surface-container-low border border-outline-variant/30">
-                    {(["all", "published", "draft", "archived"] as StatusTab[]).map((tab) => (
-                        <button
-                            key={tab}
-                            type="button"
-                            onClick={() => {
-                                setActiveTab(tab);
-                                setPage(1);
-                            }}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all cursor-pointer ${
-                                activeTab === tab
-                                    ? "bg-surface text-primary shadow-xs font-bold"
-                                    : "text-on-surface-variant hover:text-on-surface"
-                            }`}
-                        >
-                            {tab}
-                        </button>
-                    ))}
+                <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-surface-container-low border border-outline-variant/30">
+                    {STATUS_TABS.map((tab) => {
+                        const count = getTabCount(tab.id);
+                        return (
+                            <button
+                                key={tab.id}
+                                type="button"
+                                onClick={() => {
+                                    setActiveTab(tab.id);
+                                    setPage(1);
+                                }}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                                    activeTab === tab.id
+                                        ? "bg-surface text-primary shadow-xs font-bold"
+                                        : "text-on-surface-variant hover:text-on-surface"
+                                }`}
+                            >
+                                <span>{tab.label}</span>
+                                {typeof count === "number" && count > 0 && (
+                                    <span
+                                        className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                                            activeTab === tab.id
+                                                ? "bg-primary/15 text-primary"
+                                                : "bg-surface-container-high text-on-surface-variant"
+                                        }`}
+                                    >
+                                        {count}
+                                    </span>
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
 
                 {/* Search Bar */}
@@ -222,13 +309,16 @@ export const SellerProductsPage: React.FC = () => {
                                     <th className="py-3 px-4">Pricing</th>
                                     <th className="py-3 px-4 text-center">Views</th>
                                     <th className="py-3 px-4 text-center">Downloads</th>
-                                    <th className="py-3 px-4">Status</th>
+                                    <th className="py-3 px-4">Status &amp; Review Feedback</th>
                                     <th className="py-3 px-4 text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-outline-variant/20">
                                 {assets.map((item) => {
-                                    const thumbnail = item.media?.find((m) => m.media_type === "thumbnail")?.url || item.thumbnailUrl;
+                                    const thumbnail =
+                                        item.media?.find((m) => m.media_type === "thumbnail")?.url ||
+                                        item.thumbnail_url ||
+                                        item.thumbnailUrl;
                                     const minPrice = item.min_price ?? (item.tiers?.[0]?.price ?? 0);
                                     const categoryName = typeof item.category === "object" ? item.category?.name : (item.category || "General");
 
@@ -251,7 +341,11 @@ export const SellerProductsPage: React.FC = () => {
                                                     )}
                                                     <div className="min-w-0 max-w-[240px]">
                                                         <Link
-                                                            to={`/asset/${item.slug}`}
+                                                            to={
+                                                                item.status === "published"
+                                                                    ? `/asset/${item.slug}`
+                                                                    : `/dashboard/seller/products/edit/${item.id}`
+                                                            }
                                                             className="font-bold text-on-surface hover:text-primary transition-colors line-clamp-1"
                                                         >
                                                             {item.title}
@@ -288,30 +382,54 @@ export const SellerProductsPage: React.FC = () => {
                                                 {item.download_count || 0}
                                             </td>
 
-                                            {/* Status Badge */}
-                                            <td className="py-3.5 px-4">
-                                                <Badge
-                                                    variant={statusBadgeVariant(item.status)}
-                                                    size="sm"
-                                                    className="capitalize font-semibold text-[10px]"
-                                                >
-                                                    {item.status.replace(/_/g, " ")}
-                                                </Badge>
+                                            {/* Status Badge & Admin Feedback Snippet */}
+                                            <td className="py-3.5 px-4 max-w-[260px]">
+                                                <div className="flex flex-col items-start gap-1.5">
+                                                    <Badge
+                                                        variant={statusBadgeVariant(item.status)}
+                                                        size="sm"
+                                                        className="capitalize font-semibold text-[10px]"
+                                                    >
+                                                        {item.status.replace(/_/g, " ")}
+                                                    </Badge>
+
+                                                    {item.admin_feedback && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleOpenFeedbackModal(item)}
+                                                            className="text-left p-2 rounded-lg border border-outline-variant/40 bg-surface-container-low hover:border-primary/40 transition-colors cursor-pointer w-full"
+                                                        >
+                                                            <div className="flex items-center justify-between gap-1 text-[10px] font-bold text-primary">
+                                                                <span>Admin Feedback</span>
+                                                                <span className="underline">Reply / View</span>
+                                                            </div>
+                                                            <p className="text-[11px] text-on-surface-variant line-clamp-2 mt-0.5">
+                                                                {item.admin_feedback}
+                                                            </p>
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </td>
 
                                             {/* Actions */}
                                             <td className="py-3.5 px-4 text-right">
                                                 <div className="flex items-center justify-end gap-1.5">
                                                     <Button
-                                                        variant="ghost"
+                                                        variant={
+                                                            item.status === "needs_update" || item.status === "rejected"
+                                                                ? "primary"
+                                                                : "ghost"
+                                                        }
                                                         size="sm"
                                                         onClick={() => handleToggleStatus(item)}
-                                                        disabled={item.status === "pending"}
+                                                        disabled={item.status === "pending" && !item.admin_feedback}
                                                         title={
                                                             item.status === "published"
                                                                 ? "Unpublish to draft"
                                                                 : item.status === "pending"
                                                                 ? "Asset is pending admin review"
+                                                                : item.status === "needs_update" || item.status === "rejected"
+                                                                ? "Respond to admin feedback and resubmit"
                                                                 : "Submit for Admin Review"
                                                         }
                                                         isLoading={statusMutation.isPending && statusMutation.variables?.id === item.id}
@@ -320,7 +438,11 @@ export const SellerProductsPage: React.FC = () => {
                                                         {item.status === "published"
                                                             ? "Unpublish"
                                                             : item.status === "pending"
-                                                            ? "In Review"
+                                                            ? item.admin_feedback
+                                                                ? "Update Note"
+                                                                : "In Review"
+                                                            : item.status === "needs_update" || item.status === "rejected"
+                                                            ? "Reply & Resubmit"
                                                             : "Submit"}
                                                     </Button>
 
@@ -334,15 +456,17 @@ export const SellerProductsPage: React.FC = () => {
                                                         <Icons.Edit size={14} />
                                                     </Button>
 
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => navigate(`/asset/${item.slug}`)}
-                                                        title="Preview Live Page"
-                                                        className="p-1.5 cursor-pointer"
-                                                    >
-                                                        <Icons.ExternalLink size={14} />
-                                                    </Button>
+                                                    {item.status === "published" && (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => navigate(`/asset/${item.slug}`)}
+                                                            title="Preview Live Page"
+                                                            className="p-1.5 cursor-pointer"
+                                                        >
+                                                            <Icons.ExternalLink size={14} />
+                                                        </Button>
+                                                    )}
 
                                                     <Button
                                                         variant="destructive"
@@ -370,7 +494,7 @@ export const SellerProductsPage: React.FC = () => {
                                 searchQuery
                                     ? `No assets match your search term "${searchQuery}".`
                                     : activeTab !== "all"
-                                    ? `You have no assets currently in '${activeTab}' status.`
+                                    ? `You have no assets currently in '${activeTab.replace(/_/g, " ")}' status.`
                                     : "You haven't created any digital assets yet. Start publishing your work!"
                             }
                             icon={<Icons.Package size={36} />}
@@ -417,6 +541,105 @@ export const SellerProductsPage: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* Admin Feedback & Seller Reply / Resubmit Modal */}
+            <Modal
+                isOpen={Boolean(replyingAsset)}
+                onClose={() => {
+                    setReplyingAsset(null);
+                    setSellerReply("");
+                }}
+                title={
+                    replyingAsset?.status === "rejected"
+                        ? "Admin Rejection Feedback & Resubmission"
+                        : replyingAsset?.status === "needs_update"
+                        ? "Admin Update Request & Seller Response"
+                        : "Admin Review Feedback & Notes"
+                }
+            >
+                {replyingAsset && (
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between gap-2 pb-2 border-b border-outline-variant/25">
+                            <span className="font-bold text-sm text-on-surface truncate">
+                                {replyingAsset.title}
+                            </span>
+                            <Badge variant={statusBadgeVariant(replyingAsset.status)} size="sm" className="capitalize">
+                                {replyingAsset.status.replace(/_/g, " ")}
+                            </Badge>
+                        </div>
+
+                        {replyingAsset.admin_feedback && (
+                            <div className="p-3.5 rounded-xl border border-outline-variant/40 bg-surface-container-low space-y-1.5">
+                                <div className="text-xs font-bold text-primary flex items-center gap-1.5">
+                                    <Icons.AlertCircle size={14} />
+                                    <span>Administrator Feedback:</span>
+                                </div>
+                                <p className="text-xs text-on-surface whitespace-pre-wrap leading-relaxed">
+                                    {replyingAsset.admin_feedback}
+                                </p>
+                            </div>
+                        )}
+
+                        <div>
+                            <label
+                                htmlFor="seller-reply-input"
+                                className="block text-xs font-semibold text-on-surface mb-1.5"
+                            >
+                                Your Response / Revision Notes for Admin
+                            </label>
+                            <textarea
+                                id="seller-reply-input"
+                                rows={4}
+                                value={sellerReply}
+                                onChange={(e) => setSellerReply(e.target.value)}
+                                placeholder="Describe the updates you made or reply to the administrator's review comments..."
+                                className="w-full rounded-xl border border-outline-variant/40 bg-surface p-3 text-xs text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:outline-hidden"
+                            />
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                leftIcon={<Icons.Edit size={14} />}
+                                onClick={() => {
+                                    const id = replyingAsset.id;
+                                    setReplyingAsset(null);
+                                    void navigate(`/dashboard/seller/products/edit/${id}`);
+                                }}
+                                className="cursor-pointer"
+                            >
+                                Edit Asset Files &amp; Details
+                            </Button>
+
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                        setReplyingAsset(null);
+                                        setSellerReply("");
+                                    }}
+                                    className="cursor-pointer"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    variant="primary"
+                                    size="sm"
+                                    onClick={handleConfirmResubmit}
+                                    isLoading={statusMutation.isPending}
+                                    className="cursor-pointer"
+                                >
+                                    {replyingAsset.status === "pending"
+                                        ? "Send Updated Note"
+                                        : "Send Response & Resubmit"}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </Modal>
 
             {/* Archive Product Confirmation Modal */}
             <Modal

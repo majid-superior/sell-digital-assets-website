@@ -34,6 +34,9 @@ export interface SellerAssetQueryParams {
 export interface SellerAssetStats {
   totalAssets: number;
   publishedAssets: number;
+  pendingAssets?: number;
+  needsUpdateAssets?: number;
+  rejectedAssets?: number;
   draftAssets: number;
   archivedAssets: number;
   totalViews: number;
@@ -217,15 +220,26 @@ class AssetService {
 
   /**
    * Retrieve single digital asset by ID or unique identifier.
+   * Uses the authenticated seller endpoint first so draft, pending, needs_update, and rejected assets load in edit mode.
    */
   async getAssetById(id: string): Promise<DigitalAsset> {
-    const res = await apiClient.get<ApiResponseEnvelope<DigitalAsset> | DigitalAsset>(
-      `/api/v1/assets/${encodeURIComponent(id)}`
-    );
-    if ("data" in res && res.data) {
-      return res.data;
+    try {
+      const sellerRes = await apiClient.get<ApiResponseEnvelope<DigitalAsset> | DigitalAsset>(
+        `/api/v1/assets/seller/${encodeURIComponent(id)}`
+      );
+      if ("data" in sellerRes && sellerRes.data) {
+        return sellerRes.data;
+      }
+      return sellerRes as DigitalAsset;
+    } catch {
+      const res = await apiClient.get<ApiResponseEnvelope<DigitalAsset> | DigitalAsset>(
+        `/api/v1/assets/${encodeURIComponent(id)}`
+      );
+      if ("data" in res && res.data) {
+        return res.data;
+      }
+      return res as DigitalAsset;
     }
-    return res as DigitalAsset;
   }
 
   /**
@@ -309,12 +323,20 @@ class AssetService {
   }
 
   /**
-   * Transition asset status (draft ↔ published ↔ archived).
+   * Transition asset status (draft ↔ pending ↔ archived) with optional seller reply/revision notes.
    */
-  async updateAssetStatus(id: string, status: AssetStatus): Promise<DigitalAsset> {
+  async updateAssetStatus(
+    id: string,
+    status: AssetStatus,
+    feedback?: string
+  ): Promise<DigitalAsset> {
+    const payload: { status: AssetStatus; feedback?: string } = { status };
+    if (feedback && feedback.trim()) {
+      payload.feedback = feedback.trim();
+    }
     const res = await apiClient.post<ApiResponseEnvelope<DigitalAsset>>(
       `/api/v1/assets/seller/${encodeURIComponent(id)}/status`,
-      { status }
+      payload
     );
     return res.data || (res as unknown as DigitalAsset);
   }

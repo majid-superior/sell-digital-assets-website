@@ -50,6 +50,11 @@ export const queryKeys = {
         navigation: (role?: string, userId?: string) =>
             [...queryKeys.dashboard.all, "navigation", role ?? "user", userId ?? "me"] as const,
     },
+    notifications: {
+        all: ["notifications"] as const,
+        list: (params: Record<string, string | number | boolean | undefined> = {}) =>
+            [...queryKeys.notifications.all, "list", params] as const,
+    },
 } as const;
 
 export default queryKeys;

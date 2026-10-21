@@ -46,6 +46,12 @@ export interface DigitalAsset {
   preview_url?: string;
   storage_path?: string;
   status: AssetStatus;
+  admin_feedback?: string | null;
+  seller_feedback?: string | null;
+  reviewed_at?: string | null;
+  submitted_at?: string | null;
+  thumbnail_url?: string;
+  file_count?: number;
   tags: string[];
   technical_specs: Record<string, unknown>;
   view_count: number;

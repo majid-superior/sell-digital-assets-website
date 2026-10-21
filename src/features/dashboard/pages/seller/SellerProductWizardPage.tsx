@@ -1,6 +1,6 @@
 // src/features/dashboard/pages/seller/SellerProductWizardPage.tsx
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -48,12 +48,28 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
     isEditMode,
 }) => {
     const navigate = useNavigate();
+    const location = useLocation();
     const queryClient = useQueryClient();
     const currencyInfo = getCurrencyInfo();
 
-    const [currentStep, setCurrentStep] = useState<WizardStep>("info");
+    const isMediaRoute = location.pathname.includes("/products/upload/media");
+    const [stepOverride, setStepOverride] = useState<WizardStep | null>(null);
+    const [prevPathname, setPrevPathname] = useState(location.pathname);
+
+    // If the URL changes (e.g. sidebar navigation or browser Back/Forward), reset stepOverride
+    if (location.pathname !== prevPathname) {
+        setPrevPathname(location.pathname);
+        setStepOverride(null);
+    }
+
+    const currentStep: WizardStep = stepOverride ?? (isMediaRoute ? "media" : "info");
+    const setCurrentStep = (step: WizardStep) => setStepOverride(step);
+
     const [assetId, setAssetId] = useState<string | null>(() => initialAsset?.id || null);
     const [activeAsset, setActiveAsset] = useState<DigitalAsset | null>(() => initialAsset || null);
+    const [sellerFeedback, setSellerFeedback] = useState<string>(
+        () => initialAsset?.seller_feedback || ""
+    );
 
     // Tags state
     const [tags, setTags] = useState<string[]>(() => initialAsset?.tags || []);
@@ -580,7 +596,11 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
 
         try {
             const targetStatus = shouldPublish ? "pending" : "draft";
-            await assetService.updateAssetStatus(assetId, targetStatus);
+            await assetService.updateAssetStatus(
+                assetId,
+                targetStatus,
+                shouldPublish && sellerFeedback.trim() ? sellerFeedback.trim() : undefined
+            );
             toast.success(
                 shouldPublish ? "Asset Submitted for Review!" : "Draft Saved Successfully!",
                 {
@@ -590,6 +610,7 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                 }
             );
             void queryClient.invalidateQueries({ queryKey: queryKeys.assets.all });
+            void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
             void navigate("/dashboard/seller/products/all");
         } catch (err) {
             const msg = err instanceof Error ? err.message : "Failed to update asset status";
@@ -630,6 +651,36 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                 </Button>
             </div>
 
+            {/* Admin Feedback Callout Banner (when editing an asset that received review comments) */}
+            {activeAsset?.admin_feedback && (
+                <div
+                    className={`p-4 rounded-2xl border text-xs space-y-1.5 ${
+                        activeAsset.status === "rejected"
+                            ? "border-error/40 bg-error/10 text-on-surface"
+                            : "border-primary/40 bg-primary/10 text-on-surface"
+                    }`}
+                >
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="font-bold flex items-center gap-1.5 text-primary">
+                            <Icons.AlertCircle size={16} />
+                            <span>
+                                {activeAsset.status === "rejected"
+                                    ? "Admin Rejection Reason & Required Fixes"
+                                    : activeAsset.status === "needs_update"
+                                    ? "Admin Requested Updates Before Publishing"
+                                    : "Administrator Review Feedback"}
+                            </span>
+                        </div>
+                        <Badge variant="outline" size="sm" className="capitalize">
+                            {activeAsset.status.replace(/_/g, " ")}
+                        </Badge>
+                    </div>
+                    <p className="text-xs text-on-surface whitespace-pre-wrap leading-relaxed pl-5">
+                        {activeAsset.admin_feedback}
+                    </p>
+                </div>
+            )}
+
             {/* Step Navigation Bar */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
                 {stepsList.map((step) => {
@@ -643,6 +694,21 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                                 if (step.id !== "info" && !assetId) {
                                     toast.info("Save basic details in Step 1 first");
                                     return;
+                                }
+                                if (!isEditMode && location.pathname.includes("/products/upload/")) {
+                                    if (step.id === "media") {
+                                        void navigate({
+                                            pathname: "/dashboard/seller/products/upload/media",
+                                            search: assetId ? `?assetId=${assetId}` : location.search,
+                                        });
+                                        return;
+                                    } else if (step.id === "deliverables") {
+                                        void navigate({
+                                            pathname: "/dashboard/seller/products/upload/files",
+                                            search: assetId ? `?assetId=${assetId}` : location.search,
+                                        });
+                                        return;
+                                    }
                                 }
                                 setCurrentStep(step.id);
                             }}
@@ -1047,7 +1113,16 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                                 variant="primary"
                                 size="md"
                                 rightIcon={<Icons.Next size={14} />}
-                                onClick={() => setCurrentStep("media")}
+                                onClick={() => {
+                                    if (!isEditMode && location.pathname.includes("/products/upload/")) {
+                                        void navigate({
+                                            pathname: "/dashboard/seller/products/upload/media",
+                                            search: assetId ? `?assetId=${assetId}` : location.search,
+                                        });
+                                    } else {
+                                        setCurrentStep("media");
+                                    }
+                                }}
                                 className="cursor-pointer"
                             >
                                 Continue
@@ -1293,7 +1368,7 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                                                 className="p-2.5 rounded-xl border border-outline-variant/30 bg-surface-container-low space-y-1"
                                             >
                                                 <div className="flex justify-between text-xs">
-                                                    <span className="truncate max-w-[240px] text-on-surface font-medium">
+                                                    <span className="truncate max-w-60 text-on-surface font-medium">
                                                         {upload.fileName}
                                                     </span>
                                                     <span className="text-primary font-mono font-semibold">
@@ -1368,7 +1443,16 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                             variant="outline"
                             size="md"
                             leftIcon={<Icons.Back size={14} />}
-                            onClick={() => setCurrentStep("deliverables")}
+                            onClick={() => {
+                                if (!isEditMode && location.pathname.includes("/products/upload/")) {
+                                    void navigate({
+                                        pathname: "/dashboard/seller/products/upload/files",
+                                        search: assetId ? `?assetId=${assetId}` : location.search,
+                                    });
+                                } else {
+                                    setCurrentStep("deliverables");
+                                }
+                            }}
                             className="cursor-pointer"
                         >
                             Back
@@ -1443,12 +1527,42 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                             )}
                         </div>
 
+                        {/* Seller Reply / Revision Notes to Admin */}
+                        <div className="p-4 rounded-xl border border-outline-variant/30 bg-surface-container-low space-y-2">
+                            <Label htmlFor="wizard-seller-feedback" className="text-xs font-semibold text-on-surface">
+                                {activeAsset?.admin_feedback
+                                    ? "Response to Admin Feedback / Summary of Changes"
+                                    : "Notes for Admin Reviewer (Optional)"}
+                            </Label>
+                            <textarea
+                                id="wizard-seller-feedback"
+                                rows={3}
+                                value={sellerFeedback}
+                                onChange={(e) => setSellerFeedback(e.target.value)}
+                                placeholder={
+                                    activeAsset?.admin_feedback
+                                        ? "Explain how you addressed the administrator's requested updates..."
+                                        : "Add any helpful context or notes for the administrator reviewing your submission..."
+                                }
+                                className="w-full rounded-xl border border-outline-variant/40 bg-surface p-3 text-xs text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:outline-hidden"
+                            />
+                        </div>
+
                         <div className="pt-4 flex flex-col sm:flex-row justify-between gap-3">
                             <Button
                                 variant="outline"
                                 size="md"
                                 leftIcon={<Icons.Back size={14} />}
-                                onClick={() => setCurrentStep("media")}
+                                onClick={() => {
+                                    if (!isEditMode && location.pathname.includes("/products/upload/")) {
+                                        void navigate({
+                                            pathname: "/dashboard/seller/products/upload/media",
+                                            search: assetId ? `?assetId=${assetId}` : location.search,
+                                        });
+                                    } else {
+                                        setCurrentStep("media");
+                                    }
+                                }}
                                 className="cursor-pointer"
                             >
                                 Back
@@ -1469,7 +1583,9 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                                     onClick={() => handleFinalPublish(true)}
                                     className="cursor-pointer"
                                 >
-                                    Submit for Review
+                                    {activeAsset?.status === "needs_update" || activeAsset?.status === "rejected"
+                                        ? "Resubmit for Review"
+                                        : "Submit for Review"}
                                 </Button>
                             </div>
                         </div>
@@ -1482,27 +1598,33 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
 
 export const SellerProductWizardPage: React.FC = () => {
     const { id: editId } = useParams<{ id: string }>();
+    const [searchParams] = useSearchParams();
+    const queryAssetId = searchParams.get("assetId") || searchParams.get("id");
+    const activeAssetId = editId || queryAssetId || undefined;
     const isEditMode = Boolean(editId);
+    const shouldFetch = Boolean(activeAssetId);
 
     const { data: existingAsset, isLoading: isLoadingExisting } = useQuery({
-        queryKey: queryKeys.assets.detail(editId || ""),
-        queryFn: () => assetService.getAssetById(editId!),
-        enabled: isEditMode,
+        queryKey: queryKeys.assets.detail(activeAssetId || ""),
+        queryFn: () => assetService.getAssetById(activeAssetId!),
+        enabled: shouldFetch,
         staleTime: 1000 * 60 * 5,
     });
 
-    if (isEditMode && (isLoadingExisting || !existingAsset)) {
+    if (shouldFetch && (isLoadingExisting || !existingAsset)) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-3">
                 <Spinner size="lg" />
-                <p className="text-sm text-on-surface-variant">Loading asset details for editing...</p>
+                <p className="text-sm text-on-surface-variant">
+                    {isEditMode ? "Loading asset details for editing..." : "Loading draft asset..."}
+                </p>
             </div>
         );
     }
 
     return (
         <SellerProductWizardForm
-            key={editId || "new"}
+            key={activeAssetId || "new"}
             initialAsset={existingAsset || null}
             isEditMode={isEditMode}
         />

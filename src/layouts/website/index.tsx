@@ -28,7 +28,7 @@ export const Index: React.FC<IndexProps> = ({
             </Header>
 
             {/* Main Content Body */}
-            <Body withBackgroundDecorations {...bodyProps}>
+            <Body withBackgroundDecorations containerSize="full" disablePadding {...bodyProps}>
                 {children}
             </Body>
 

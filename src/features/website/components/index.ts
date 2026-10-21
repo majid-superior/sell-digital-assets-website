@@ -1,3 +1,3 @@
 // src/features/website/components/index.ts
-export * from "./HeroSection.tsx";
-export * from "./FeatureHighlights.tsx";
+// Landing page sections moved to modular feature under src/website/
+export {};
