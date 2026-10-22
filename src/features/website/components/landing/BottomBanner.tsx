@@ -1,4 +1,4 @@
-// src/website/BottomBanner.tsx
+// src/features/website/components/landing/BottomBanner.tsx
 import React from "react";
 import { Link } from "react-router-dom";
 import { Icons } from "@/lib/icons/index.ts";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/index.ts";
 export const BottomBanner: React.FC = () => {
   return (
     <section className="my-10 sm:my-16 lg:my-20">
-      <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-primary-container/25 via-surface-container-high to-tertiary-container/25 border border-outline-variant/40 shadow-xl p-8 sm:p-14 lg:p-16 text-center">
+      <div className="relative rounded-3xl overflow-hidden bg-linear-to-r from-primary-container/25 via-surface-container-high to-tertiary-container/25 border border-outline-variant/40 shadow-xl p-8 sm:p-14 lg:p-16 text-center">
         {/* Ambient Decorative Lighting */}
         <div
           aria-hidden="true"

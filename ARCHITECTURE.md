@@ -89,7 +89,7 @@ sell-digital-assets-website/
 │   ├── context/                # Theme and Authentication context contracts
 │   ├── features/               # Feature-sliced domain modules
 │   │   ├── auth/               # Sign-in and sign-up mutations, Zod schemas, and types
-│   │   └── website/            # HeroSection, FeatureHighlights, ExplorePage, AssetDetailPage
+│   │   └── website/            # Landing sections (PromoBar, HeroSearch, CuratedTabs, etc.), HomePage, ExplorePage, AssetDetailPage
 │   ├── hooks/                  # Custom React hooks (useAuth, useTheme, useDebounce, useLocalStorage)
 │   ├── layouts/website/        # Website shell layouts (Header, Navbar, Body, Footer, Index, Page, pages/)
 │   ├── lib/

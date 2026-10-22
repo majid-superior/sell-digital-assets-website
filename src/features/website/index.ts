@@ -3,4 +3,4 @@ export * from "./components/index.ts";
 export * from "./pages/HomePage.tsx";
 export * from "./pages/ExplorePage.tsx";
 export * from "./pages/AssetDetailPage.tsx";
-export * from "./types.ts";
+export * from "./pages/StaticInfoPage.tsx";

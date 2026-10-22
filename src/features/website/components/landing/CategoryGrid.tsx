@@ -1,4 +1,4 @@
-// src/website/CategoryGrid.tsx
+// src/features/website/components/landing/CategoryGrid.tsx
 import React from "react";
 import { Link } from "react-router-dom";
 import { Icons } from "@/lib/icons/index.ts";
@@ -141,7 +141,7 @@ export const CategoryGrid: React.FC = () => {
                 loading="lazy"
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-108"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
+              <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
               <div className="absolute bottom-2 right-2">
                 <span className="px-1.5 py-0.5 rounded-md bg-black/70 backdrop-blur-xs text-white text-[10px] font-mono font-semibold">
                   {category.count}

@@ -1,4 +1,4 @@
-// src/website/KeywordGrid.tsx
+// src/features/website/components/landing/KeywordGrid.tsx
 import React from "react";
 import { Link } from "react-router-dom";
 import { Icons } from "@/lib/icons/index.ts";
@@ -93,7 +93,7 @@ export const KeywordGrid: React.FC = () => {
             {/* Thematic Image Container */}
             <Link
               to={`/explore?q=${encodeURIComponent(theme.title)}`}
-              className="relative aspect-16/9 w-full overflow-hidden bg-surface-container block"
+              className="relative aspect-video w-full overflow-hidden bg-surface-container block"
             >
               <img
                 src={theme.imageUrl}
@@ -101,7 +101,7 @@ export const KeywordGrid: React.FC = () => {
                 loading="lazy"
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex items-end p-5">
+              <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/30 to-transparent flex items-end p-5">
                 <div>
                   <h3 className="text-lg sm:text-xl font-extrabold text-white tracking-tight drop-shadow-xs">
                     {theme.title}

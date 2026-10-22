@@ -1,4 +1,4 @@
-// src/website/FaqSection.tsx
+// src/features/website/components/landing/FaqSection.tsx
 import React from "react";
 import { Link } from "react-router-dom";
 import { Icons } from "@/lib/icons/index.ts";

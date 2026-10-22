@@ -22,7 +22,6 @@ export interface PublicBanner {
   title: string;
   description: string | null;
   supportingText: string | null;
-  badgeText: string | null;
   badgeType: BannerBadgeType;
   ctaLabel: string | null;
   ctaUrl: string | null;

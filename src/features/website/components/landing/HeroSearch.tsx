@@ -1,4 +1,4 @@
-// src/website/HeroSearch.tsx
+// src/features/website/components/landing/HeroSearch.tsx
 import React, { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -116,7 +116,7 @@ export const HeroSearch: React.FC = () => {
       {/* Background ambient lighting */}
       <div
         aria-hidden="true"
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-primary/10 rounded-full blur-3xl pointer-events-none -z-10"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-150 h-87.5 bg-primary/10 rounded-full blur-3xl pointer-events-none -z-10"
       />
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center space-y-6 sm:space-y-8">

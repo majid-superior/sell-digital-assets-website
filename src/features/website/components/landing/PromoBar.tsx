@@ -1,4 +1,4 @@
-// src/website/PromoBar.tsx
+// src/features/website/components/landing/PromoBar.tsx
 import React, { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Icons } from "@/lib/icons/index.ts";
@@ -195,9 +195,7 @@ export const PromoBar: React.FC<PromoBarProps> = ({
   const resolvedBadgeText =
     activeBanner.badgeType === "none"
       ? null
-      : activeBanner.badgeText?.trim() ||
-        DEFAULT_BADGE_LABELS[activeBanner.badgeType] ||
-        null;
+      : DEFAULT_BADGE_LABELS[activeBanner.badgeType] || null;
 
   const canShowCta =
     Boolean(activeBanner.showCta) &&

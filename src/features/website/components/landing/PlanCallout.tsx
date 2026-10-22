@@ -1,4 +1,4 @@
-// src/website/PlanCallout.tsx
+// src/features/website/components/landing/PlanCallout.tsx
 import React from "react";
 import { Link } from "react-router-dom";
 import { Icons } from "@/lib/icons/index.ts";
@@ -7,7 +7,7 @@ import { Button, Badge } from "@/components/ui/index.ts";
 export const PlanCallout: React.FC = () => {
   return (
     <section className="my-10 sm:my-16 lg:my-20">
-      <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-surface-container-high via-surface-container to-surface-container-low border border-outline-variant/40 shadow-xl p-8 sm:p-12 lg:p-14">
+      <div className="relative rounded-3xl overflow-hidden bg-linear-to-br from-surface-container-high via-surface-container to-surface-container-low border border-outline-variant/40 shadow-xl p-8 sm:p-12 lg:p-14">
         {/* Ambient Glows */}
         <div
           aria-hidden="true"

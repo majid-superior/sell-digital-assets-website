@@ -12,8 +12,6 @@ interface RawBannerPayload {
   description?: string | null;
   supporting_text?: string | null;
   supportingText?: string | null;
-  badge_text?: string | null;
-  badgeText?: string | null;
   badge_type?: BannerBadgeType;
   badgeType?: BannerBadgeType;
   cta_label?: string | null;
@@ -160,10 +158,6 @@ export function normalizePublicBanners(
       description: (raw.description ?? null)?.trim() || null,
       supportingText:
         (raw.supportingText ?? raw.supporting_text ?? null)?.trim() || null,
-      badgeText:
-        badgeType === "none"
-          ? null
-          : (raw.badgeText ?? raw.badge_text ?? null)?.trim() || null,
       badgeType,
       ctaLabel: showCta ? ctaLabel : null,
       ctaUrl: showCta ? safeCtaUrl : null,

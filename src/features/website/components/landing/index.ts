@@ -1,4 +1,4 @@
-// src/website/index.ts
+// src/features/website/components/landing/index.ts
 export * from "./PromoBar.tsx";
 export * from "./HeroSearch.tsx";
 export * from "./CuratedTabs.tsx";
@@ -9,5 +9,4 @@ export * from "./CategoryGrid.tsx";
 export * from "./FaqSection.tsx";
 export * from "./SeoDirectory.tsx";
 export * from "./BottomBanner.tsx";
-export * from "./LandingPage.tsx";
 

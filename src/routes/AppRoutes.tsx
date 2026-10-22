@@ -9,7 +9,7 @@ import ProtectedRoute from "@/routes/ProtectedRoute.tsx";
 import { useAuth } from "@/hooks/useAuth.ts";
 import { getUserPortalAccess } from "@/features/dashboard/utils/navigationHelper.ts";
 
-const HomePage = lazy(() => import("@/website/LandingPage.tsx"));
+const HomePage = lazy(() => import("@/features/website/pages/HomePage.tsx"));
 const SignInPage = lazy(() => import("@/layouts/website/pages/signIn.tsx"));
 const SignUpPage = lazy(() => import("@/layouts/website/pages/signUp.tsx"));
 const ServerPage = lazy(() => import("@/layouts/website/pages/server.tsx"));

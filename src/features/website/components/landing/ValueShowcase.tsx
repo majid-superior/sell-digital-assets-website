@@ -1,4 +1,4 @@
-// src/website/ValueShowcase.tsx
+// src/features/website/components/landing/ValueShowcase.tsx
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Icons } from "@/lib/icons/index.ts";

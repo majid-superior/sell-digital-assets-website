@@ -1,4 +1,4 @@
-// src/website/CuratedTabs.tsx
+// src/features/website/components/landing/CuratedTabs.tsx
 import React, { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
