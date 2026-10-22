@@ -130,7 +130,7 @@ sequenceDiagram
     participant Backend as Backend API (Port 5000)
     participant ResInt as responseInterceptor.ts
 
-    Component->>API: apiClient.get("/api/theme/active")
+    Component->>API: apiClient.get("/api/v1/theme")
     API->>ReqInt: buildRequestUrl() & prepareRequestHeaders()
     ReqInt-->>API: Attaches active Bearer token & formats query parameters
     API->>Backend: HTTP Request (with 15s AbortController timeout)
@@ -150,7 +150,7 @@ sequenceDiagram
 1. **Synchronous Head Evaluation**:
    - `index.html` contains an inline JavaScript snippet that reads local storage or system preferences (`prefers-color-scheme`) and applies the `.dark` class to `<html>` prior to the initial paint.
 2. **Dynamic Backend Palette Synchronization**:
-   - `src/services/v1/themeService.ts` queries the backend active theme (`GET /api/theme/active` or `/theme/active`) and maps color tokens to CSS variables (`--md-sys-color-primary`, `--md-sys-color-surface`, etc.) on the `:root` element.
+   - `src/services/v1/themeService.ts` queries the backend active theme (`GET /api/v1/theme` or `/theme/theme.css`) and maps color tokens to CSS variables (`--md-sys-color-primary`, `--md-sys-color-surface`, etc.) on the `:root` element.
 3. **Tailwind CSS v4 Integration**:
    - The `@theme` directive in `src/theme/styles/theme.css` maps custom properties directly to Tailwind utility classes.
 

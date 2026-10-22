@@ -10,6 +10,7 @@ import { formatDate } from "@/utils/date.ts";
 import { Icons } from "@/lib/icons/index.ts";
 import { Button, Badge, Skeleton, EmptyState, Modal } from "@/components/ui/index.ts";
 import { useDebounce } from "@/hooks/useDebounce.ts";
+import { copyToClipboard, getAssetPublicUrl } from "@/utils/clipboard.ts";
 import type { DigitalAsset, AssetStatus } from "@/types/asset.ts";
 
 type StatusTab = "all" | "published" | "pending" | "needs_update" | "rejected" | "draft" | "archived";
@@ -31,6 +32,7 @@ export const SellerProductsPage: React.FC = () => {
     const [assetToDelete, setAssetToDelete] = useState<{ id: string; title: string } | null>(null);
     const [replyingAsset, setReplyingAsset] = useState<DigitalAsset | null>(null);
     const [sellerReply, setSellerReply] = useState<string>("");
+    const [copiedAssetId, setCopiedAssetId] = useState<string | null>(null);
 
     const [activeTab, setActiveTab] = useState<StatusTab>("all");
     const [searchQuery, setSearchQuery] = useState("");
@@ -131,6 +133,34 @@ export const SellerProductsPage: React.FC = () => {
         if (assetToDelete) {
             deleteMutation.mutate(assetToDelete.id);
             setAssetToDelete(null);
+        }
+    };
+
+    const handleCopyShareLink = async (item: DigitalAsset) => {
+        // Enforce marketplace access rules: unpublished/draft/pending/rejected/archived assets cannot be publicly accessed
+        if (item.status !== "published") {
+            const statusLabel = item.status.replace(/_/g, " ");
+            toast.error("Cannot Share Unpublished Asset", {
+                description: `This asset is currently "${statusLabel}". Only approved and published assets can be viewed by public buyers.`,
+            });
+            return;
+        }
+
+        const shareUrl = getAssetPublicUrl(item);
+
+        const success = await copyToClipboard(shareUrl);
+        if (success) {
+            setCopiedAssetId(item.id);
+            toast.success("Share link copied to clipboard", {
+                description: shareUrl,
+            });
+            setTimeout(() => {
+                setCopiedAssetId((prev) => (prev === item.id ? null : prev));
+            }, 2000);
+        } else {
+            toast.error("Failed to Copy Link", {
+                description: "Clipboard access was denied by your browser. Please copy the URL manually.",
+            });
         }
     };
 
@@ -263,7 +293,7 @@ export const SellerProductsPage: React.FC = () => {
                 </div>
 
                 {/* Search Bar */}
-                <div className="relative min-w-[240px]">
+                <div className="relative min-w-60">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant">
                         <Icons.Search size={14} />
                     </div>
@@ -324,7 +354,7 @@ export const SellerProductsPage: React.FC = () => {
 
                                     return (
                                         <tr key={item.id} className="hover:bg-surface-container-low/50 transition-colors">
-                                            {/* Thumbnail & Title */}
+                                             {/* Thumbnail & Title */}
                                             <td className="py-3.5 px-4">
                                                 <div className="flex items-center gap-3">
                                                     {thumbnail ? (
@@ -339,7 +369,7 @@ export const SellerProductsPage: React.FC = () => {
                                                             <Icons.Package size={20} className="text-primary" />
                                                         </div>
                                                     )}
-                                                    <div className="min-w-0 max-w-[240px]">
+                                                    <div className="min-w-0 max-w-60">
                                                         <Link
                                                             to={
                                                                 item.status === "published"
@@ -383,7 +413,7 @@ export const SellerProductsPage: React.FC = () => {
                                             </td>
 
                                             {/* Status Badge & Admin Feedback Snippet */}
-                                            <td className="py-3.5 px-4 max-w-[260px]">
+                                            <td className="py-3.5 px-4 max-w-65">
                                                 <div className="flex flex-col items-start gap-1.5">
                                                     <Badge
                                                         variant={statusBadgeVariant(item.status)}
@@ -454,6 +484,38 @@ export const SellerProductsPage: React.FC = () => {
                                                         className="p-1.5 cursor-pointer text-foreground hover:text-primary"
                                                     >
                                                         <Icons.Edit size={14} />
+                                                    </Button>
+
+                                                    {/* Copy Share Link */}
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => void handleCopyShareLink(item)}
+                                                        title={
+                                                            item.status === "published"
+                                                                ? copiedAssetId === item.id
+                                                                    ? "Share link copied!"
+                                                                    : "Copy Share Link"
+                                                                : `Cannot share: Asset is ${item.status.replace(/_/g, " ")}`
+                                                        }
+                                                        aria-label={
+                                                            item.status === "published"
+                                                                ? `Copy share link for ${item.title}`
+                                                                : `Cannot share ${item.title} (status: ${item.status.replace(/_/g, " ")})`
+                                                        }
+                                                        className={`p-1.5 cursor-pointer ${
+                                                            item.status === "published"
+                                                                ? copiedAssetId === item.id
+                                                                    ? "text-primary border-primary/40 bg-primary/10"
+                                                                    : "text-foreground hover:text-primary"
+                                                                : "opacity-50 text-on-surface-variant hover:text-on-surface"
+                                                        }`}
+                                                    >
+                                                        {copiedAssetId === item.id ? (
+                                                            <Icons.Check size={14} className="text-primary" />
+                                                        ) : (
+                                                            <Icons.Link size={14} />
+                                                        )}
                                                     </Button>
 
                                                     {item.status === "published" && (

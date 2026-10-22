@@ -59,6 +59,9 @@ import {
   Trash2 as LucideTrash2,
   HelpCircle as LucideHelpCircle,
   ChevronDown as LucideChevronDown,
+  Copy as LucideCopy,
+  Link as LucideLink,
+  Share2 as LucideShare,
 } from "lucide-react";
 
 import type { LucideProps } from "lucide-react";
@@ -143,6 +146,9 @@ export const Store: IconComponent = createSemanticIcon(LucideStore);
 export const Trash2: IconComponent = createSemanticIcon(LucideTrash2);
 export const HelpCircle: IconComponent = createSemanticIcon(LucideHelpCircle);
 export const ChevronDown: IconComponent = createSemanticIcon(LucideChevronDown);
+export const Copy: IconComponent = createSemanticIcon(LucideCopy);
+export const Link: IconComponent = createSemanticIcon(LucideLink);
+export const Share: IconComponent = createSemanticIcon(LucideShare);
 
 // Friendly aliases
 export const Sun: IconComponent = ThemeLight;
@@ -155,3 +161,4 @@ export const ShieldCheck: IconComponent = Security;
 export const Star: IconComponent = Rating;
 export const Tag: IconComponent = Sell;
 export const Compass: IconComponent = Explore;
+export const ShareLink: IconComponent = Link;

@@ -4,7 +4,6 @@ import type { User } from "@/types/user.ts";
 import { AuthContext, type AuthContextType } from "@/context/authContext.ts";
 import { authService } from "@/services/v1/authService.ts";
 import { organizationService } from "@/services/v1/organizationService.ts";
-import { ApiError } from "@/services/api.ts";
 import { queryClient } from "@/services/queryClient.ts";
 import { toast } from "sonner";
 
@@ -18,7 +17,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const [user, setUser] = useState<User | null>(() => authService.getStoredUser());
     const [token, setToken] = useState<string | null>(() => authService.getStoredToken());
-    const [isLoading, setIsLoading] = useState<boolean>(() => !authService.getStoredToken());
+    // When stored credentials exist, keep isLoading = true until backend verification completes
+    const [isLoading, setIsLoading] = useState<boolean>(() =>
+        Boolean(authService.getStoredToken() || authService.getStoredRefreshToken())
+    );
 
     const userRef = React.useRef(user);
     useEffect(() => {
@@ -30,6 +32,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const setSession = useCallback((newUser: User, newToken: string) => {
         hasVerifiedOnMount.current = true;
+        authService.updateLastActivity();
         setUser(newUser);
         setToken(newToken);
         setIsLoading(false);
@@ -39,6 +42,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         authService.signOut();
         setUser(null);
         setToken(null);
+        setIsLoading(false);
         queryClient.clear();
         toast.success("Signed out successfully", {
             description: "You have returned to the marketplace.",
@@ -51,6 +55,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         authService.clearSession();
         setUser(null);
         setToken(null);
+        setIsLoading(false);
         queryClient.clear();
 
         const currentPath = location.pathname;
@@ -82,31 +87,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 return;
             }
 
-            // Attempt to verify with current access token
+            // 1. Enforce persisted idle timeout across browser/PC restarts before restoring session
+            const systemSettings = organizationService.getSystemSettings();
+            const timeoutMinutes = systemSettings.sessionIdleTimeoutMinutes || 30;
+            const timeoutMs = timeoutMinutes * 60 * 1000;
+            const lastActivity = authService.getLastActivity();
+            if (lastActivity && Date.now() - lastActivity >= timeoutMs) {
+                if (isMounted) {
+                    handleSessionExpired("Your session has ended due to inactivity. Please sign in again.");
+                }
+                return;
+            }
+
+            // 2. Attempt to verify with current access token (apiClient automatically attempts silent refresh on 401)
             if (storedToken) {
                 try {
                     const freshUser = await authService.getCurrentUser();
                     if (isMounted) {
+                        authService.updateLastActivity();
                         setUser(freshUser);
+                        setToken(authService.getStoredToken());
                         setIsLoading(false);
                         return;
                     }
-                } catch (err: unknown) {
-                    // Only drop through to refresh/expiry if it's an explicit 401/403 auth error
-                    const isAuthError = err instanceof ApiError && (err.status === 401 || err.status === 403);
-                    if (!isAuthError && !refreshToken) {
-                        // Transient network or server error: retain stored session
-                        if (isMounted) setIsLoading(false);
-                        return;
-                    }
+                } catch {
+                    // Verification failed; fall through to explicit refresh or session termination
                 }
             }
 
-            // Attempt silent token refresh if token expired
+            // 3. Attempt silent token refresh if refresh token is available
             if (refreshToken) {
                 try {
                     const refreshed = await authService.refreshSession();
                     if (refreshed && isMounted) {
+                        authService.updateLastActivity();
                         setUser(refreshed.user);
                         setToken(refreshed.token);
                         setIsLoading(false);
@@ -117,9 +131,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 }
             }
 
-            // Both access token and refresh token failed: session has ended
+            // 4. Both access token and refresh token failed (or server rejected/unreachable): terminate unverified session
             if (isMounted) {
-                setIsLoading(false);
                 handleSessionExpired("Your session has ended. Please sign in again.");
             }
         }
@@ -133,20 +146,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // Idle Activity Monitor: Automatically terminate session when user is inactive beyond sessionIdleTimeoutMinutes
     useEffect(() => {
-        if (!user || !token) return;
+        if (!user || !token || isLoading) return;
 
         const systemSettings = organizationService.getSystemSettings();
         const timeoutMinutes = systemSettings.sessionIdleTimeoutMinutes || 30;
         const timeoutMs = timeoutMinutes * 60 * 1000;
 
-        let lastActivity = Date.now();
-        let lastRecorded = Date.now();
+        let lastRecorded = authService.getLastActivity() || Date.now();
+        authService.updateLastActivity(lastRecorded);
 
         const updateActivity = () => {
             const now = Date.now();
             if (now - lastRecorded > 10000) {
                 lastRecorded = now;
-                lastActivity = now;
+                authService.updateLastActivity(now);
             }
         };
 
@@ -154,18 +167,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         events.forEach((evt) => window.addEventListener(evt, updateActivity, { passive: true }));
 
         const checkInterval = setInterval(() => {
-            const idleTime = Date.now() - lastActivity;
+            const persistedLastActivity = authService.getLastActivity() || lastRecorded;
+            const idleTime = Date.now() - persistedLastActivity;
             if (idleTime >= timeoutMs) {
                 clearInterval(checkInterval);
                 handleSessionExpired("Your session has ended due to inactivity. Please sign in again.");
             }
-        }, 30000);
+        }, 15000);
 
         return () => {
             clearInterval(checkInterval);
             events.forEach((evt) => window.removeEventListener(evt, updateActivity));
         };
-    }, [user, token, handleSessionExpired]);
+    }, [user, token, isLoading, handleSessionExpired]);
 
     // Synchronize when other tabs or services dispatch auth events
     useEffect(() => {
@@ -185,9 +199,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             authService.clearSession();
             setUser(null);
             setToken(null);
+            setIsLoading(false);
             queryClient.clear();
             if (location.pathname.startsWith("/dashboard")) {
                 void navigate("/", { replace: true });
+            }
+        };
+
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === "auth_token" && !e.newValue) {
+                handleSignOut();
+            } else if (e.key === "auth_user" && e.newValue) {
+                try {
+                    setUser(JSON.parse(e.newValue) as User);
+                } catch {
+                    // Ignore malformed JSON
+                }
             }
         };
 
@@ -195,12 +222,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         window.addEventListener("auth:unauthorized", onSessionExpired);
         window.addEventListener("auth:signout", handleSignOut);
         window.addEventListener("auth:token-refreshed", handleTokenRefreshed);
+        window.addEventListener("storage", handleStorageChange);
 
         return () => {
             window.removeEventListener("auth:session-expired", onSessionExpired);
             window.removeEventListener("auth:unauthorized", onSessionExpired);
             window.removeEventListener("auth:signout", handleSignOut);
             window.removeEventListener("auth:token-refreshed", handleTokenRefreshed);
+            window.removeEventListener("storage", handleStorageChange);
         };
     }, [handleSessionExpired, location.pathname, navigate]);
 
@@ -208,7 +237,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         () => ({
             user,
             token,
-            isAuthenticated: !!token && !!user,
+            isAuthenticated: !isLoading && Boolean(token && user),
             isLoading,
             setSession,
             signOut,

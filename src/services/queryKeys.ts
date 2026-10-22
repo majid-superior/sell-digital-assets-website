@@ -55,6 +55,10 @@ export const queryKeys = {
         list: (params: Record<string, string | number | boolean | undefined> = {}) =>
             [...queryKeys.notifications.all, "list", params] as const,
     },
+    banners: {
+        all: ["banners"] as const,
+        active: () => [...queryKeys.banners.all, "active"] as const,
+    },
 } as const;
 
 export default queryKeys;

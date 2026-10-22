@@ -11,6 +11,7 @@ import type { User, UserRole } from "@/types/user.ts";
 const TOKEN_KEY = "auth_token";
 const REFRESH_TOKEN_KEY = "auth_refresh_token";
 const USER_KEY = "auth_user";
+export const LAST_ACTIVITY_KEY = "auth_last_activity";
 
 class AuthService {
     /**
@@ -193,7 +194,7 @@ class AuthService {
                 message = message || "Too many attempts. Please wait a few moments before trying again.";
             } else if (error.status >= 500) {
                 code = "SERVER_ERROR";
-                message = "The authentication service is temporarily unavailable. Please try again in a few moments.";
+                message = message || "The authentication service is temporarily unavailable. Please try again in a few moments.";
             }
 
             throw new AuthenticationError(message, {
@@ -225,7 +226,8 @@ class AuthService {
      * Terminate user session and remove tokens from storage.
      */
     signOut(): void {
-        apiClient.post("/api/v1/auth/signout", {}).catch(() => {});
+        const refreshToken = this.getStoredRefreshToken();
+        apiClient.post("/api/v1/auth/signout", refreshToken ? { refreshToken } : {}).catch(() => {});
         this.clearSession();
         window.dispatchEvent(new CustomEvent("auth:signout"));
     }
@@ -242,6 +244,7 @@ class AuthService {
         if (refreshToken) {
             storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
         }
+        this.updateLastActivity();
     }
 
     /**
@@ -251,9 +254,34 @@ class AuthService {
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(USER_KEY);
         localStorage.removeItem(REFRESH_TOKEN_KEY);
+        localStorage.removeItem(LAST_ACTIVITY_KEY);
         sessionStorage.removeItem(TOKEN_KEY);
         sessionStorage.removeItem(USER_KEY);
         sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+        sessionStorage.removeItem(LAST_ACTIVITY_KEY);
+    }
+
+    /**
+     * Retrieve last recorded activity timestamp (ms) across browser/PC restarts.
+     */
+    getLastActivity(): number | null {
+        const raw = localStorage.getItem(LAST_ACTIVITY_KEY) || sessionStorage.getItem(LAST_ACTIVITY_KEY);
+        if (!raw) return null;
+        const parsed = Number(raw);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    }
+
+    /**
+     * Persist last user activity timestamp (ms) in storage.
+     */
+    updateLastActivity(timestamp: number = Date.now()): void {
+        try {
+            const isLocal = Boolean(localStorage.getItem(TOKEN_KEY) || localStorage.getItem(REFRESH_TOKEN_KEY));
+            const storage = isLocal ? localStorage : sessionStorage;
+            storage.setItem(LAST_ACTIVITY_KEY, String(timestamp));
+        } catch {
+            // Ignore storage write errors
+        }
     }
 
     /**
@@ -331,13 +359,40 @@ class AuthService {
      * Upgrades the authenticated buyer account to a seller/creator account.
      */
     async becomeSeller(): Promise<User> {
-        const response = await apiClient.post<User | { data: User; user?: User }>("/api/v1/auth/become-seller", {});
+        const response = await apiClient.post<
+            User | { data: User; user?: User; token?: string; refreshToken?: string; tokens?: { accessToken?: string; refreshToken?: string } }
+        >("/api/v1/auth/become-seller", {});
+
         const rawUser: User = (response && "data" in response && response.data)
             ? response.data
             : (response as User);
         const user = this.normalizeUser(rawUser);
-        const storage = localStorage.getItem(TOKEN_KEY) ? localStorage : sessionStorage;
-        storage.setItem(USER_KEY, JSON.stringify(user));
+
+        const isRemembered = Boolean(localStorage.getItem(TOKEN_KEY) || localStorage.getItem(REFRESH_TOKEN_KEY));
+        const newToken =
+            (response && typeof response === "object" && "token" in response && response.token) ||
+            (response && typeof response === "object" && "tokens" in response && response.tokens?.accessToken) ||
+            this.getStoredToken();
+        const newRefreshToken =
+            (response && typeof response === "object" && "refreshToken" in response && response.refreshToken) ||
+            (response && typeof response === "object" && "tokens" in response && response.tokens?.refreshToken) ||
+            this.getStoredRefreshToken() ||
+            undefined;
+
+        if (newToken) {
+            this.saveSession(newToken, user, isRemembered, newRefreshToken);
+            if (typeof window !== "undefined") {
+                window.dispatchEvent(
+                    new CustomEvent("auth:token-refreshed", {
+                        detail: { token: newToken, user },
+                    })
+                );
+            }
+        } else {
+            const storage = isRemembered ? localStorage : sessionStorage;
+            storage.setItem(USER_KEY, JSON.stringify(user));
+        }
+
         return user;
     }
 }

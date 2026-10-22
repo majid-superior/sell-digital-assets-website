@@ -14,7 +14,7 @@ import { BottomBanner } from "./BottomBanner.tsx";
 export const LandingPage: React.FC = () => {
   return (
     <div className="w-full flex flex-col bg-background text-on-surface transition-colors duration-200">
-      {/* 1. Purple promotional announcement bar */}
+      {/* 1. Dynamic database-driven promotional announcement bar */}
       <PromoBar />
 
       {/* Main Container for sections 2-10 */}

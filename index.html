@@ -1,8 +1,9 @@
 <!-- index.html -->
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
+    <meta name="color-scheme" content="dark light" />
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <meta
@@ -20,21 +21,16 @@
           window.__zod_globalConfig = Object.assign(window.__zod_globalConfig || {}, { jitless: true });
 
           var stored = localStorage.getItem("theme");
-          var prefersDark = window.matchMedia(
-            "(prefers-color-scheme: dark)",
-          ).matches;
           var theme =
-            stored === "dark" || stored === "light"
-              ? stored
-              : prefersDark
-                ? "dark"
-                : "light";
+            stored === "dark" || stored === "light" ? stored : "dark";
           if (theme === "dark") {
             document.documentElement.classList.add("dark");
             document.documentElement.setAttribute("data-theme", "dark");
+            document.documentElement.style.colorScheme = "dark";
           } else {
             document.documentElement.classList.remove("dark");
             document.documentElement.setAttribute("data-theme", "light");
+            document.documentElement.style.colorScheme = "light";
           }
 
           var cached = localStorage.getItem("theme_css");
@@ -74,6 +70,9 @@
             }
           }
         } catch (e) {
+          document.documentElement.classList.add("dark");
+          document.documentElement.setAttribute("data-theme", "dark");
+          document.documentElement.style.colorScheme = "dark";
           console.warn("Theme pre-paint error:", e);
         }
       })();

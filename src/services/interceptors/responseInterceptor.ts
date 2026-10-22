@@ -108,14 +108,21 @@ export async function handleResponseError(
   }
 
   // Do not trigger global auth expiration on authentication endpoints (/auth/signin, /auth/signup, /auth/register)
-  // A 401 on /signin indicates invalid credentials, not an expired session.
+  // or when a profile update (/auth/me) fails due to an incorrect currentPassword.
   const targetUrl = (endpoint || response.url || "").toLowerCase();
+  const rawErrMsg =
+    errorData && typeof errorData === "object" && "message" in errorData && typeof (errorData as { message?: unknown }).message === "string"
+      ? (errorData as { message: string }).message.toLowerCase()
+      : "";
+  const isMePasswordMismatch =
+    targetUrl.includes("/auth/me") && rawErrMsg.includes("current password");
   const isAuthEndpoint =
     targetUrl.includes("/auth/signin") ||
     targetUrl.includes("/auth/signup") ||
     targetUrl.includes("/auth/login") ||
     targetUrl.includes("/auth/register") ||
-    targetUrl.includes("/auth/refresh");
+    targetUrl.includes("/auth/refresh") ||
+    isMePasswordMismatch;
 
   if (response.status === 401 && !isAuthEndpoint) {
     if (typeof window !== "undefined") {
