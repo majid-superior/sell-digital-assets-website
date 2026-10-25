@@ -1,7 +1,62 @@
 import react from "@vitejs/plugin-react";
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig, loadEnv, type ViteDevServer, type Plugin } from "vite";
 import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath } from "node:url";
+import fs from "node:fs";
+import path from "node:path";
+import type { IncomingMessage, ServerResponse } from "node:http";
+
+function heroDataSyncPlugin(): Plugin {
+  return {
+    name: "hero-data-sync-plugin",
+    configureServer(server: ViteDevServer) {
+      server.middlewares.use((req: IncomingMessage, res: ServerResponse, next: () => void) => {
+        if (req.url === "/api/internal/update-hero-json" && req.method === "POST") {
+          let body = "";
+          req.on("data", (chunk: Buffer | string) => {
+            body += chunk.toString();
+          });
+          req.on("end", () => {
+            void (async () => {
+              try {
+                const parsed: unknown = JSON.parse(body);
+                if (typeof parsed !== "object" || parsed === null) {
+                  throw new Error("Invalid payload: expected JSON object");
+                }
+                const targetPath = fileURLToPath(
+                  new URL("./src/features/website/data/heroImages.json", import.meta.url),
+                );
+                await fs.promises.mkdir(path.dirname(targetPath), { recursive: true });
+                await fs.promises.writeFile(targetPath, JSON.stringify(parsed, null, 2), "utf-8");
+                res.setHeader("Content-Type", "application/json");
+                res.statusCode = 200;
+                res.end(
+                  JSON.stringify({
+                    success: true,
+                    message: "Hero images JSON updated successfully",
+                  }),
+                );
+              } catch (err: unknown) {
+                res.statusCode = 500;
+                res.setHeader("Content-Type", "application/json");
+                const errorMessage =
+                  err instanceof Error ? err.message : "Failed to update hero images JSON";
+                res.end(
+                  JSON.stringify({
+                    success: false,
+                    error: errorMessage,
+                  }),
+                );
+              }
+            })();
+          });
+          return;
+        }
+        next();
+      });
+    },
+  };
+}
 
 function htmlTemplatePlugin(orgTitle = "AssetDrop") {
   return {
@@ -46,7 +101,7 @@ export default defineConfig(({ mode }) => {
     "";
 
   return {
-    plugins: [react(), tailwindcss(), htmlTemplatePlugin(orgTitle)],
+    plugins: [react(), tailwindcss(), heroDataSyncPlugin(), htmlTemplatePlugin(orgTitle)],
     define: {
       ...(apiBaseUrl && !apiBaseUrl.includes("yourdomain.com")
         ? {

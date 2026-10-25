@@ -1,6 +1,14 @@
 // src/services/v1/categoryService.ts
 import { apiClient } from "@/services/api.ts";
 import type { CategoryNode } from "@/types/category.ts";
+import categoryImagesData from "@/features/website/data/categoryImages.json";
+
+export interface CategoryThumb {
+    id: string;
+    name: string;
+    slug: string;
+    imageUrl: string;
+}
 
 interface CategoryTreeResponse {
     success?: boolean;
@@ -24,6 +32,13 @@ function normalizeTree(nodes: CategoryNode[] | undefined): CategoryNode[] {
 }
 
 class CategoryService {
+    /**
+     * Synchronously returns cached local category preview cards from JSON file (0ms delay, zero CLS).
+     */
+    getLocalCategoryCards(): CategoryThumb[] {
+        return categoryImagesData.categories || [];
+    }
+
     /**
      * Fetch the hierarchical tree of active categories.
      */

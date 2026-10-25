@@ -1,32 +1,47 @@
 // src/features/website/components/landing/HeroSection.tsx
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { ShieldCheck, Zap, BadgeCheck } from "lucide-react";
 import { Icons } from "@/lib/icons/index.ts";
 import { Button } from "@/components/ui/index.ts";
 import { heroService } from "@/services/v1/heroService.ts";
 import type { HeroImage } from "@/types/hero.ts";
 
-export type FormatFilter = "all" | "photos" | "videos";
+export type FormatFilter = "all" | "photography" | "video";
 
 interface FilterTab {
   label: string;
+  shortLabel?: string;
   value: FormatFilter;
-  categorySlug?: string;
+  categorySlug: string | null;
+  path: string;
+  placeholder: string;
 }
 
 const FILTER_TABS: FilterTab[] = [
-  { label: "All", value: "all" },
-  { label: "Photos", value: "photos", categorySlug: "photos" },
-  { label: "Videos", value: "videos", categorySlug: "videos" },
-];
-
-const TRENDING_SEARCHES = [
-  "Nature",
-  "4K drone",
-  "Business",
-  "Abstract",
-  "Cityscape",
-  "Slow motion",
+  {
+    label: "All",
+    value: "all",
+    categorySlug: null,
+    path: "/explore",
+    placeholder: "Search stock photos, 4K videos, vectors, 3D models...",
+  },
+  {
+    label: "Photography & Stock Imagery",
+    shortLabel: "Photography",
+    value: "photography",
+    categorySlug: "photography-and-stock-imagery",
+    path: "/explore?category=photography-and-stock-imagery",
+    placeholder: "Search stock photos, high-res portraits, textures, backdrops...",
+  },
+  {
+    label: "Video & Motion Graphics",
+    shortLabel: "Video & Motion",
+    value: "video",
+    categorySlug: "video-and-motion-graphics",
+    path: "/explore?category=video-and-motion-graphics",
+    placeholder: "Search 4K drone clips, motion graphics, video templates, slow motion...",
+  },
 ];
 
 // Clean dark placeholder SVG for unconfigured slots
@@ -52,24 +67,32 @@ export const HeroSection: React.FC = () => {
   const navigate = useNavigate();
   const [activeFormat, setActiveFormat] = useState<FormatFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [heroImages, setHeroImages] = useState<HeroImage[]>([]);
 
-  // Fetch active hero images from backend
+  // Instant synchronous initialization from local heroImages.json (0ms delay, base64 data)
+  const [heroImages, setHeroImages] = useState<HeroImage[]>(() =>
+    heroService.getLocalHeroImages(),
+  );
+
+  // Background verification: check if backend database has updated images, sync and update JSON
   useEffect(() => {
     let isMounted = true;
+    const controller = new AbortController();
+
     heroService
-      .getActiveHeroImages()
-      .then((data) => {
+      .checkAndUpdateHeroImages(controller.signal)
+      .then(({ updated, images }) => {
         if (!isMounted) return;
-        setHeroImages(data);
+        if (updated && images.length > 0) {
+          setHeroImages(images);
+        }
       })
       .catch(() => {
-        if (!isMounted) return;
-        setHeroImages([]);
+        // Silently preserve local JSON images
       });
 
     return () => {
       isMounted = false;
+      controller.abort();
     };
   }, []);
 
@@ -92,17 +115,20 @@ export const HeroSection: React.FC = () => {
     }
   };
 
-  // Build exactly 15 items: backend active images first, followed by placeholder cards
+  // Build exactly 15 items: active hero images first, followed by placeholder cards if < 15
   const displayItems = React.useMemo(() => {
     const items: Array<{
       id: string;
       title: string;
       subtitle: string | null;
+      detail?: string | null;
+      categoryName?: string | null;
+      categorySlug?: string | null;
       imageUrl: string;
       isPlaceholder: boolean;
     }> = [];
 
-    // Add up to 15 configured images from database
+    // Add up to 15 configured images from database / local JSON
     if (Array.isArray(heroImages)) {
       for (let i = 0; i < Math.min(heroImages.length, 15); i++) {
         const img = heroImages[i];
@@ -111,6 +137,9 @@ export const HeroSection: React.FC = () => {
             id: img.id || `hero-${i}`,
             title: img.title || "Hero Showcase",
             subtitle: img.subtitle ?? null,
+            detail: img.detail ?? null,
+            categoryName: img.categoryName ?? null,
+            categorySlug: img.categorySlug ?? null,
             imageUrl: img.imageUrl,
             isPlaceholder: false,
           });
@@ -125,6 +154,9 @@ export const HeroSection: React.FC = () => {
         id: `placeholder-${i}`,
         title: "Available Slot",
         subtitle: "Empty",
+        detail: null,
+        categoryName: null,
+        categorySlug: null,
         imageUrl: EMPTY_PLACEHOLDER_IMAGE,
         isPlaceholder: true,
       });
@@ -196,36 +228,45 @@ export const HeroSection: React.FC = () => {
           {/* Main Headline with Highlighted Gradient */}
           <div className="space-y-3">
             <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-on-surface leading-[1.1] text-balance">
-              Stunning photos &amp; videos,{" "}
-              <span className="bg-gradient-to-r from-amber-500 via-orange-500 to-emerald-400 bg-clip-text text-transparent">
-                ready to create with
+              Curated digital assets,{" "}
+              <span className="bg-linear-to-r from-amber-500 via-orange-500 to-emerald-400 bg-clip-text text-transparent">
+                ready to build with
               </span>
             </h1>
             <p className="text-sm sm:text-base text-on-surface-variant max-w-xl leading-relaxed text-balance">
-              Royalty-free 4K footage, high-resolution photography, and creative
-              assets from independent creators — licensed in one click,
-              downloaded instantly.
+              Discover high-quality 3D models, graphics, UI kits, templates, and digital
+              products from independent creators — licensed for commercial use and delivered instantly.
             </p>
           </div>
 
           {/* Search Box with Tabs */}
           <div className="space-y-3 max-w-xl">
-            {/* Filter Tabs (All, Photos, Videos) */}
-            <div className="flex items-center gap-1.5 p-1 rounded-full bg-surface-container-high border border-outline-variant/30 w-fit">
-              {FILTER_TABS.map((tab) => (
-                <button
-                  key={tab.value}
-                  type="button"
-                  onClick={() => setActiveFormat(tab.value)}
-                  className={`px-4 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                    activeFormat === tab.value
-                      ? "bg-surface text-on-surface shadow-xs"
-                      : "text-on-surface-variant hover:text-on-surface"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+            {/* Filter Tabs (All, Photography & Stock Imagery, Video & Motion Graphics) */}
+            <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-full bg-surface-container-high border border-outline-variant/30 w-fit max-w-full">
+              {FILTER_TABS.map((tab) => {
+                const targetUrl = searchQuery.trim()
+                  ? tab.categorySlug
+                    ? `/explore?category=${encodeURIComponent(tab.categorySlug)}&q=${encodeURIComponent(searchQuery.trim())}`
+                    : `/explore?q=${encodeURIComponent(searchQuery.trim())}`
+                  : tab.path;
+
+                return (
+                  <Link
+                    key={tab.value}
+                    to={targetUrl}
+                    onClick={() => setActiveFormat(tab.value)}
+                    className={`px-3.5 sm:px-4 py-1 rounded-full text-xs font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                      activeFormat === tab.value
+                        ? "bg-surface text-on-surface shadow-xs"
+                        : "text-on-surface-variant hover:text-on-surface"
+                    }`}
+                    title={`Browse ${tab.label}`}
+                  >
+                    <span className="hidden sm:inline">{tab.label}</span>
+                    <span className="sm:hidden">{tab.shortLabel || tab.label}</span>
+                  </Link>
+                );
+              })}
             </div>
 
             {/* Input Form with Red/Orange Accent Search Button */}
@@ -242,8 +283,11 @@ export const HeroSection: React.FC = () => {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search stock photos, 4K videos, vectors..."
-                  aria-label="Search stock assets"
+                  placeholder={
+                    FILTER_TABS.find((t) => t.value === activeFormat)?.placeholder ||
+                    "Search stock photos, 4K videos, vectors, 3D models..."
+                  }
+                  aria-label="Search digital assets"
                   className="w-full bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-hidden py-2"
                 />
                 {searchQuery && (
@@ -268,70 +312,59 @@ export const HeroSection: React.FC = () => {
                 Search
               </Button>
             </form>
-
-            {/* Trending Keywords */}
-            <div className="flex flex-wrap items-center gap-1.5 text-xs text-on-surface-variant pt-1">
-              <span className="font-semibold text-on-surface">Trending:</span>
-              {TRENDING_SEARCHES.map((keyword) => (
-                <button
-                  key={keyword}
-                  type="button"
-                  onClick={() =>
-                    void navigate(`/explore?q=${encodeURIComponent(keyword)}`)
-                  }
-                  className="px-2.5 py-0.5 rounded-full bg-surface-container border border-outline-variant/20 hover:border-primary hover:text-primary transition-colors cursor-pointer text-[11px]"
-                >
-                  {keyword}
-                </button>
-              ))}
-            </div>
           </div>
 
-          {/* Stats Summary Row */}
-          <div className="grid grid-cols-3 gap-4 pt-4 border-t border-outline-variant/20 max-w-xl">
-            <div>
-              <div className="text-xl sm:text-2xl font-black text-on-surface">
-                2M+
+          {/* Stats / Marketplace Features & Licensing Row */}
+          <div className="grid grid-cols-3 gap-3 sm:gap-6 pt-4 border-t border-outline-variant/20 max-w-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0">
+                <ShieldCheck size={20} className="text-primary" />
               </div>
-              <div className="text-xs text-on-surface-variant">
-                Photos &amp; clips
-              </div>
-            </div>
-            <div>
-              <div className="text-xl sm:text-2xl font-black text-on-surface">
-                4K
-              </div>
-              <div className="text-xs text-on-surface-variant">
-                Video quality
+              <div>
+                <div className="text-base sm:text-xl font-black text-on-surface leading-tight">
+                  Licensed
+                </div>
+                <div className="text-xs text-on-surface-variant mt-0.5">
+                  Commercial rights
+                </div>
               </div>
             </div>
-            <div>
-              <div className="text-xl sm:text-2xl font-black text-on-surface">
-                100%
+
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
+                <Zap size={20} className="text-amber-500" />
               </div>
-              <div className="text-xs text-on-surface-variant">
-                Royalty-free
+              <div>
+                <div className="text-base sm:text-xl font-black text-on-surface leading-tight">
+                  Instant
+                </div>
+                <div className="text-xs text-on-surface-variant mt-0.5">
+                  Direct downloads
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 flex items-center justify-center shrink-0">
+                <BadgeCheck size={20} className="text-emerald-500" />
+              </div>
+              <div>
+                <div className="text-base sm:text-xl font-black text-on-surface leading-tight">
+                  Curated
+                </div>
+                <div className="text-xs text-on-surface-variant mt-0.5">
+                  Verified creators
+                </div>
               </div>
             </div>
           </div>
-
-          {/* Bottom Creator Link */}
-          {/* <div className="pt-1">
-            <Link
-              to="/signup?role=seller"
-              className="inline-flex items-center gap-1 text-xs font-semibold text-on-surface hover:text-primary transition-colors"
-            >
-              <span>Are you a creator?</span>
-              <span className="underline underline-offset-2">Start selling your work ↗</span>
-            </Link>
-          </div> */}
         </div>
 
         {/* Right Column: 15-Image Sliding & Animating Showcase */}
-        <div className="lg:col-span-6 relative h-[520px] sm:h-[600px] w-full overflow-hidden rounded-3xl select-none">
+        <div className="lg:col-span-6 relative h-130 sm:h-150 w-full overflow-hidden rounded-3xl select-none">
           {/* Top & Bottom Smooth Gradient Fade Masks */}
-          <div className="absolute top-0 inset-x-0 h-16 bg-gradient-to-b from-background to-transparent z-20 pointer-events-none" />
-          <div className="absolute bottom-0 inset-x-0 h-16 bg-gradient-to-t from-background to-transparent z-20 pointer-events-none" />
+          <div className="absolute top-0 inset-x-0 h-16 bg-linear-to-b from-background to-transparent z-20 pointer-events-none" />
+          <div className="absolute bottom-0 inset-x-0 h-16 bg-linear-to-t from-background to-transparent z-20 pointer-events-none" />
 
           {/* 3 Sliding Columns Container */}
           <div className="grid grid-cols-3 gap-3 sm:gap-4 h-full">
@@ -339,7 +372,11 @@ export const HeroSection: React.FC = () => {
             <div className="hero-col relative overflow-hidden h-full">
               <div className="hero-track hero-slide-up flex flex-col gap-3 sm:gap-4">
                 {[...column1, ...column1].map((item, idx) => (
-                  <HeroSlideCard key={`col1-${item?.id || idx}-${idx}`} item={item} />
+                  <HeroSlideCard
+                    key={`col1-${item?.id || idx}-${idx}`}
+                    item={item}
+                    isPriority={idx === 0}
+                  />
                 ))}
               </div>
             </div>
@@ -348,7 +385,10 @@ export const HeroSection: React.FC = () => {
             <div className="hero-col relative overflow-hidden h-full">
               <div className="hero-track hero-slide-down flex flex-col gap-3 sm:gap-4">
                 {[...column2, ...column2].map((item, idx) => (
-                  <HeroSlideCard key={`col2-${item?.id || idx}-${idx}`} item={item} />
+                  <HeroSlideCard
+                    key={`col2-${item?.id || idx}-${idx}`}
+                    item={item}
+                  />
                 ))}
               </div>
             </div>
@@ -357,7 +397,10 @@ export const HeroSection: React.FC = () => {
             <div className="hero-col relative overflow-hidden h-full">
               <div className="hero-track hero-slide-up-offset flex flex-col gap-3 sm:gap-4">
                 {[...column3, ...column3].map((item, idx) => (
-                  <HeroSlideCard key={`col3-${item?.id || idx}-${idx}`} item={item} />
+                  <HeroSlideCard
+                    key={`col3-${item?.id || idx}-${idx}`}
+                    item={item}
+                  />
                 ))}
               </div>
             </div>
@@ -373,41 +416,91 @@ interface SlideCardProps {
     id: string;
     title: string;
     subtitle: string | null;
+    detail?: string | null;
+    categoryName?: string | null;
+    categorySlug?: string | null;
     imageUrl: string;
     isPlaceholder: boolean;
   };
+  isPriority?: boolean;
 }
 
-const HeroSlideCard: React.FC<SlideCardProps> = ({ item }) => {
+const HeroSlideCard: React.FC<SlideCardProps> = ({ item, isPriority = false }) => {
   if (!item) return null;
-  return (
-    <div className="relative aspect-3/4 w-full rounded-2xl overflow-hidden border border-outline-variant/30 bg-surface-container-high shadow-md shrink-0 group">
+
+  // Determine redirect URL for this image's category
+  const targetCategorySlug =
+    item.categorySlug ||
+    (item.categoryName
+      ? encodeURIComponent(item.categoryName.toLowerCase().replace(/\s+/g, "-"))
+      : null);
+
+  const targetUrl = targetCategorySlug
+    ? `/explore?category=${encodeURIComponent(targetCategorySlug)}`
+    : "/explore";
+
+  const cardContent = (
+    <div
+      title={
+        item.categoryName
+          ? `Explore ${item.categoryName} — ${item.detail || item.title}`
+          : item.detail || item.title
+      }
+      className="relative aspect-3/4 w-full rounded-2xl overflow-hidden border border-outline-variant/30 hover:border-primary/60 bg-surface-container-high shadow-md hover:shadow-xl shrink-0 group transition-all duration-300 cursor-pointer block"
+    >
       <img
         src={item.imageUrl}
-        alt={item.title}
-        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-        loading="lazy"
+        alt={item.detail || item.title}
+        width={300}
+        height={400}
+        loading={isPriority ? "eager" : "lazy"}
+        {...(isPriority ? { fetchPriority: "high" } : { fetchPriority: "low" })}
+        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-108"
       />
 
       {/* Dark overlay gradient */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-linear-to-t from-black/85 via-black/25 to-transparent pointer-events-none group-hover:from-black/90 transition-colors" />
 
       {/* Top Glassmorphism Pill / Tag */}
-      {item.subtitle && (
-        <div className="absolute top-2 left-2 pointer-events-none">
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/20 backdrop-blur-md text-white border border-white/20 shadow-xs">
-            {item.subtitle}
+      {(item.categoryName || item.subtitle) && (
+        <div className="absolute top-2.5 left-2.5 z-10">
+          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-black/60 backdrop-blur-md text-white border border-white/20 shadow-xs flex items-center gap-1 group-hover:bg-primary group-hover:text-on-primary transition-colors">
+            <Icons.Layers size={10} className="opacity-80" />
+            <span>{item.categoryName || item.subtitle}</span>
           </span>
         </div>
       )}
 
-      {/* Bottom Title Label */}
-      <div className="absolute bottom-2 inset-x-2 pointer-events-none text-white">
-        <p className="text-[11px] font-bold truncate drop-shadow-sm">
+      {/* Bottom Title Label & Category Explore Indicator */}
+      <div className="absolute bottom-2.5 inset-x-2.5 text-white z-10">
+        <p className="text-[11px] font-bold truncate drop-shadow-sm group-hover:text-primary-container transition-colors">
           {item.title}
         </p>
+        {item.detail && (
+          <p className="text-[9px] text-white/80 line-clamp-1 drop-shadow-sm mt-0.5">
+            {item.detail}
+          </p>
+        )}
+        <div className="flex items-center gap-1 text-[9px] font-semibold text-primary/90 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <span>Explore {item.categoryName || "Category"}</span>
+          <Icons.Next size={10} />
+        </div>
       </div>
     </div>
+  );
+
+  if (item.isPlaceholder) {
+    return <div className="shrink-0">{cardContent}</div>;
+  }
+
+  return (
+    <Link
+      to={targetUrl}
+      className="shrink-0 block transform transition-transform hover:-translate-y-1 focus:outline-hidden"
+      aria-label={`Explore ${item.categoryName || item.title} category`}
+    >
+      {cardContent}
+    </Link>
   );
 };
 
