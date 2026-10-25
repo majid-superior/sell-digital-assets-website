@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import type { User } from "@/types/user.ts";
 import { AuthContext, type AuthContextType } from "@/context/authContext.ts";
 import { authService } from "@/services/v1/authService.ts";
+import { ApiError, NetworkError, TimeoutError } from "@/services/api.ts";
 import { organizationService } from "@/services/v1/organizationService.ts";
 import { queryClient } from "@/services/queryClient.ts";
 import { toast } from "sonner";
@@ -99,7 +100,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 return;
             }
 
-            // 2. Attempt to verify with current access token (apiClient automatically attempts silent refresh on 401)
+            let isPermanentAuthFailure = false;
+
+            // 2. Attempt to verify with current access token
             if (storedToken) {
                 try {
                     const freshUser = await authService.getCurrentUser();
@@ -110,13 +113,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                         setIsLoading(false);
                         return;
                     }
-                } catch {
-                    // Verification failed; fall through to explicit refresh or session termination
+                } catch (err: unknown) {
+                    if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+                        isPermanentAuthFailure = true;
+                    } else if (
+                        err instanceof NetworkError ||
+                        err instanceof TimeoutError ||
+                        (err instanceof ApiError && err.status >= 500)
+                    ) {
+                        // Infrastructure or network unavailable: preserve session
+                        if (isMounted) {
+                            setIsLoading(false);
+                        }
+                        return;
+                    }
                 }
             }
 
-            // 3. Attempt silent token refresh if refresh token is available
-            if (refreshToken) {
+            // 3. Attempt silent token refresh if refresh token is available and token expired
+            if (refreshToken && isPermanentAuthFailure) {
                 try {
                     const refreshed = await authService.refreshSession();
                     if (refreshed && isMounted) {
@@ -126,14 +141,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                         setIsLoading(false);
                         return;
                     }
-                } catch {
-                    // Refresh failed
+                } catch (err: unknown) {
+                    if (
+                        err instanceof NetworkError ||
+                        err instanceof TimeoutError ||
+                        (err instanceof ApiError && err.status >= 500)
+                    ) {
+                        // Network error during refresh: do not terminate session
+                        if (isMounted) {
+                            setIsLoading(false);
+                        }
+                        return;
+                    }
                 }
             }
 
-            // 4. Both access token and refresh token failed (or server rejected/unreachable): terminate unverified session
-            if (isMounted) {
+            // 4. Terminate unverified session ONLY upon definitive 401/403 authorization rejection
+            if (isMounted && isPermanentAuthFailure) {
                 handleSessionExpired("Your session has ended. Please sign in again.");
+            } else if (isMounted) {
+                setIsLoading(false);
             }
         }
 

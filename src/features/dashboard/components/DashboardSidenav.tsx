@@ -38,6 +38,9 @@ const resolveIcon = (iconName: string): React.ComponentType<{ size?: number; cla
             return Icons.TrendingUp;
         case "Star":
             return Icons.Star;
+        case "Magic":
+        case "Sparkles":
+            return Icons.Sparkles;
         case "AlertCircle":
             return Icons.AlertCircle;
         case "Wallet":
@@ -209,7 +212,6 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
 
     const [expandedKeys, setExpandedKeys] = useState<Record<string, boolean>>({
         "seller-products": true,
-        "seller-products-upload": true,
         "seller-settings": true,
         "buyer-library": true,
         "buyer-settings": true,

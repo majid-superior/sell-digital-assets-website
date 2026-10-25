@@ -1,6 +1,6 @@
 // src/features/dashboard/pages/seller/SellerProductWizardPage.tsx
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate, useParams, useLocation, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -48,22 +48,10 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
     isEditMode,
 }) => {
     const navigate = useNavigate();
-    const location = useLocation();
     const queryClient = useQueryClient();
     const currencyInfo = getCurrencyInfo();
 
-    const isMediaRoute = location.pathname.includes("/products/upload/media");
-    const [stepOverride, setStepOverride] = useState<WizardStep | null>(null);
-    const [prevPathname, setPrevPathname] = useState(location.pathname);
-
-    // If the URL changes (e.g. sidebar navigation or browser Back/Forward), reset stepOverride
-    if (location.pathname !== prevPathname) {
-        setPrevPathname(location.pathname);
-        setStepOverride(null);
-    }
-
-    const currentStep: WizardStep = stepOverride ?? (isMediaRoute ? "media" : "info");
-    const setCurrentStep = (step: WizardStep) => setStepOverride(step);
+    const [currentStep, setCurrentStep] = useState<WizardStep>("info");
 
     const [assetId, setAssetId] = useState<string | null>(() => initialAsset?.id || null);
     const [activeAsset, setActiveAsset] = useState<DigitalAsset | null>(() => initialAsset || null);
@@ -155,6 +143,8 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
             urls.clear();
         };
     }, []);
+
+
 
     // Fetch category taxonomy for dropdown
     const { categories } = useCategoryTaxonomy();
@@ -586,12 +576,23 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
             return;
         }
 
-        if (shouldPublish && uploadedFiles.length === 0) {
-            toast.error("Deliverable File Required", {
-                description: "You must upload at least one deliverable package in Step 3 before submitting for review.",
-            });
-            setCurrentStep("deliverables");
-            return;
+        if (shouldPublish) {
+            if (uploadedFiles.length === 0) {
+                toast.error("Deliverable File Required", {
+                    description: "You must upload at least one deliverable package in Step 3 before submitting for review.",
+                });
+                setCurrentStep("deliverables");
+                return;
+            }
+
+            const currentThumbnail = mediaList.find((m) => m.media_type === "thumbnail");
+            if (!currentThumbnail) {
+                toast.error("Cover Thumbnail Required", {
+                    description: "You must upload a main cover thumbnail in Step 4 before submitting for review.",
+                });
+                setCurrentStep("media");
+                return;
+            }
         }
 
         try {
@@ -694,21 +695,6 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                                 if (step.id !== "info" && !assetId) {
                                     toast.info("Save basic details in Step 1 first");
                                     return;
-                                }
-                                if (!isEditMode && location.pathname.includes("/products/upload/")) {
-                                    if (step.id === "media") {
-                                        void navigate({
-                                            pathname: "/dashboard/seller/products/upload/media",
-                                            search: assetId ? `?assetId=${assetId}` : location.search,
-                                        });
-                                        return;
-                                    } else if (step.id === "deliverables") {
-                                        void navigate({
-                                            pathname: "/dashboard/seller/products/upload/files",
-                                            search: assetId ? `?assetId=${assetId}` : location.search,
-                                        });
-                                        return;
-                                    }
                                 }
                                 setCurrentStep(step.id);
                             }}
@@ -1113,16 +1099,7 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                                 variant="primary"
                                 size="md"
                                 rightIcon={<Icons.Next size={14} />}
-                                onClick={() => {
-                                    if (!isEditMode && location.pathname.includes("/products/upload/")) {
-                                        void navigate({
-                                            pathname: "/dashboard/seller/products/upload/media",
-                                            search: assetId ? `?assetId=${assetId}` : location.search,
-                                        });
-                                    } else {
-                                        setCurrentStep("media");
-                                    }
-                                }}
+                                onClick={() => setCurrentStep("media")}
                                 className="cursor-pointer"
                             >
                                 Continue
@@ -1443,16 +1420,7 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                             variant="outline"
                             size="md"
                             leftIcon={<Icons.Back size={14} />}
-                            onClick={() => {
-                                if (!isEditMode && location.pathname.includes("/products/upload/")) {
-                                    void navigate({
-                                        pathname: "/dashboard/seller/products/upload/files",
-                                        search: assetId ? `?assetId=${assetId}` : location.search,
-                                    });
-                                } else {
-                                    setCurrentStep("deliverables");
-                                }
-                            }}
+                            onClick={() => setCurrentStep("deliverables")}
                             className="cursor-pointer"
                         >
                             Back
@@ -1517,13 +1485,13 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                             <div>
                                 <span className="text-xs font-semibold text-on-surface block">Showcase Media</span>
                                 <span className="text-[11px] text-on-surface-variant">
-                                    {thumbnailItem ? "Cover Thumbnail set" : "No cover thumbnail"}, {screenshotItems.length} screenshot(s)
+                                    {thumbnailItem ? "Cover Thumbnail set" : "Cover Thumbnail missing (Required)"}, {screenshotItems.length} screenshot(s)
                                 </span>
                             </div>
                             {thumbnailItem ? (
                                 <Icons.Check size={20} className="text-primary" />
                             ) : (
-                                <Badge variant="outline" size="sm">Optional</Badge>
+                                <Badge variant="outline" size="sm" className="border-error/40 text-error">Required</Badge>
                             )}
                         </div>
 
@@ -1553,16 +1521,7 @@ const SellerProductWizardForm: React.FC<SellerProductWizardFormProps> = ({
                                 variant="outline"
                                 size="md"
                                 leftIcon={<Icons.Back size={14} />}
-                                onClick={() => {
-                                    if (!isEditMode && location.pathname.includes("/products/upload/")) {
-                                        void navigate({
-                                            pathname: "/dashboard/seller/products/upload/media",
-                                            search: assetId ? `?assetId=${assetId}` : location.search,
-                                        });
-                                    } else {
-                                        setCurrentStep("media");
-                                    }
-                                }}
+                                onClick={() => setCurrentStep("media")}
                                 className="cursor-pointer"
                             >
                                 Back

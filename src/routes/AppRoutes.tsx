@@ -71,7 +71,6 @@ export const AppRoutes: React.FC = () => {
                                 <Route path="seller/products/upload" element={<Navigate to="/dashboard/seller/products/upload/files" replace />} />
                                 <Route path="seller/products/upload/files" element={<SellerProductWizardPage />} />
                                 <Route path="seller/products/edit/:id" element={<SellerProductWizardPage />} />
-                                <Route path="seller/products/upload/media" element={<SellerProductWizardPage />} />
                                 <Route path="seller/products/upload/licenses" element={<Navigate to="/dashboard/seller/products/upload/files" replace />} />
                                 <Route path="seller/products/bundles" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Bundles" />} />
                                 <Route path="seller/products/coupons" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Coupons" />} />

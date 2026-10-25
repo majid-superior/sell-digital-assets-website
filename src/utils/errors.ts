@@ -70,6 +70,19 @@ export function getHumanErrorMessage(
  * into human-readable sentences.
  */
 function cleanRawErrorMessage(msg: string): string {
+  // Technical database, socket, and network connection errors
+  if (
+    /ECONNREFUSED|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNRESET/i.test(msg) ||
+    /getaddrinfo/i.test(msg) ||
+    /database system is starting up/i.test(msg) ||
+    /terminating connection/i.test(msg) ||
+    /password authentication failed/i.test(msg) ||
+    /connect timeout/i.test(msg) ||
+    /database .* does not exist/i.test(msg)
+  ) {
+    return "The service is temporarily unavailable. Please try again in a few moments.";
+  }
+
   if (/HTTP status 413/i.test(msg) || /status 413/i.test(msg)) {
     return "The uploaded file exceeds the allowed file size limit (10 MB for showcase media). Please compress or choose a smaller file.";
   }
@@ -90,7 +103,7 @@ function cleanRawErrorMessage(msg: string): string {
     return "The requested resource could not be found.";
   }
 
-  if (/HTTP status (500|502|503|504)/i.test(msg)) {
+  if (/Internal Server Error/i.test(msg) || /HTTP status (500|502|503|504)/i.test(msg) || /API Error (500|502|503|504)/i.test(msg)) {
     return "The server encountered a temporary issue. Please try again in a few moments.";
   }
 

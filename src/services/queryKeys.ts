@@ -19,6 +19,8 @@ export const queryKeys = {
         detail: (idOrSlug: string) =>
             [...queryKeys.assets.details(), idOrSlug] as const,
         featured: () => [...queryKeys.assets.all, "featured"] as const,
+        curated: (categorySlug?: string) =>
+            [...queryKeys.assets.all, "curated", categorySlug || "all"] as const,
         bySeller: (sellerId: string) =>
             [...queryKeys.assets.all, "seller", sellerId] as const,
         sellerLists: () => [...queryKeys.assets.all, "seller-list"] as const,

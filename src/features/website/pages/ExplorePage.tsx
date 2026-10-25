@@ -219,9 +219,9 @@ export const ExplorePage: React.FC = () => {
 
             {/* Category Filter Pills */}
             <div className="space-y-3">
-                <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+                <div className="flex flex-wrap items-center gap-2">
                     {categoriesLoading ? (
-                        Array.from({ length: 6 }, (_, i) => (
+                        Array.from({ length: 8 }, (_, i) => (
                             <Skeleton key={i} variant="circular" width={i === 0 ? 88 : 120} height={32} />
                         ))
                     ) : (
@@ -251,7 +251,7 @@ export const ExplorePage: React.FC = () => {
 
                 {/* Subcategory pills for the selected root */}
                 {activeRoot && activeRoot.children && activeRoot.children.length > 0 && (
-                    <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+                    <div className="flex flex-wrap items-center gap-2">
                         {activeRoot.children.map((sub) => {
                             const isSelected = activeSub?.id === sub.id;
                             return (

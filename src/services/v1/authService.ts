@@ -144,14 +144,18 @@ class AuthService {
     private handleAuthError(error: unknown, action: string): never {
         if (error instanceof TimeoutError) {
             throw new AuthenticationError(
-                "The authentication server took too long to respond. Please check your network connection and try again.",
+                action === "signing in"
+                    ? "Unable to sign in right now. Please try again later."
+                    : "The server took too long to respond. Please check your network connection and try again.",
                 { code: "TIMEOUT", cause: error }
             );
         }
 
         if (error instanceof NetworkError) {
             throw new AuthenticationError(
-                "Unable to connect to the authentication server. Please check your internet connection or verify the server is running.",
+                action === "signing in"
+                    ? "Unable to sign in right now. Please try again later."
+                    : "Unable to connect to the server. Please check your internet connection and try again.",
                 { code: "NO_RESPONSE", cause: error }
             );
         }
@@ -183,9 +187,12 @@ class AuthService {
             if (error.status === 400) {
                 code = "VALIDATION_ERROR";
                 message = message || "Invalid credentials format.";
-            } else if (error.status === 401 || error.status === 403) {
+            } else if (error.status === 401) {
                 code = "INVALID_CREDENTIALS";
-                message = message || "Incorrect email or password. Please try again.";
+                message = "Incorrect email or password. Please check your credentials and try again.";
+            } else if (error.status === 403) {
+                code = "ACCESS_FORBIDDEN";
+                message = message || "Access denied. Your account may be locked or pending verification.";
             } else if (error.status === 409) {
                 code = "USER_EXISTS";
                 message = message || "An account with this email address already exists.";
@@ -194,7 +201,9 @@ class AuthService {
                 message = message || "Too many attempts. Please wait a few moments before trying again.";
             } else if (error.status >= 500) {
                 code = "SERVER_ERROR";
-                message = message || "The authentication service is temporarily unavailable. Please try again in a few moments.";
+                message = action === "signing in"
+                    ? "Unable to sign in right now. Please try again later."
+                    : "Unable to complete registration right now. Please try again later.";
             }
 
             throw new AuthenticationError(message, {
@@ -333,10 +342,13 @@ class AuthService {
                 };
             }
             return null;
-        } catch {
-            this.clearSession();
-            if (typeof window !== "undefined") {
-                window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+        } catch (error: unknown) {
+            // ONLY clear session if server actively rejected token with 401 or 403
+            if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+                this.clearSession();
+                if (typeof window !== "undefined") {
+                    window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+                }
             }
             return null;
         }

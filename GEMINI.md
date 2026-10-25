@@ -36,6 +36,15 @@
      - Uploading a thumbnail must never block or disable uploading screenshots, and vice versa.
      - Multiple screenshot files must upload concurrently in parallel (`Promise.allSettled`), with per-file progress tracking and isolated error handling so valid files succeed even if one file fails.
 
+6. **Mandatory Environment Separation & Local Database Rule**:
+   - In local development, the marketplace connects strictly to the local backend API server (`http://localhost:5000`) running against the local PostgreSQL database.
+   - Local development and automated testing must never connect to or silently fall back to live production credentials.
+
+7. **Authentication Resilience & Session Preservation**:
+   - Backend infrastructure or database connection failures must never be reported as invalid credentials.
+   - If the server or database is unreachable during sign-in, display: `"Unable to sign in right now. Please try again later."` (or for signup: `"Unable to complete registration right now. Please try again later."`).
+   - Temporary network interruptions or 5xx/503 server responses during session restoration (`/auth/me`) MUST NOT wipe tokens or force logouts. Token revocation is restricted strictly to definitive 401 Unauthorized responses.
+
 ---
 
 ## 2. Authentication & Session Strategy

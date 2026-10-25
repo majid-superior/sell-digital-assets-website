@@ -24,28 +24,8 @@ export const SELLER_NAV_ITEMS: DashboardNavItem[] = [
             {
                 id: "seller-products-upload",
                 label: "Upload",
-                path: "/dashboard/seller/products/upload",
+                path: "/dashboard/seller/products/upload/files",
                 icon: "UploadCloud",
-                children: [
-                    {
-                        id: "seller-products-upload-files",
-                        label: "Files",
-                        path: "/dashboard/seller/products/upload/files",
-                        icon: "FileText",
-                    },
-                    {
-                        id: "seller-products-upload-media",
-                        label: "Media",
-                        path: "/dashboard/seller/products/upload/media",
-                        icon: "Image",
-                    },
-                    {
-                        id: "seller-products-upload-licenses",
-                        label: "Licenses",
-                        path: "/dashboard/seller/products/upload/licenses",
-                        icon: "ShieldCheck",
-                    },
-                ],
             },
             {
                 id: "seller-products-bundles",

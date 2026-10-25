@@ -256,12 +256,37 @@ class AssetService {
   }
 
   /**
+   * Retrieve curated assets for homepage curated collections section.
+   */
+  async getCuratedAssets(categorySlug?: string, limit = 24): Promise<DigitalAsset[]> {
+    const params: Record<string, string | number> = { limit };
+    if (categorySlug && categorySlug !== "all") {
+      params.categorySlug = categorySlug;
+    }
+    const res = await apiClient.get<ApiResponseEnvelope<DigitalAsset[]> | DigitalAsset[]>(
+      "/api/v1/assets/curated",
+      { params }
+    );
+
+    if (!Array.isArray(res) && "data" in res && res.data) {
+      return res.data;
+    }
+    return Array.isArray(res) ? res : [];
+  }
+
+  /**
    * Retrieve curated featured assets for homepage showcase.
    */
-  async getFeaturedAssets(): Promise<DigitalAsset[]> {
-    const res = await apiClient.get<ApiResponseEnvelope<DigitalAsset[]> | DigitalAsset[]>(
-      "/api/v1/assets/featured"
-    );
+  async getFeaturedAssets(limit?: number): Promise<DigitalAsset[]> {
+    const res = limit !== undefined
+      ? await apiClient.get<ApiResponseEnvelope<DigitalAsset[]> | DigitalAsset[]>(
+          "/api/v1/assets/featured",
+          { params: { limit } }
+        )
+      : await apiClient.get<ApiResponseEnvelope<DigitalAsset[]> | DigitalAsset[]>(
+          "/api/v1/assets/featured"
+        );
+
     if (!Array.isArray(res) && "data" in res && res.data) {
       return res.data;
     }

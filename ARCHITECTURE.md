@@ -36,6 +36,12 @@ graph TD
     RequestInter -->|HTTPS REST| BackendAPI[("sell-digital-assets-api (Port 5000)")]
 ```
 
+### 1.1 Environment Isolation & Error Handling Standards
+- **Localhost Development Rule**: During local development (`npm run dev`), the marketplace connects strictly to the local API server (`http://localhost:5000`) and the isolated local PostgreSQL instance. Direct connection or fallback to live production databases is strictly prohibited.
+- **Human-Understandable Error Policy**: Never surface raw HTTP codes (`500 Internal Server Error`), socket errors (`ECONNREFUSED`), DNS errors (`EAI_AGAIN`), or database error details in client notifications or views.
+- **Authentication Resilience**: Backend service or database connection failures are never reported as invalid credentials. If the service is unreachable during sign-in, the system communicates: `"Unable to sign in right now. Please try again later."`
+- **Session Preservation**: Temporary network drops or server 5xx errors do not clear tokens from browser storage or log the user out. Session termination is reserved exclusively for verified 401 Unauthorized token revocation.
+
 ---
 
 ## 2. Client Routing & Layout Topology
@@ -89,7 +95,7 @@ sell-digital-assets-website/
 │   ├── context/                # Theme and Authentication context contracts
 │   ├── features/               # Feature-sliced domain modules
 │   │   ├── auth/               # Sign-in and sign-up mutations, Zod schemas, and types
-│   │   └── website/            # Landing sections (PromoBar, HeroSearch, CuratedTabs, etc.), HomePage, ExplorePage, AssetDetailPage
+│   │   └── website/            # Landing sections (PromoBar, HeroSection, CuratedTabs, etc.), HomePage, ExplorePage, AssetDetailPage
 │   ├── hooks/                  # Custom React hooks (useAuth, useTheme, useDebounce, useLocalStorage)
 │   ├── layouts/website/        # Website shell layouts (Header, Navbar, Body, Footer, Index, Page, pages/)
 │   ├── lib/

@@ -15,8 +15,10 @@ export default function App(): React.JSX.Element {
         theme={theme}
         richColors
         closeButton
+        offset={{ bottom: 150, right: 30 }}
         toastOptions={{
-          className: "font-sans rounded-2xl shadow-lg border border-outline-variant/30",
+          className:
+            "font-sans rounded-2xl shadow-lg border border-outline-variant/30",
         }}
       />
     </>

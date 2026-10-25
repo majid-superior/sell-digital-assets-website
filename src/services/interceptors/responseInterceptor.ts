@@ -38,6 +38,19 @@ export class ApiError extends Error {
       resolvedMessage = data.trim();
     }
 
+    // Sanitize any raw technical database, socket, or connection errors from server
+    if (
+      /ECONNREFUSED|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNRESET/i.test(resolvedMessage) ||
+      /getaddrinfo/i.test(resolvedMessage) ||
+      /database system is starting up/i.test(resolvedMessage) ||
+      /terminating connection/i.test(resolvedMessage) ||
+      /password authentication failed/i.test(resolvedMessage) ||
+      /database .* does not exist/i.test(resolvedMessage) ||
+      /Internal Server Error/i.test(resolvedMessage)
+    ) {
+      resolvedMessage = "The server is temporarily unavailable. Please try again shortly.";
+    }
+
     if (!resolvedMessage) {
       switch (status) {
         case 400:

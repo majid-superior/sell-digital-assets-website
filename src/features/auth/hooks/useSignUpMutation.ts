@@ -34,7 +34,8 @@ export const useSignUpMutation = () => {
             switch (error.code) {
                 case "NO_RESPONSE":
                 case "NETWORK_OFFLINE":
-                    title = "Server Unreachable";
+                case "SERVER_ERROR":
+                    title = "Unable to Register";
                     duration = 6000;
                     break;
                 case "TIMEOUT":
@@ -50,10 +51,6 @@ export const useSignUpMutation = () => {
                     break;
                 case "RATE_LIMITED":
                     title = "Too Many Attempts";
-                    duration = 6000;
-                    break;
-                case "SERVER_ERROR":
-                    title = "Server Error";
                     duration = 6000;
                     break;
                 default:
