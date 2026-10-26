@@ -10,6 +10,11 @@ import type {
   TierType,
   MediaType,
 } from "@/types/asset.ts";
+import type {
+  SellerStorefrontConfig,
+  UpdateStorefrontPayload,
+} from "@/features/seller-dashboard/types.ts";
+import type { PublicSellerStorefront } from "@/features/public-catalog/types.ts";
 
 export interface AssetFilterParams {
   category?: number | string;
@@ -556,6 +561,82 @@ class AssetService {
     );
     return res.data || [];
   }
+
+  /**
+   * Public endpoint: Fetch a seller's live storefront by custom URL (e.g., "seller01").
+   */
+  getPublicStorefrontByUrl = async (sellerUrl: string): Promise<PublicSellerStorefront> => {
+    const res = await apiClient.get<
+      ApiResponseEnvelope<PublicSellerStorefront> | { data?: PublicSellerStorefront } | PublicSellerStorefront
+    >(`/catalog/storefronts/${encodeURIComponent(sellerUrl)}`);
+
+    if (res && typeof res === "object" && "data" in res && res.data) {
+      return res.data;
+    }
+    return res as PublicSellerStorefront;
+  };
+
+  /**
+   * Seller endpoint: Get current seller's storefront setup (returns url: "" initially).
+   */
+  getSellerStorefrontConfig = async (): Promise<SellerStorefrontConfig> => {
+    const res = await apiClient.get<
+      ApiResponseEnvelope<SellerStorefrontConfig> | { data?: SellerStorefrontConfig } | SellerStorefrontConfig
+    >("/seller/storefront");
+
+    const data =
+      res && typeof res === "object" && "data" in res && res.data
+        ? res.data
+        : (res as SellerStorefrontConfig);
+
+    return {
+      url: data?.url ?? "",
+      title: data?.title ?? "",
+      description: data?.description ?? "",
+      bannerUrl: data?.bannerUrl ?? "",
+      featuredAssetId: data?.featuredAssetId ?? "",
+      isVisible: Boolean(data?.isVisible && data?.url),
+      updatedAt: data?.updatedAt,
+    };
+  };
+
+  /**
+   * Seller endpoint: Save/Update storefront setup & publish page.
+   */
+  updateSellerStorefrontConfig = async (
+    payload: UpdateStorefrontPayload
+  ): Promise<SellerStorefrontConfig> => {
+    const res = await apiClient.put<
+      ApiResponseEnvelope<SellerStorefrontConfig> | { data?: SellerStorefrontConfig } | SellerStorefrontConfig
+    >("/seller/storefront", payload);
+
+    if (res && typeof res === "object" && "data" in res && res.data) {
+      return res.data;
+    }
+    return res as SellerStorefrontConfig;
+  };
+
+  /**
+   * Seller endpoint: Get seller's published assets to populate the Featured Asset selector.
+   */
+  getSellerPublishedAssets = async (): Promise<DigitalAsset[]> => {
+    const res = await apiClient.get<
+      ApiResponseEnvelope<DigitalAsset[]> | { data?: DigitalAsset[]; items?: DigitalAsset[] } | DigitalAsset[]
+    >("/seller/assets?status=PUBLISHED");
+
+    if (Array.isArray(res)) {
+      return res;
+    }
+    if (res && typeof res === "object") {
+      if ("data" in res && Array.isArray(res.data)) {
+        return res.data;
+      }
+      if ("items" in res && Array.isArray(res.items)) {
+        return res.items;
+      }
+    }
+    return [];
+  };
 }
 
 export const assetService = new AssetService();

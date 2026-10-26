@@ -52,7 +52,7 @@ export const DashboardLayout: React.FC = () => {
     return (
         <div className="min-h-screen flex bg-background text-on-surface transition-colors duration-200">
             {/* 1. Desktop Fixed Sidebar (lg+) */}
-            <aside className="hidden lg:block w-64 xl:w-72 shrink-0 border-r border-outline-variant/30 sticky top-0 h-screen overflow-hidden">
+            <aside className="hidden lg:block w-56 xl:w-60 shrink-0 border-r border-outline-variant/30 sticky top-0 h-screen overflow-hidden">
                 <DashboardSidenav />
             </aside>
 
@@ -72,7 +72,7 @@ export const DashboardLayout: React.FC = () => {
                     />
 
                     {/* Sliding Drawer Container */}
-                    <div className="fixed inset-y-0 left-0 w-72 max-w-[85vw] z-50 bg-surface shadow-2xl transition-transform duration-300">
+                    <div className="fixed inset-y-0 left-0 w-60 max-w-[85vw] z-50 bg-surface shadow-2xl transition-transform duration-300">
                         <DashboardSidenav onClose={() => setMobileDrawerOpen(false)} />
                     </div>
                 </div>

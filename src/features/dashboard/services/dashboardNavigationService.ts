@@ -10,6 +10,12 @@ export const SELLER_NAV_ITEMS: DashboardNavItem[] = [
         exact: true,
     },
     {
+        id: "seller-storefront",
+        label: "Setup Storefront",
+        path: "/dashboard/seller/storefront",
+        icon: "Store",
+    },
+    {
         id: "seller-products",
         label: "Products",
         path: "/dashboard/seller/products",

@@ -127,4 +127,74 @@ describe("assetService.getFeaturedAssets Integration & Contract", () => {
       expect(result).toEqual([]);
     });
   });
+
+  describe("assetService Storefront Endpoints", () => {
+    it("getSellerStorefrontConfig normalizes empty initial config with url: '' and isVisible: false", async () => {
+      vi.spyOn(apiClient, "get").mockResolvedValueOnce({
+        url: "",
+        title: "",
+        description: "",
+        bannerUrl: "",
+        featuredAssetId: "",
+        isVisible: true,
+      });
+
+      const config = await assetService.getSellerStorefrontConfig();
+      expect(apiClient.get).toHaveBeenCalledWith("/seller/storefront");
+      expect(config).toEqual({
+        url: "",
+        title: "",
+        description: "",
+        bannerUrl: "",
+        featuredAssetId: "",
+        isVisible: false,
+        updatedAt: undefined,
+      });
+    });
+
+    it("updateSellerStorefrontConfig sends PUT /seller/storefront and returns updated config", async () => {
+      const payload = {
+        url: "seller01",
+        title: "PixelCraft Studio",
+        description: "Premium UI kits and design systems",
+        bannerUrl: "https://assets.selldigitalassets.com/banners/store-banner.webp",
+        featuredAssetId: "asset-1",
+        isVisible: true,
+      };
+
+      vi.spyOn(apiClient, "put").mockResolvedValueOnce({
+        ...payload,
+        updatedAt: "2026-10-26T00:00:00.000Z",
+      });
+
+      const updated = await assetService.updateSellerStorefrontConfig(payload);
+      expect(apiClient.put).toHaveBeenCalledWith("/seller/storefront", payload);
+      expect(updated.url).toBe("seller01");
+      expect(updated.isVisible).toBe(true);
+    });
+
+    it("getPublicStorefrontByUrl fetches /catalog/storefronts/:sellerUrl", async () => {
+      const mockStorefront = {
+        sellerId: "seller-id-1",
+        url: "seller01",
+        displayName: "PixelCraft",
+        title: "PixelCraft Studio",
+        description: "Premium digital assets",
+        bannerUrl: "https://assets.selldigitalassets.com/banners/store-banner.webp",
+        isVisible: true,
+        featuredAsset: null,
+        assets: [],
+        rating: 4.9,
+        reviewCount: 42,
+        joinedAt: "2026-01-01T00:00:00.000Z",
+      };
+
+      vi.spyOn(apiClient, "get").mockResolvedValueOnce(mockStorefront);
+
+      const result = await assetService.getPublicStorefrontByUrl("seller01");
+      expect(apiClient.get).toHaveBeenCalledWith("/catalog/storefronts/seller01");
+      expect(result.url).toBe("seller01");
+      expect(result.isVisible).toBe(true);
+    });
+  });
 });

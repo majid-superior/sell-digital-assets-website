@@ -31,9 +31,15 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         return <Navigate to={redirectPath} state={{ from: location }} replace />;
     }
 
-    if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-        // If role not authorized, redirect to home
-        return <Navigate to="/" replace />;
+    if (allowedRoles && allowedRoles.length > 0) {
+        const normalizedUserRole = String(user.role || "").toLowerCase();
+        const isRoleAllowed = allowedRoles.some(
+            (role) => String(role).toLowerCase() === normalizedUserRole
+        );
+        if (!isRoleAllowed) {
+            // If role not authorized, redirect to home
+            return <Navigate to="/" replace />;
+        }
     }
 
     return children ? <>{children}</> : <Outlet />;

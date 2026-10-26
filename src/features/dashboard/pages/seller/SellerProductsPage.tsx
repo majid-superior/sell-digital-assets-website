@@ -330,17 +330,17 @@ export const SellerProductsPage: React.FC = () => {
                         ))}
                     </div>
                 ) : assets.length > 0 ? (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs border-collapse">
+                    <div className="overflow-x-auto w-full overscroll-x-contain">
+                        <table className="w-full min-w-[640px] sm:min-w-0 text-left text-xs border-collapse">
                             <thead>
                                 <tr className="border-b border-outline-variant/30 bg-surface-container-low text-on-surface-variant font-semibold">
-                                    <th className="py-3 px-4">Asset</th>
-                                    <th className="py-3 px-4">Category</th>
-                                    <th className="py-3 px-4">Pricing</th>
-                                    <th className="py-3 px-4 text-center">Views</th>
-                                    <th className="py-3 px-4 text-center">Downloads</th>
-                                    <th className="py-3 px-4">Status &amp; Review Feedback</th>
-                                    <th className="py-3 px-4 text-right">Actions</th>
+                                    <th className="py-3 px-3 sm:px-4 whitespace-nowrap">Asset</th>
+                                    <th className="py-3 px-3 sm:px-4 whitespace-nowrap">Category</th>
+                                    <th className="py-3 px-3 sm:px-4 whitespace-nowrap">Pricing</th>
+                                    <th className="py-3 px-3 sm:px-4 text-center whitespace-nowrap">Views</th>
+                                    <th className="py-3 px-3 sm:px-4 text-center whitespace-nowrap">Downloads</th>
+                                    <th className="py-3 px-3 sm:px-4 whitespace-nowrap">Status &amp; Review Feedback</th>
+                                    <th className="py-3 px-3 sm:px-4 text-right whitespace-nowrap">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-outline-variant/20">

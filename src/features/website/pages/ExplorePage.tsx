@@ -175,45 +175,47 @@ export const ExplorePage: React.FC = () => {
                     )}
                 </div>
 
-                {/* Price Range Filter Inputs */}
-                <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-on-surface-variant shrink-0">Price ($):</span>
-                    <input
-                        type="number"
-                        min="0"
-                        value={priceMin}
-                        onChange={(e) => setPriceMin(e.target.value)}
-                        placeholder="Min"
-                        className="w-16 px-2 py-1.5 text-xs rounded-lg bg-surface border border-outline-variant/40 text-on-surface focus:outline-hidden focus:border-primary text-center"
-                    />
-                    <span className="text-xs text-on-surface-variant">-</span>
-                    <input
-                        type="number"
-                        min="0"
-                        value={priceMax}
-                        onChange={(e) => setPriceMax(e.target.value)}
-                        placeholder="Max"
-                        className="w-16 px-2 py-1.5 text-xs rounded-lg bg-surface border border-outline-variant/40 text-on-surface focus:outline-hidden focus:border-primary text-center"
-                    />
-                </div>
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-3">
+                    {/* Price Range Filter Inputs */}
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-on-surface-variant shrink-0">Price ($):</span>
+                        <input
+                            type="number"
+                            min="0"
+                            value={priceMin}
+                            onChange={(e) => setPriceMin(e.target.value)}
+                            placeholder="Min"
+                            className="w-14 sm:w-16 px-2 py-1.5 text-xs rounded-lg bg-surface border border-outline-variant/40 text-on-surface focus:outline-hidden focus:border-primary text-center"
+                        />
+                        <span className="text-xs text-on-surface-variant">-</span>
+                        <input
+                            type="number"
+                            min="0"
+                            value={priceMax}
+                            onChange={(e) => setPriceMax(e.target.value)}
+                            placeholder="Max"
+                            className="w-14 sm:w-16 px-2 py-1.5 text-xs rounded-lg bg-surface border border-outline-variant/40 text-on-surface focus:outline-hidden focus:border-primary text-center"
+                        />
+                    </div>
 
-                {/* Sort Dropdown */}
-                <div className="flex items-center gap-2">
-                    <label htmlFor="sort-select" className="text-xs font-semibold text-on-surface-variant shrink-0">
-                        Sort By:
-                    </label>
-                    <select
-                        id="sort-select"
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value)}
-                        className="px-3 py-2 text-xs font-semibold rounded-xl bg-surface border border-outline-variant/40 text-on-surface focus:outline-hidden focus:border-primary focus:ring-1 focus:ring-primary cursor-pointer"
-                    >
-                        {SORT_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                            </option>
-                        ))}
-                    </select>
+                    {/* Sort Dropdown */}
+                    <div className="flex items-center gap-2">
+                        <label htmlFor="sort-select" className="text-xs font-semibold text-on-surface-variant shrink-0">
+                            Sort By:
+                        </label>
+                        <select
+                            id="sort-select"
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value)}
+                            className="px-3 py-2 text-xs font-semibold rounded-xl bg-surface border border-outline-variant/40 text-on-surface focus:outline-hidden focus:border-primary focus:ring-1 focus:ring-primary cursor-pointer"
+                        >
+                            {SORT_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
             </div>
 

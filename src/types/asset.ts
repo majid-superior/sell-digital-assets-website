@@ -84,10 +84,14 @@ export interface DigitalAsset {
   // Compatibility helpers
   sellerProfile?: import("@/types/user.ts").SellerProfile;
   thumbnailUrl?: string;
+  coverImageUrl?: string;
   previewUrls?: string[];
+  price?: number;
   priceCents?: number;
   currency?: string;
   description?: string;
+  rating?: number;
+  reviewCount?: number;
   ratingAverage?: number;
   reviewsCount?: number;
   salesCount?: number;

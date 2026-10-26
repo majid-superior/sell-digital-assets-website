@@ -196,7 +196,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                                 <span>Dashboard</span>
                             </Link>
                             <span className="text-xs text-on-surface-variant font-medium">
-                                Hi, <strong className="text-on-surface">{user.displayName || user.username || "User"}</strong>
+                                Hi, <strong className="text-on-surface">{user.displayName || user.name || "User"}</strong>
                             </span>
                             <button
                                 type="button"

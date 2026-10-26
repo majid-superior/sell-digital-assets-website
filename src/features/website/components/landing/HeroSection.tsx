@@ -315,44 +315,44 @@ export const HeroSection: React.FC = () => {
           </div>
 
           {/* Stats / Marketplace Features & Licensing Row */}
-          <div className="grid grid-cols-3 gap-3 sm:gap-6 pt-4 border-t border-outline-variant/20 max-w-xl">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0">
-                <ShieldCheck size={20} className="text-primary" />
+          <div className="grid grid-cols-3 gap-2 sm:gap-6 pt-4 border-t border-outline-variant/20 max-w-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 min-w-0">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shrink-0">
+                <ShieldCheck size={18} className="text-primary sm:w-5 sm:h-5" />
               </div>
-              <div>
-                <div className="text-base sm:text-xl font-black text-on-surface leading-tight">
+              <div className="min-w-0">
+                <div className="text-sm sm:text-xl font-black text-on-surface leading-tight truncate">
                   Licensed
                 </div>
-                <div className="text-xs text-on-surface-variant mt-0.5">
+                <div className="text-[11px] sm:text-xs text-on-surface-variant mt-0.5 truncate">
                   Commercial rights
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
-                <Zap size={20} className="text-amber-500" />
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 min-w-0">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center shrink-0">
+                <Zap size={18} className="text-amber-500 sm:w-5 sm:h-5" />
               </div>
-              <div>
-                <div className="text-base sm:text-xl font-black text-on-surface leading-tight">
+              <div className="min-w-0">
+                <div className="text-sm sm:text-xl font-black text-on-surface leading-tight truncate">
                   Instant
                 </div>
-                <div className="text-xs text-on-surface-variant mt-0.5">
+                <div className="text-[11px] sm:text-xs text-on-surface-variant mt-0.5 truncate">
                   Direct downloads
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 flex items-center justify-center shrink-0">
-                <BadgeCheck size={20} className="text-emerald-500" />
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 min-w-0">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 flex items-center justify-center shrink-0">
+                <BadgeCheck size={18} className="text-emerald-500 sm:w-5 sm:h-5" />
               </div>
-              <div>
-                <div className="text-base sm:text-xl font-black text-on-surface leading-tight">
+              <div className="min-w-0">
+                <div className="text-sm sm:text-xl font-black text-on-surface leading-tight truncate">
                   Curated
                 </div>
-                <div className="text-xs text-on-surface-variant mt-0.5">
+                <div className="text-[11px] sm:text-xs text-on-surface-variant mt-0.5 truncate">
                   Verified creators
                 </div>
               </div>
@@ -361,7 +361,7 @@ export const HeroSection: React.FC = () => {
         </div>
 
         {/* Right Column: 15-Image Sliding & Animating Showcase */}
-        <div className="lg:col-span-6 relative h-130 sm:h-150 w-full overflow-hidden rounded-3xl select-none">
+        <div className="lg:col-span-6 relative h-72 sm:h-96 md:h-120 lg:h-150 w-full overflow-hidden rounded-3xl select-none">
           {/* Top & Bottom Smooth Gradient Fade Masks */}
           <div className="absolute top-0 inset-x-0 h-16 bg-linear-to-b from-background to-transparent z-20 pointer-events-none" />
           <div className="absolute bottom-0 inset-x-0 h-16 bg-linear-to-t from-background to-transparent z-20 pointer-events-none" />

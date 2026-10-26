@@ -137,19 +137,19 @@ export const Modal: React.FC<ModalProps> = ({
         aria-labelledby={title ? titleId : undefined}
         aria-describedby={description ? descriptionId : undefined}
         className={cn(
-          "w-full rounded-2xl border border-outline-variant/30 bg-surface-container-low text-on-surface shadow-2xl transition-all overflow-hidden flex flex-col focus:outline-hidden",
+          "w-full rounded-2xl border border-outline-variant/30 bg-surface-container-low text-on-surface shadow-2xl transition-colors duration-150 overflow-hidden flex flex-col focus:outline-hidden",
           sizeStyles[size],
           className
         )}
       >
         {/* Header */}
         {(title || showCloseButton) && (
-          <div className="flex items-start justify-between p-6 pb-4 border-b border-outline-variant/20">
+          <div className="flex items-start justify-between p-4 sm:p-6 pb-3 sm:pb-4 border-b border-outline-variant/20">
             <div>
               {title && (
                 <h3
                   id={titleId}
-                  className="text-lg font-semibold leading-none tracking-tight text-on-surface"
+                  className="text-base sm:text-lg font-semibold leading-none tracking-tight text-on-surface"
                 >
                   {title}
                 </h3>
@@ -157,7 +157,7 @@ export const Modal: React.FC<ModalProps> = ({
               {description && (
                 <p
                   id={descriptionId}
-                  className="text-sm text-on-surface-variant mt-1.5 leading-normal"
+                  className="text-xs sm:text-sm text-on-surface-variant mt-1.5 leading-normal"
                 >
                   {description}
                 </p>
@@ -177,13 +177,13 @@ export const Modal: React.FC<ModalProps> = ({
         )}
 
         {/* Body */}
-        <div className="p-6 overflow-y-auto max-h-[75vh] text-on-surface">
+        <div className="p-4 sm:p-6 overflow-y-auto max-h-[75dvh] overscroll-contain text-on-surface">
           {children}
         </div>
 
         {/* Footer */}
         {footer && (
-          <div className="flex items-center justify-end gap-3 p-4 px-6 border-t border-outline-variant/20 bg-surface-container-lowest/30">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 p-4 sm:px-6 border-t border-outline-variant/20 bg-surface-container-lowest/30">
             {footer}
           </div>
         )}

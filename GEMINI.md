@@ -70,7 +70,28 @@
 
 ---
 
-## 4. Verification Checklist for AI Agents
+## 4. Mobile-First Responsive Design, Density & Overflow Standards
+
+1. **Mobile-First Construction**:
+   - Layouts must be built from the narrowest mobile viewport (320px) upward and enhanced progressively for tablet, laptop, and desktop.
+   - Hero headlines and page titles must scale fluidly (e.g., `text-2xl sm:text-4xl lg:text-5xl font-black`) without breaking words awkwardly.
+   - Use dynamic viewport units (`dvh`, `dvw`) for screen-spanning mobile wrappers to account for address bar collapse/expansion.
+
+2. **Container Padding & Density**:
+   - Base containers (`Card.tsx`) must never use `transition-all` (violates CLS; causes artificial zoom-in during state transitions). Strictly use targeted transitions: `transition-colors duration-150`.
+   - Card headers, bodies, and footers must use `p-4 sm:p-6` (and `p-4 sm:p-6 pt-0`), saving 16px of horizontal space on phones while preserving desktop comfort.
+   - Asset cards must use compact mobile padding: `p-3.5 sm:p-5 space-y-3 sm:space-y-4`.
+   - Dialogs and modals must stack action buttons on mobile (`flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 p-4 sm:px-6`) with `max-h-[75dvh] overscroll-contain` on scrollable dialog bodies.
+
+3. **Strict Zero Horizontal Overflow Policy**:
+   - **No Band-Aid Overflow Hiding**: Never use global `overflow-x: hidden` on `body` or root containers to mask overflowing components. Layout geometries must be resolved intrinsically.
+   - **Intrinsic Sizing in Flex & Grid**: Flex and grid item children must specify `min-w-0` to avoid being forced wider than their container by long text strings or URLs.
+   - **Responsive Tables**: All table containers must provide `overflow-x-auto w-full overscroll-x-contain`. Critical text cells must specify `truncate` or `break-words`.
+   - **Hero Sliding Showcases**: The animated sliding column must scale responsively across breakpoints: `h-72 sm:h-96 md:h-120 lg:h-150` so mobile viewports are not vertically blocked.
+
+---
+
+## 5. Verification Checklist for AI Agents
 
 Before declaring any website frontend task complete, verify:
 1. `npx tsc -b` passes with **0 errors**.
@@ -81,4 +102,6 @@ Before declaring any website frontend task complete, verify:
 6. Zero inline error text or alert banners exist anywhere in client views; all error and success messages use Sonner popup notifications.
 7. All file uploads perform pre-flight validation (file size, format) and present clear, human-understandable error messages on failure without raw HTTP status codes.
 8. Thumbnail and screenshot uploads operate independently with separate states and support concurrent parallel uploading.
+9. **Mobile & Viewport Verification**: Verify layout at 320px–375px mobile widths, 768px tablet, and 1280px+ desktop: zero horizontal scrollbars, zero uncontained text, full tap-target accessibility, and no container dimension jumps.
+
 

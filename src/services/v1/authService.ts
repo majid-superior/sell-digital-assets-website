@@ -19,7 +19,7 @@ class AuthService {
      */
     normalizeUser(user: Partial<User> & { name?: string; role?: string; roles?: string[]; role_id?: number }): User {
         const displayName = user.displayName || user.name || user.email?.split("@")[0] || "User";
-        const username = user.username || user.name?.toLowerCase().replace(/\s+/g, "") || user.email?.split("@")[0] || "user";
+        const url = typeof user.url === "string" ? user.url.trim().toLowerCase() : "";
         
         let role: UserRole = "buyer";
         const rawRole = (user.role || "").toLowerCase().trim();
@@ -41,14 +41,16 @@ class AuthService {
 
         return {
             id: String(user.id || ""),
+            url,
             email: user.email || "",
-            username,
             displayName,
             name: user.name || displayName,
             role,
             roles: rolesList,
             role_id: user.role_id,
             avatarUrl: user.avatarUrl,
+            bio: user.bio,
+            bannerUrl: user.bannerUrl,
             sellerProfile: user.sellerProfile,
             createdAt: user.createdAt || new Date().toISOString(),
             status: user.status || "active",
@@ -361,7 +363,11 @@ class AuthService {
         const raw = localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY);
         if (!raw) return null;
         try {
-            return JSON.parse(raw) as User;
+            const parsed = JSON.parse(raw) as User;
+            return {
+                ...parsed,
+                url: typeof parsed.url === "string" ? parsed.url : "",
+            };
         } catch {
             return null;
         }

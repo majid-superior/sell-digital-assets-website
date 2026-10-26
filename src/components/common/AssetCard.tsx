@@ -74,7 +74,7 @@ export const AssetCard: React.FC<AssetCardProps> = ({ asset }) => {
       </Link>
 
       {/* Content */}
-      <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+      <div className="p-3.5 sm:p-5 flex-1 flex flex-col justify-between space-y-3 sm:space-y-4">
         <div className="space-y-2">
           {/* Seller Line */}
           <div className="flex items-center gap-2 text-xs text-on-surface-variant">

@@ -170,15 +170,15 @@ export const BuyerDownloadsPage: React.FC = () => {
                             return (
                                 <div
                                     key={item.id}
-                                    className="p-5 rounded-2xl border border-outline-variant/30 bg-surface hover:border-outline-variant/60 transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs"
+                                    className="p-3.5 sm:p-5 rounded-2xl border border-outline-variant/30 bg-surface hover:border-outline-variant/60 transition-colors duration-150 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs"
                                 >
                                     {/* Left: Deliverable Details */}
-                                    <div className="flex items-center gap-4 min-w-0">
-                                        <div className="w-14 h-14 rounded-2xl bg-surface-container border border-outline-variant/30 flex items-center justify-center shrink-0 text-primary">
-                                            <Icons.Package size={24} />
+                                    <div className="flex items-center gap-3 sm:gap-4 min-w-0 w-full sm:w-auto">
+                                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-surface-container border border-outline-variant/30 flex items-center justify-center shrink-0 text-primary">
+                                            <Icons.Package size={22} className="sm:w-6 sm:h-6" />
                                         </div>
 
-                                        <div className="min-w-0 space-y-1">
+                                        <div className="min-w-0 space-y-1 flex-1">
                                             <div className="flex items-center gap-2 flex-wrap">
                                                 {item.asset?.slug ? (
                                                     <Link
@@ -200,31 +200,31 @@ export const BuyerDownloadsPage: React.FC = () => {
                                                 </Badge>
                                             </div>
 
-                                            <div className="flex items-center gap-3 text-xs text-on-surface-variant flex-wrap">
+                                            <div className="flex items-center gap-2 sm:gap-3 text-xs text-on-surface-variant flex-wrap min-w-0">
                                                 {file?.file_name && (
-                                                    <span className="font-mono">{file.file_name}</span>
+                                                    <span className="font-mono truncate max-w-40 sm:max-w-xs">{file.file_name}</span>
                                                 )}
                                                 {fileSize > 0 && (
                                                     <>
                                                         <span>•</span>
-                                                        <span className="font-mono">{formatBytes(fileSize)}</span>
+                                                        <span className="font-mono shrink-0">{formatBytes(fileSize)}</span>
                                                     </>
                                                 )}
-                                                <span>•</span>
-                                                <span>Purchased {formatDate(item.issued_at)}</span>
+                                                <span className="hidden sm:inline">•</span>
+                                                <span className="shrink-0">Purchased {formatDate(item.issued_at)}</span>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Right: Actions */}
-                                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                                    <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
                                         <Button
                                             variant="primary"
                                             size="sm"
                                             onClick={() => handleDownload(item.asset_id)}
                                             isLoading={downloadingAssetId === item.asset_id}
                                             leftIcon={<Icons.Download size={14} />}
-                                            className="cursor-pointer text-xs shadow-xs"
+                                            className="cursor-pointer text-xs shadow-xs w-full sm:w-auto"
                                         >
                                             Download Asset
                                         </Button>

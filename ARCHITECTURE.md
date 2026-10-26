@@ -174,7 +174,28 @@ sequenceDiagram
 
 ---
 
-## 7. Build & Quality Assurance Standards
+## 7. Mobile-First Responsive Design, Spacing Density & Zero-Overflow Architecture
+
+1. **Mobile-First Layout Topology**:
+   - Layouts are designed mobile-first from 320px screens upward, progressively enhancing across tablet, laptop, and ultra-wide viewports.
+   - Hero headlines and marketing titles scale responsively (`text-3xl sm:text-5xl lg:text-6xl font-black`) with text balancing to prevent orphaned single-word lines.
+   - Screen-spanning containers use dynamic viewport units (`dvh`, `dvw`) to avoid height jumps as browser navigation chrome collapses on scroll.
+
+2. **Card Geometry, Sizing & Motion Restraint**:
+   - Base card wrappers (`Card.tsx`) enforce targeted transitions (`transition-colors duration-150`) rather than `transition-all` to ensure zero layout shift (CLS = 0).
+   - Card headers, bodies, and footers adopt standard compact mobile padding: `p-4 sm:p-6` (and `p-4 sm:p-6 pt-0`).
+   - Catalog asset cards implement space-efficient density (`p-3.5 sm:p-5 space-y-3 sm:space-y-4`).
+   - Modal action button rows automatically stack on mobile screens (`flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 p-4 sm:px-6`), with scroll containment (`overscroll-contain`) and dynamic viewport heights (`max-h-[75dvh]`).
+
+3. **Zero Horizontal Overflow Principle**:
+   - Global `overflow-x: hidden` band-aids on body elements are strictly forbidden. Layouts must never overflow horizontally.
+   - All flex children and grid items specify `min-w-0` to eliminate intrinsic track expansion caused by long filenames or paths.
+   - Sliding hero showcase heights scale responsively (`h-72 sm:h-96 md:h-120 lg:h-150`) to keep landing pages usable on small devices.
+   - Dashboard tables and explore filters run with `overflow-x-auto w-full overscroll-x-contain`, with truncation on variable-length text strings.
+
+---
+
+## 8. Build & Quality Assurance Standards
 
 ```powershell
 # Type checking

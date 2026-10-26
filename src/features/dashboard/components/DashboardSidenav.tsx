@@ -18,6 +18,9 @@ const resolveIcon = (iconName: string): React.ComponentType<{ size?: number; cla
     switch (iconName) {
         case "LayoutDashboard":
             return Icons.LayoutDashboard;
+        case "Store":
+        case "storefront":
+            return Icons.Store;
         case "Package":
             return Icons.Package;
         case "Layers":
@@ -74,7 +77,7 @@ const resolveIcon = (iconName: string): React.ComponentType<{ size?: number; cla
     }
 };
 
-const SidenavIcon: React.FC<{ icon?: string; size?: number; className?: string }> = ({ icon, size = 16, className = "" }) =>
+const SidenavIcon: React.FC<{ icon?: string; size?: number; className?: string }> = ({ icon, size = 15, className = "" }) =>
     React.createElement(resolveIcon(icon || ""), { size, className });
 
 interface TreeRowProps {
@@ -106,7 +109,7 @@ const TreeRow: React.FC<TreeRowProps> = ({
     const isActive = location.pathname === item.path;
     const hasActiveChild = hasChildren && isChildActive(item.children);
 
-    const depthPadding = depth === 0 ? "pl-3" : depth === 1 ? "pl-7" : "pl-11";
+    const depthPadding = depth === 0 ? "pl-2.5" : depth === 1 ? "pl-5.5" : "pl-8.5";
 
     if (hasChildren) {
         return (
@@ -114,22 +117,22 @@ const TreeRow: React.FC<TreeRowProps> = ({
                 <button
                     type="button"
                     onClick={() => toggleExpanded(item.id)}
-                    className={`w-full flex items-center justify-between py-2 pr-3 rounded-xl text-xs font-medium transition-colors cursor-pointer ${depthPadding} ${
+                    className={`w-full flex items-center justify-between py-1.5 pr-2.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${depthPadding} ${
                         hasActiveChild
                             ? "bg-surface-container-high text-on-surface font-semibold"
                             : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60"
                     }`}
                 >
-                    <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
                         <SidenavIcon
                             icon={item.icon}
-                            size={16}
+                            size={15}
                             className={`shrink-0 ${hasActiveChild ? "text-primary" : "text-on-surface-variant"}`}
                         />
                         <span className="truncate">{item.label}</span>
                     </div>
                     <Icons.ChevronRight
-                        size={14}
+                        size={13}
                         className={`text-on-surface-variant shrink-0 transition-transform duration-200 ${
                             isExpanded ? "rotate-90 text-on-surface" : ""
                         }`}
@@ -140,7 +143,7 @@ const TreeRow: React.FC<TreeRowProps> = ({
                     <div className="relative space-y-0.5 mt-0.5">
                         <div
                             className="absolute top-1 bottom-1 w-px bg-outline-variant/30"
-                            style={{ left: depth === 0 ? "19px" : depth === 1 ? "35px" : "51px" }}
+                            style={{ left: depth === 0 ? "16px" : depth === 1 ? "28px" : "40px" }}
                         />
                         {item.children!.map((child) => (
                             <TreeRow
@@ -165,7 +168,7 @@ const TreeRow: React.FC<TreeRowProps> = ({
             onClick={onClose}
             className={({ isActive: navActive }) => {
                 const active = item.exact ? navActive : isActive || navActive;
-                return `flex items-center justify-between py-2 pr-3 rounded-xl text-xs font-medium transition-all ${depthPadding} ${
+                return `flex items-center justify-between py-1.5 pr-2.5 rounded-lg text-xs font-medium transition-all ${depthPadding} ${
                     active
                         ? "bg-primary text-on-primary font-semibold shadow-xs"
                         : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60"
@@ -175,10 +178,10 @@ const TreeRow: React.FC<TreeRowProps> = ({
             {({ isActive: navActive }) => {
                 const active = item.exact ? navActive : isActive || navActive;
                 return (
-                    <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
                         <SidenavIcon
                             icon={item.icon}
-                            size={16}
+                            size={15}
                             className={`shrink-0 ${active ? "text-on-primary" : "text-on-surface-variant"}`}
                         />
                         <span className="truncate">{item.label}</span>
@@ -210,11 +213,14 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
         return access.defaultPortal;
     }, [access, location.pathname]);
 
-    const [expandedKeys, setExpandedKeys] = useState<Record<string, boolean>>({
-        "seller-products": true,
-        "seller-settings": true,
-        "buyer-library": true,
-        "buyer-settings": true,
+    const [expandedKeys, setExpandedKeys] = useState<Record<string, boolean>>(() => {
+        const isSettingsRoute = location.pathname.includes("/settings");
+        return {
+            "seller-products": !isSettingsRoute,
+            "seller-settings": isSettingsRoute,
+            "buyer-library": !isSettingsRoute,
+            "buyer-settings": isSettingsRoute,
+        };
     });
 
     const toggleExpanded = (id: string) => {
@@ -266,20 +272,20 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
             className={`flex flex-col h-full bg-surface border-r border-outline-variant/30 text-on-surface transition-colors duration-200 select-none ${className}`}
         >
             {/* 1. Header / Brand Bar */}
-            <div className="h-16 px-5 flex items-center justify-between border-b border-outline-variant/30 shrink-0">
+            <div className="h-13 px-3.5 flex items-center justify-between border-b border-outline-variant/30 shrink-0">
                 <Link
                     to="/"
-                    className="flex items-center gap-2.5 font-bold text-lg tracking-tight hover:opacity-90 transition-opacity"
+                    className="flex items-center gap-2 font-bold text-[15px] tracking-tight hover:opacity-90 transition-opacity"
                 >
                     <img
                         src="/logo.png"
                         alt="AssetDrop"
-                        className="w-8 h-8 rounded-lg object-contain shadow-xs shrink-0"
+                        className="w-7 h-7 rounded-lg object-contain shadow-xs shrink-0"
                     />
-                    <span className="flex items-center">
+                    <span className="flex items-center leading-none">
                         Asset<span className="text-primary font-extrabold">Drop</span>
                     </span>
-                    <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-surface-container-high text-on-surface-variant">
+                    <span className="ml-1 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant">
                         Portal
                     </span>
                 </Link>
@@ -289,71 +295,71 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
                         type="button"
                         onClick={onClose}
                         aria-label="Close navigation sidebar"
-                        className="lg:hidden p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer"
+                        className="lg:hidden p-1 rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer"
                     >
-                        <Icons.Close size={20} />
+                        <Icons.Close size={18} />
                     </button>
                 )}
             </div>
 
             {/* 2. Portal Header or Dual-Portal Switcher */}
             {access.hasBothRoles ? (
-                <div className="p-3 border-b border-outline-variant/30 shrink-0">
-                    <div className="grid grid-cols-2 p-1 rounded-2xl bg-surface-container-low border border-outline-variant/30 gap-1">
+                <div className="p-2 border-b border-outline-variant/30 shrink-0">
+                    <div className="grid grid-cols-2 p-0.5 rounded-xl bg-surface-container-low border border-outline-variant/30 gap-1">
                         <button
                             type="button"
                             onClick={() => handleSwitchPortal("seller")}
-                            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                            className={`flex items-center justify-center gap-1.5 py-1.5 px-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                                 portal === "seller"
                                     ? "bg-primary text-on-primary shadow-xs"
                                     : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60"
                             }`}
                         >
-                            <Icons.Store size={14} />
+                            <Icons.Store size={13} />
                             <span>Seller Portal</span>
                         </button>
 
                         <button
                             type="button"
                             onClick={() => handleSwitchPortal("buyer")}
-                            className={`flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                            className={`flex items-center justify-center gap-1.5 py-1.5 px-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                                 portal === "buyer"
                                     ? "bg-primary text-on-primary shadow-xs"
                                     : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60"
                             }`}
                         >
-                            <Icons.ShoppingBag size={14} />
+                            <Icons.ShoppingBag size={13} />
                             <span>Buyer Portal</span>
                         </button>
                     </div>
                 </div>
             ) : (
-                <div className="px-4 py-3 border-b border-outline-variant/30 shrink-0 flex items-center justify-between bg-surface-container-low/40">
+                <div className="px-3 py-2 border-b border-outline-variant/30 shrink-0 flex items-center justify-between bg-surface-container-low/40">
                     <div className="flex items-center gap-2">
                         {portal === "seller" ? (
-                            <div className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                                <Icons.Store size={14} />
+                            <div className="w-5 h-5 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                                <Icons.Store size={13} />
                             </div>
                         ) : (
-                            <div className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                                <Icons.ShoppingBag size={14} />
+                            <div className="w-5 h-5 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                                <Icons.ShoppingBag size={13} />
                             </div>
                         )}
                         <span className="text-xs font-bold text-on-surface">
                             {portal === "seller" ? "Seller Portal" : "Buyer Portal"}
                         </span>
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-surface-container-high text-on-surface-variant">
+                    <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant">
                         {portal}
                     </span>
                 </div>
             )}
 
             {/* 3. Navigation Tree List */}
-            <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
-                <div className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/70 flex items-center justify-between">
+            <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
+                <div className="px-2.5 pb-1 pt-0.5 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/70 flex items-center justify-between">
                     <span>{portal === "seller" ? "Seller Navigation" : "Buyer Navigation"}</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant">
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-surface-container-high text-on-surface-variant font-semibold">
                         {currentItems.length} Sections
                     </span>
                 </div>
@@ -372,19 +378,19 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
 
             {/* Upgrade to Seller Banner (Only shown if buyer and not yet seller) */}
             {!access.canAccessSeller && (
-                <div className="p-3 mx-3 mb-2 rounded-2xl bg-primary/10 border border-primary/20 text-xs shrink-0">
+                <div className="p-2.5 mx-2 mb-1.5 rounded-xl bg-primary/10 border border-primary/20 text-xs shrink-0">
                     <div className="font-bold text-on-surface flex items-center gap-1.5">
-                        <Icons.Store size={15} className="text-primary" />
+                        <Icons.Store size={14} className="text-primary" />
                         <span>Start Selling</span>
                     </div>
-                    <p className="text-[11px] text-on-surface-variant mt-1 leading-relaxed">
+                    <p className="text-[11px] text-on-surface-variant mt-0.5 leading-relaxed">
                         List your digital templates, software, and assets to earn revenue.
                     </p>
                     <button
                         type="button"
                         onClick={handleBecomeSeller}
                         disabled={isUpgrading}
-                        className="mt-2.5 w-full py-1.5 px-3 rounded-xl bg-primary text-on-primary font-semibold text-xs hover:opacity-90 active:scale-95 transition-all cursor-pointer shadow-xs text-center"
+                        className="mt-2 w-full py-1.5 px-2.5 rounded-lg bg-primary text-on-primary font-semibold text-xs hover:opacity-90 active:scale-95 transition-all cursor-pointer shadow-xs text-center"
                     >
                         {isUpgrading ? "Upgrading..." : "Become a Seller in 1 Click"}
                     </button>
@@ -392,13 +398,13 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
             )}
 
             {/* 4. Bottom Actions */}
-            <div className="p-3 border-t border-outline-variant/30 space-y-1 shrink-0">
+            <div className="p-2 border-t border-outline-variant/30 space-y-0.5 shrink-0">
                 <Link
                     to="/explore"
                     onClick={onClose}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
                 >
-                    <Icons.Compass size={16} />
+                    <Icons.Compass size={15} />
                     <span>Browse Marketplace</span>
                 </Link>
 
@@ -409,9 +415,9 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
                         signOut("/");
                         void navigate("/", { replace: true });
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-error hover:bg-error/10 transition-colors cursor-pointer text-left"
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-error hover:bg-error/10 transition-colors cursor-pointer text-left"
                 >
-                    <Icons.LogOut size={16} />
+                    <Icons.LogOut size={15} />
                     <span>Sign Out</span>
                 </button>
             </div>
