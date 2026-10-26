@@ -3,9 +3,18 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { assetService } from "../../../services/v1/assetService.ts";
 import { getHumanErrorMessage } from "../../../utils/errors.ts";
-import type { UpdateStorefrontPayload } from "../types.ts";
+import type { SellerStorefrontConfig, UpdateStorefrontPayload } from "../types.ts";
 
 export const STOREFRONT_QUERY_KEY = ["seller", "storefront-config"] as const;
+
+export const DEFAULT_STOREFRONT_CONFIG: SellerStorefrontConfig = Object.freeze({
+  url: "",
+  title: "",
+  description: "",
+  bannerUrl: "",
+  featuredAssetId: "",
+  isVisible: false,
+});
 
 export const useStorefrontSetup = () => {
   const queryClient = useQueryClient();
@@ -47,14 +56,7 @@ export const useStorefrontSetup = () => {
   });
 
   return {
-    config: configQuery.data ?? {
-      url: "",
-      title: "",
-      description: "",
-      bannerUrl: "",
-      featuredAssetId: "",
-      isVisible: false,
-    },
+    config: configQuery.data ?? DEFAULT_STOREFRONT_CONFIG,
     publishedAssets: assetsQuery.data ?? [],
     isLoading: configQuery.isLoading || assetsQuery.isLoading,
     isError: configQuery.isError,

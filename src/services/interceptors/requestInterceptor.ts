@@ -83,11 +83,11 @@ export function buildRequestUrl(
 /**
  * Prepare request headers with authentication token and JSON content standards.
  */
-export function prepareRequestHeaders(customHeaders?: HeadersInit): Record<string, string> {
+export function prepareRequestHeaders(customHeaders?: HeadersInit, isFormData = false): Record<string, string> {
     const token = getAuthToken();
 
     const headers: Record<string, string> = {
-        "Content-Type": "application/json",
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
         Accept: "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };

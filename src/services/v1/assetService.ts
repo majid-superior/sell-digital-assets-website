@@ -617,6 +617,31 @@ class AssetService {
   };
 
   /**
+   * Seller endpoint: Upload storefront banner via multipart (max 3 MB, no min limit).
+   */
+  uploadStorefrontBanner = async (
+    fileOrBlob: File | Blob,
+    fileName = "storefront-banner.webp"
+  ): Promise<{ url: string }> => {
+    const formData = new FormData();
+    formData.append("file", fileOrBlob, fileName);
+
+    const res = await apiClient.upload<
+      ApiResponseEnvelope<{ url: string }> | { data?: { url: string } } | { url: string }
+    >("/seller/storefront/banner", formData);
+
+    if (res && typeof res === "object") {
+      if ("data" in res && res.data && typeof res.data === "object" && "url" in res.data) {
+        return res.data;
+      }
+      if ("url" in res && typeof res.url === "string") {
+        return { url: res.url };
+      }
+    }
+    throw new Error("Unable to parse storefront banner upload response");
+  };
+
+  /**
    * Seller endpoint: Get seller's published assets to populate the Featured Asset selector.
    */
   getSellerPublishedAssets = async (): Promise<DigitalAsset[]> => {

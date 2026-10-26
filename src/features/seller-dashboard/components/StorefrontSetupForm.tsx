@@ -12,6 +12,8 @@ import {
   RESERVED_STOREFRONT_URLS,
   normalizeStorefrontUrl,
 } from "../../../utils/slugValidator.ts";
+import { getHumanErrorMessage } from "../../../utils/errors.ts";
+import { assetService } from "../../../services/v1/assetService.ts";
 import {
   BannerCropModal,
   BANNER_TARGET_WIDTH,
@@ -108,6 +110,8 @@ export const StorefrontSetupForm: React.FC<StorefrontSetupFormProps> = ({
     height: number;
   } | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState<string>("");
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+  const lastSyncedKeyRef = useRef<string>("");
 
   const {
     register,
@@ -129,14 +133,21 @@ export const StorefrontSetupForm: React.FC<StorefrontSetupFormProps> = ({
   });
 
   useEffect(() => {
-    reset({
-      url: initialData.url || "",
-      title: initialData.title || "",
-      description: initialData.description || "",
-      bannerUrl: initialData.bannerUrl || "",
-      featuredAssetId: initialData.featuredAssetId || "",
-      isVisible: initialData.url ? initialData.isVisible : true,
-    });
+    const syncKey = `${initialData.url || ""}_${initialData.updatedAt || ""}_${initialData.title || ""}`;
+    if (
+      syncKey !== lastSyncedKeyRef.current &&
+      (initialData.url || initialData.title || initialData.bannerUrl)
+    ) {
+      lastSyncedKeyRef.current = syncKey;
+      reset({
+        url: initialData.url || "",
+        title: initialData.title || "",
+        description: initialData.description || "",
+        bannerUrl: initialData.bannerUrl || "",
+        featuredAssetId: initialData.featuredAssetId || "",
+        isVisible: initialData.url ? initialData.isVisible : true,
+      });
+    }
   }, [initialData, reset]);
 
   const rawWatchedUrl = useWatch({ control, name: "url" });
@@ -144,9 +155,9 @@ export const StorefrontSetupForm: React.FC<StorefrontSetupFormProps> = ({
   const watchedUrl = normalizeStorefrontUrl(rawWatchedUrl || "");
 
   const validateBannerFile = (file: File): boolean => {
-    if (!file || file.size === 0) {
-      toast.error("Empty File", {
-        description: `"${file?.name || "Selected file"}" contains no data (0 bytes). Please choose a valid image.`,
+    if (!file) {
+      toast.error("File Required", {
+        description: "Please choose an image file to upload.",
       });
       return false;
     }
@@ -276,14 +287,61 @@ export const StorefrontSetupForm: React.FC<StorefrontSetupFormProps> = ({
   };
 
   const handleFormSubmit = async (values: StorefrontFormValues) => {
-    await onSubmit({
-      url: normalizeStorefrontUrl(values.url),
-      title: values.title.trim(),
-      description: values.description.trim(),
-      bannerUrl: values.bannerUrl.trim(),
-      featuredAssetId: values.featuredAssetId || "",
-      isVisible: values.isVisible,
-    });
+    let finalBannerUrl = values.bannerUrl.trim();
+
+    // If banner is a base64 data URL or blob URL, upload it via multipart upload first
+    if (finalBannerUrl.startsWith("data:") || finalBannerUrl.startsWith("blob:")) {
+      try {
+        setIsUploadingBanner(true);
+        const toastId = "storefront-banner-upload";
+        toast.loading("Uploading storefront banner image...", { id: toastId });
+
+        const blob = await fetch(finalBannerUrl).then((r) => r.blob());
+        const uploadResult = await assetService.uploadStorefrontBanner(
+          blob,
+          uploadedFileName || "storefront-banner.webp"
+        );
+        finalBannerUrl = uploadResult.url;
+        setValue("bannerUrl", finalBannerUrl, { shouldValidate: true, shouldDirty: false });
+        toast.success("Storefront banner uploaded successfully", { id: toastId });
+      } catch (uploadErr) {
+        toast.dismiss("storefront-banner-upload");
+        toast.error("Banner Upload Failed", {
+          description: getHumanErrorMessage(
+            uploadErr,
+            "Failed to upload storefront banner. Please check that file is under 3 MB and try again."
+          ),
+        });
+        // On upload error: DO NOT CLEAR FORM! Return early so all typed data is retained
+        return;
+      } finally {
+        setIsUploadingBanner(false);
+      }
+    }
+
+    try {
+      await onSubmit({
+        url: normalizeStorefrontUrl(values.url),
+        title: values.title.trim(),
+        description: values.description.trim(),
+        bannerUrl: finalBannerUrl,
+        featuredAssetId: values.featuredAssetId || "",
+        isVisible: values.isVisible,
+      });
+
+      // Submit succeeded: synchronize form defaults with saved values
+      reset({
+        url: normalizeStorefrontUrl(values.url),
+        title: values.title.trim(),
+        description: values.description.trim(),
+        bannerUrl: finalBannerUrl,
+        featuredAssetId: values.featuredAssetId || "",
+        isVisible: values.isVisible,
+      });
+    } catch {
+      // On error: DO NOT CLEAR FORM!
+      // All user inputs remain intact in the form fields.
+    }
   };
 
   return (
@@ -546,15 +604,21 @@ export const StorefrontSetupForm: React.FC<StorefrontSetupFormProps> = ({
         <div className="pt-2 flex justify-end">
           <button
             type="submit"
-            disabled={isSaving}
+            disabled={isSaving || isUploadingBanner}
             className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg bg-primary-container text-on-primary font-semibold text-label-lg hover:opacity-95 disabled:opacity-50 transition-colors duration-150 cursor-pointer w-full sm:w-auto"
           >
-            {isSaving ? (
+            {isSaving || isUploadingBanner ? (
               <Icons.RotateCcw size={18} className="animate-spin" />
             ) : (
               <Icons.Store size={18} />
             )}
-            <span>{isSaving ? "Saving Storefront..." : "Save & Publish Storefront"}</span>
+            <span>
+              {isUploadingBanner
+                ? "Uploading Banner..."
+                : isSaving
+                  ? "Saving Storefront..."
+                  : "Save & Publish Storefront"}
+            </span>
           </button>
         </div>
       </form>

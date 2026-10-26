@@ -196,5 +196,20 @@ describe("assetService.getFeaturedAssets Integration & Contract", () => {
       expect(result.url).toBe("seller01");
       expect(result.isVisible).toBe(true);
     });
+
+    it("uploadStorefrontBanner sends multipart form data to /seller/storefront/banner", async () => {
+      const mockBlob = new Blob(["image-bytes"], { type: "image/webp" });
+      vi.spyOn(apiClient, "upload").mockResolvedValueOnce({
+        success: true,
+        data: { url: "/api/v1/storage/download?key=public/media/storefront/banner.webp" },
+      });
+
+      const res = await assetService.uploadStorefrontBanner(mockBlob, "my-banner.webp");
+      expect(apiClient.upload).toHaveBeenCalledWith(
+        "/seller/storefront/banner",
+        expect.any(FormData)
+      );
+      expect(res.url).toBe("/api/v1/storage/download?key=public/media/storefront/banner.webp");
+    });
   });
 });
