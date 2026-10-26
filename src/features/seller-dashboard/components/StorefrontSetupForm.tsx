@@ -4,6 +4,7 @@ import { useForm, useWatch, type FieldErrors } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { ENV } from "../../../config/env.ts";
 import { Icons } from "../../../lib/icons/index.ts";
 import { formatBytes } from "../../../utils/file.ts";
 import type { DigitalAsset } from "../../../types/asset.ts";
@@ -128,6 +129,11 @@ export const StorefrontSetupForm: React.FC<StorefrontSetupFormProps> = ({
     () => getStorefrontDraft()?.pendingBannerBlob ?? null
   );
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+  const [isCheckingUrl, setIsCheckingUrl] = useState(false);
+  const [unavailableUrlReason, setUnavailableUrlReason] = useState<{
+    url: string;
+    reason: string;
+  } | null>(null);
 
   const currentDraft = getStorefrontDraft();
   const initialFormDefaults: StorefrontFormValues =
@@ -148,6 +154,8 @@ export const StorefrontSetupForm: React.FC<StorefrontSetupFormProps> = ({
     control,
     reset,
     setValue,
+    setError,
+    clearErrors,
     formState: { errors, isDirty },
   } = useForm<StorefrontFormValues>({
     resolver: zodResolver(storefrontSchema),
@@ -368,10 +376,65 @@ export const StorefrontSetupForm: React.FC<StorefrontSetupFormProps> = ({
     toast.error("Validation Error", { description: String(firstError) });
   };
 
+  const handleUrlBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value.trim();
+    if (!rawValue) {
+      setUnavailableUrlReason(null);
+      return;
+    }
+
+    const localValidation = storefrontSchema.shape.url.safeParse(rawValue);
+    if (!localValidation.success) {
+      const errorMsg =
+        localValidation.error.issues[0]?.message ||
+        "Please enter a valid custom storefront URL.";
+      setError("url", { type: "manual", message: errorMsg });
+      toast.error("Invalid Storefront URL", {
+        id: "storefront-url-check",
+        description: errorMsg,
+      });
+      return;
+    }
+
+    const normalized = normalizeStorefrontUrl(rawValue);
+    try {
+      setIsCheckingUrl(true);
+      const result = await assetService.checkStorefrontUrlAvailability(normalized);
+      if (!result.available) {
+        const reason =
+          result.reason ||
+          "This custom storefront URL is already in use by another creator. Please choose a different URL.";
+        setUnavailableUrlReason({ url: normalized, reason });
+        setError("url", { type: "manual", message: reason });
+        toast.error("Storefront URL Unavailable", {
+          id: "storefront-url-check",
+          description: reason,
+        });
+      } else {
+        setUnavailableUrlReason(null);
+        clearErrors("url");
+      }
+    } catch {
+      // Do not block typing or clear form on transient network errors during blur check
+    } finally {
+      setIsCheckingUrl(false);
+    }
+  };
+
   const handleFormSubmit = async (values: StorefrontFormValues) => {
+    const normalizedUrl = normalizeStorefrontUrl(values.url);
+    if (unavailableUrlReason && unavailableUrlReason.url === normalizedUrl) {
+      setError("url", { type: "manual", message: unavailableUrlReason.reason });
+      toast.error("Storefront URL Unavailable", {
+        id: "storefront-url-check",
+        description: unavailableUrlReason.reason,
+      });
+      return;
+    }
+
     let finalBannerUrl = values.bannerUrl.trim();
 
-    // If banner is a local pending file/crop or a base64 data URL, upload it via multipart upload first
+    // If banner is a local pending file/crop or a base64 data URL, stream it directly to storage via presigned PUT first
     if (pendingBannerBlob || finalBannerUrl.startsWith("data:")) {
       try {
         setIsUploadingBanner(true);
@@ -389,9 +452,16 @@ export const StorefrontSetupForm: React.FC<StorefrontSetupFormProps> = ({
           return;
         }
 
-        const safeUploadName = uploadedFileName
-          ? uploadedFileName.replace(/\.[^.]+$/, "") + ".webp"
-          : "storefront-banner.webp";
+        const ext =
+          blobToUpload.type === "image/png"
+            ? ".png"
+            : blobToUpload.type === "image/jpeg"
+              ? ".jpg"
+              : ".webp";
+        const baseName = uploadedFileName
+          ? uploadedFileName.replace(/\.[^.]+$/, "")
+          : "storefront-banner";
+        const safeUploadName = `${baseName}${ext}`;
 
         const uploadResult = await assetService.uploadStorefrontBanner(
           blobToUpload,
@@ -467,7 +537,7 @@ export const StorefrontSetupForm: React.FC<StorefrontSetupFormProps> = ({
             }`}
           >
             <span className="px-3 sm:px-3.5 py-2.5 text-body-sm sm:text-body-md text-on-surface-variant bg-surface-container-high border-r border-outline-variant/40 select-none shrink-0">
-              selldigitalassets.com/
+              {ENV.APP_HOST}/
             </span>
             <input
               id="url"
@@ -478,14 +548,28 @@ export const StorefrontSetupForm: React.FC<StorefrontSetupFormProps> = ({
               spellCheck={false}
               aria-invalid={Boolean(errors.url)}
               aria-describedby="url-preview-hint"
-              {...register("url")}
+              {...register("url", {
+                onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
+                  void handleUrlBlur(e);
+                },
+                onChange: () => {
+                  if (unavailableUrlReason) {
+                    setUnavailableUrlReason(null);
+                  }
+                },
+              })}
               className="w-full min-w-0 px-3 sm:px-3.5 py-2.5 bg-transparent text-body-md text-on-surface focus:outline-none"
             />
+            {isCheckingUrl && (
+              <span className="pr-3 text-on-surface-variant shrink-0" aria-hidden="true">
+                <Icons.RotateCcw size={16} className="animate-spin" />
+              </span>
+            )}
           </div>
           <p id="url-preview-hint" className="text-body-sm text-on-surface-variant break-all">
             Preview:{" "}
             <span className="font-semibold text-on-surface">
-              https://selldigitalassets.com/{watchedUrl || "your-custom-url"}
+              {ENV.APP_BASE_URL}/{watchedUrl || "your-custom-url"}
             </span>
           </p>
         </div>
@@ -693,7 +777,7 @@ export const StorefrontSetupForm: React.FC<StorefrontSetupFormProps> = ({
               Make Storefront Publicly Visible
             </label>
             <span className="block text-body-sm text-on-surface-variant wrap-break-word">
-              When enabled and saved, your storefront is live at selldigitalassets.com/
+              When enabled and saved, your storefront is live at {ENV.APP_BASE_URL}/
               {watchedUrl || "seller01"}.
             </span>
           </div>

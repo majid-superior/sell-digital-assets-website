@@ -606,6 +606,23 @@ class AssetService {
   };
 
   /**
+   * Seller endpoint: Check whether a custom storefront URL slug is available.
+   */
+  checkStorefrontUrlAvailability = async (
+    url: string
+  ): Promise<{ available: boolean; url: string; reason?: string }> => {
+    const res = await apiClient.get<
+      | ApiResponseEnvelope<{ available: boolean; url: string; reason?: string }>
+      | { available: boolean; url: string; reason?: string }
+    >("/seller/storefront/check-url", { params: { url } });
+
+    if (res && typeof res === "object" && "data" in res && res.data) {
+      return res.data;
+    }
+    return res as { available: boolean; url: string; reason?: string };
+  };
+
+  /**
    * Seller endpoint: Save/Update storefront setup & publish page.
    */
   updateSellerStorefrontConfig = async (
@@ -632,28 +649,70 @@ class AssetService {
   };
 
   /**
-   * Seller endpoint: Upload storefront banner via multipart (max 3 MB, no min limit).
+   * Seller endpoint: Request a presigned direct-to-storage PUT upload URL for a storefront banner.
+   */
+  presignStorefrontBannerUpload = async (payload: {
+    fileName: string;
+    contentType: "image/png" | "image/jpeg" | "image/webp";
+    fileSizeBytes: number;
+  }): Promise<{
+    uploadUrl: string;
+    storageKey: string;
+    bannerUrl: string;
+    expiresAt: string;
+  }> => {
+    const res = await apiClient.post<
+      | ApiResponseEnvelope<{
+          uploadUrl: string;
+          storageKey: string;
+          bannerUrl: string;
+          expiresAt: string;
+        }>
+      | {
+          uploadUrl: string;
+          storageKey: string;
+          bannerUrl: string;
+          expiresAt: string;
+        }
+    >("/seller/storefront/banner/presign", payload);
+
+    if (res && typeof res === "object" && "data" in res && res.data) {
+      return res.data;
+    }
+    return res as {
+      uploadUrl: string;
+      storageKey: string;
+      bannerUrl: string;
+      expiresAt: string;
+    };
+  };
+
+  /**
+   * Seller endpoint: Presign & stream storefront banner directly to storage via PUT (max 3 MB, no min limit).
    */
   uploadStorefrontBanner = async (
     fileOrBlob: File | Blob,
-    fileName = "storefront-banner.webp"
-  ): Promise<{ url: string }> => {
-    const formData = new FormData();
-    formData.append("file", fileOrBlob, fileName);
+    fileName = "storefront-banner.webp",
+    onProgress?: (percent: number) => void
+  ): Promise<{ url: string; storageKey: string }> => {
+    const rawMime = (fileOrBlob.type || "image/webp").toLowerCase();
+    const contentType: "image/png" | "image/jpeg" | "image/webp" =
+      rawMime === "image/png" || rawMime === "image/jpeg" || rawMime === "image/webp"
+        ? rawMime
+        : "image/webp";
 
-    const res = await apiClient.upload<
-      ApiResponseEnvelope<{ url: string }> | { data?: { url: string } } | { url: string }
-    >("/seller/storefront/banner", formData, { timeoutMs: 45000 });
+    const presigned = await this.presignStorefrontBannerUpload({
+      fileName,
+      contentType,
+      fileSizeBytes: fileOrBlob.size,
+    });
 
-    if (res && typeof res === "object") {
-      if ("data" in res && res.data && typeof res.data === "object" && "url" in res.data) {
-        return { url: resolveMediaUrl(res.data.url) };
-      }
-      if ("url" in res && typeof res.url === "string") {
-        return { url: resolveMediaUrl(res.url) };
-      }
-    }
-    throw new Error("Unable to parse storefront banner upload response");
+    await this.uploadBinary(presigned.uploadUrl, fileOrBlob, onProgress);
+
+    return {
+      url: resolveMediaUrl(presigned.bannerUrl),
+      storageKey: presigned.storageKey,
+    };
   };
 
   /**

@@ -59,8 +59,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}, isRetr
     const { params, headers, timeoutMs = 15000, signal: customSignal, ...customConfig } = options;
 
     const url = buildRequestUrl(endpoint, params);
-    const isFormData = typeof FormData !== "undefined" && customConfig.body instanceof FormData;
-    const requestHeaders = prepareRequestHeaders(headers, isFormData);
+    const requestHeaders = prepareRequestHeaders(headers);
 
     // Timeout management via AbortController
     const controller = new AbortController();
@@ -151,6 +150,4 @@ export const apiClient = {
     patch: <T>(endpoint: string, body: unknown, options?: RequestOptions) =>
         request<T>(endpoint, { ...options, method: "PATCH", body: JSON.stringify(body) }),
     delete: <T>(endpoint: string, options?: RequestOptions) => request<T>(endpoint, { ...options, method: "DELETE" }),
-    upload: <T>(endpoint: string, formData: FormData, options?: RequestOptions) =>
-        request<T>(endpoint, { ...options, method: "POST", body: formData }),
 };

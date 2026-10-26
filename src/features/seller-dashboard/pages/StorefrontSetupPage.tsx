@@ -1,6 +1,7 @@
 // src/features/seller-dashboard/pages/StorefrontSetupPage.tsx
 import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
+import { ENV } from "../../../config/env.ts";
 import { Icons } from "../../../lib/icons/index.ts";
 import { Skeleton } from "../../../components/ui/index.ts";
 import { useStorefrontSetup } from "../hooks/useStorefrontSetup.ts";
@@ -79,7 +80,7 @@ export const StorefrontSetupPage: React.FC = () => {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-container-high text-on-surface text-label-lg hover:bg-surface-container-highest transition-colors duration-150 shrink-0"
           >
             <Icons.ExternalLink size={16} />
-            <span className="truncate">selldigitalassets.com/{config.url}</span>
+            <span className="truncate">{ENV.APP_HOST}/{config.url}</span>
           </Link>
         )}
       </div>

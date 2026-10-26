@@ -2,6 +2,7 @@
 import React from "react";
 import { useParams, Navigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { ENV } from "../../../config/env.ts";
 import { Icons } from "../../../lib/icons/index.ts";
 import { Skeleton } from "../../../components/ui/index.ts";
 import { assetService } from "../../../services/v1/assetService.ts";
@@ -109,7 +110,7 @@ export const SellerStorefrontPage: React.FC = () => {
         <p className="text-body-md text-on-surface-variant max-w-md mx-auto wrap-break-word">
           The storefront{" "}
           <span className="font-semibold">
-            selldigitalassets.com/{normalizedUrl}
+            {ENV.APP_HOST}/{normalizedUrl}
           </span>{" "}
           has not been set up or published yet.
         </p>
@@ -157,7 +158,7 @@ export const SellerStorefrontPage: React.FC = () => {
               </span>
               <span>•</span>
               <span className="break-all">
-                selldigitalassets.com/{storefront.url}
+                {ENV.APP_HOST}/{storefront.url}
               </span>
             </div>
             <h1 className="text-headline-xl-mobile sm:text-headline-xl text-on-surface wrap-break-word">

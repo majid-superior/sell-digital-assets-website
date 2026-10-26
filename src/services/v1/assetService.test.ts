@@ -197,20 +197,58 @@ describe("assetService.getFeaturedAssets Integration & Contract", () => {
       expect(result.isVisible).toBe(true);
     });
 
-    it("uploadStorefrontBanner sends multipart form data to /seller/storefront/banner", async () => {
+    it("uploadStorefrontBanner requests a presigned URL and streams binary directly via PUT", async () => {
       const mockBlob = new Blob(["image-bytes"], { type: "image/webp" });
-      vi.spyOn(apiClient, "upload").mockResolvedValueOnce({
+      vi.spyOn(apiClient, "post").mockResolvedValueOnce({
         success: true,
-        data: { url: "/api/v1/storage/download?key=public/media/storefront/banner.webp" },
+        data: {
+          uploadUrl: "/api/v1/storage/upload?key=public/media/storefront/banner.webp&token=abc&expires=999",
+          storageKey: "public/media/storefront/banner.webp",
+          bannerUrl: "/api/v1/storage/download?key=public/media/storefront/banner.webp&token=xyz&expires=999",
+          expiresAt: "2026-10-27T02:00:00.000Z",
+        },
       });
+      const uploadBinarySpy = vi
+        .spyOn(assetService, "uploadBinary")
+        .mockResolvedValueOnce();
 
       const res = await assetService.uploadStorefrontBanner(mockBlob, "my-banner.webp");
-      expect(apiClient.upload).toHaveBeenCalledWith(
-        "/seller/storefront/banner",
-        expect.any(FormData),
-        { timeoutMs: 45000 }
+
+      expect(apiClient.post).toHaveBeenCalledWith(
+        "/seller/storefront/banner/presign",
+        {
+          fileName: "my-banner.webp",
+          contentType: "image/webp",
+          fileSizeBytes: mockBlob.size,
+        }
       );
-      expect(res.url).toBe("/api/v1/storage/download?key=public/media/storefront/banner.webp");
+      expect(uploadBinarySpy).toHaveBeenCalledWith(
+        "/api/v1/storage/upload?key=public/media/storefront/banner.webp&token=abc&expires=999",
+        mockBlob,
+        undefined
+      );
+      expect(res.url).toBe(
+        "/api/v1/storage/download?key=public/media/storefront/banner.webp&token=xyz&expires=999"
+      );
+    });
+
+    it("checkStorefrontUrlAvailability calls GET /seller/storefront/check-url with url query param", async () => {
+      vi.spyOn(apiClient, "get").mockResolvedValueOnce({
+        success: true,
+        data: {
+          available: false,
+          url: "dgarts",
+          reason:
+            "This custom storefront URL is already in use by another creator. Please choose a different URL.",
+        },
+      });
+
+      const res = await assetService.checkStorefrontUrlAvailability("dgarts");
+      expect(apiClient.get).toHaveBeenCalledWith("/seller/storefront/check-url", {
+        params: { url: "dgarts" },
+      });
+      expect(res.available).toBe(false);
+      expect(res.reason).toContain("already in use");
     });
   });
 });

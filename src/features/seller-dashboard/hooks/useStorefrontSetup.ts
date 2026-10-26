@@ -1,6 +1,7 @@
 // src/features/seller-dashboard/hooks/useStorefrontSetup.ts
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { ENV } from "../../../config/env.ts";
 import { assetService } from "../../../services/v1/assetService.ts";
 import { getHumanErrorMessage } from "../../../utils/errors.ts";
 import type { DigitalAsset } from "../../../types/asset.ts";
@@ -48,7 +49,7 @@ export const useStorefrontSetup = () => {
       }
       toast.success("Storefront settings saved!", {
         description: updatedConfig.isVisible && updatedConfig.url
-          ? `Your public storefront is now live at selldigitalassets.com/${updatedConfig.url}.`
+          ? `Your public storefront is now live at ${ENV.APP_BASE_URL}/${updatedConfig.url}.`
           : "Your custom storefront URL and settings have been updated.",
       });
     },
