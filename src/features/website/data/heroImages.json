@@ -1,6 +1,6 @@
 {
-  "syncHash": "hero-cc3ae9f3-15",
-  "lastUpdated": "2026-10-26T17:34:52.982Z",
+  "syncHash": "hero-91fdaa97-15",
+  "lastUpdated": "2026-10-26T19:05:05.462Z",
   "version": "1.0.0",
   "count": 15,
   "images": [
@@ -16,7 +16,7 @@
       "sortOrder": 0,
       "isActive": true,
       "createdAt": "2026-10-25T18:44:57.804Z",
-      "updatedAt": "2026-10-26T17:34:52.319Z"
+      "updatedAt": "2026-10-25T18:44:57.804Z"
     },
     {
       "id": "6f8a7ed6-dea7-4cea-aaea-9fa2e4c31568",
@@ -30,7 +30,7 @@
       "sortOrder": 1,
       "isActive": true,
       "createdAt": "2026-10-25T18:44:57.804Z",
-      "updatedAt": "2026-10-26T17:34:52.964Z"
+      "updatedAt": "2026-10-25T18:44:57.804Z"
     },
     {
       "id": "c52fcee9-b351-4c88-87ae-44c3d9504350",

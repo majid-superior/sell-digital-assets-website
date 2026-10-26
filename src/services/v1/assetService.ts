@@ -1,6 +1,6 @@
 // src/services/v1/assetService.ts
 import { apiClient } from "@/services/api.ts";
-import { resolveStorageUrl } from "@/utils/media.ts";
+import { resolveStorageUrl, resolveMediaUrl } from "@/utils/media.ts";
 import type {
   DigitalAsset,
   AssetFile,
@@ -570,10 +570,15 @@ class AssetService {
       ApiResponseEnvelope<PublicSellerStorefront> | { data?: PublicSellerStorefront } | PublicSellerStorefront
     >(`/catalog/storefronts/${encodeURIComponent(sellerUrl)}`);
 
-    if (res && typeof res === "object" && "data" in res && res.data) {
-      return res.data;
-    }
-    return res as PublicSellerStorefront;
+    const data =
+      res && typeof res === "object" && "data" in res && res.data
+        ? res.data
+        : (res as PublicSellerStorefront);
+
+    return {
+      ...data,
+      bannerUrl: data?.bannerUrl ? resolveMediaUrl(data.bannerUrl) : data?.bannerUrl,
+    };
   };
 
   /**
@@ -593,7 +598,7 @@ class AssetService {
       url: data?.url ?? "",
       title: data?.title ?? "",
       description: data?.description ?? "",
-      bannerUrl: data?.bannerUrl ?? "",
+      bannerUrl: data?.bannerUrl ? resolveMediaUrl(data.bannerUrl) : "",
       featuredAssetId: data?.featuredAssetId ?? "",
       isVisible: Boolean(data?.isVisible && data?.url),
       updatedAt: data?.updatedAt,
@@ -610,10 +615,20 @@ class AssetService {
       ApiResponseEnvelope<SellerStorefrontConfig> | { data?: SellerStorefrontConfig } | SellerStorefrontConfig
     >("/seller/storefront", payload);
 
-    if (res && typeof res === "object" && "data" in res && res.data) {
-      return res.data;
-    }
-    return res as SellerStorefrontConfig;
+    const data =
+      res && typeof res === "object" && "data" in res && res.data
+        ? res.data
+        : (res as SellerStorefrontConfig);
+
+    return {
+      url: data?.url ?? "",
+      title: data?.title ?? "",
+      description: data?.description ?? "",
+      bannerUrl: data?.bannerUrl ? resolveMediaUrl(data.bannerUrl) : "",
+      featuredAssetId: data?.featuredAssetId ?? "",
+      isVisible: Boolean(data?.isVisible && data?.url),
+      updatedAt: data?.updatedAt,
+    };
   };
 
   /**
@@ -628,14 +643,14 @@ class AssetService {
 
     const res = await apiClient.upload<
       ApiResponseEnvelope<{ url: string }> | { data?: { url: string } } | { url: string }
-    >("/seller/storefront/banner", formData);
+    >("/seller/storefront/banner", formData, { timeoutMs: 45000 });
 
     if (res && typeof res === "object") {
       if ("data" in res && res.data && typeof res.data === "object" && "url" in res.data) {
-        return res.data;
+        return { url: resolveMediaUrl(res.data.url) };
       }
       if ("url" in res && typeof res.url === "string") {
-        return { url: res.url };
+        return { url: resolveMediaUrl(res.url) };
       }
     }
     throw new Error("Unable to parse storefront banner upload response");
@@ -645,22 +660,26 @@ class AssetService {
    * Seller endpoint: Get seller's published assets to populate the Featured Asset selector.
    */
   getSellerPublishedAssets = async (): Promise<DigitalAsset[]> => {
-    const res = await apiClient.get<
-      ApiResponseEnvelope<DigitalAsset[]> | { data?: DigitalAsset[]; items?: DigitalAsset[] } | DigitalAsset[]
-    >("/seller/assets?status=PUBLISHED");
+    try {
+      const res = await apiClient.get<
+        ApiResponseEnvelope<DigitalAsset[]> | { data?: DigitalAsset[]; items?: DigitalAsset[] } | DigitalAsset[]
+      >("/seller/assets?status=published");
 
-    if (Array.isArray(res)) {
-      return res;
-    }
-    if (res && typeof res === "object") {
-      if ("data" in res && Array.isArray(res.data)) {
-        return res.data;
+      if (Array.isArray(res)) {
+        return res;
       }
-      if ("items" in res && Array.isArray(res.items)) {
-        return res.items;
+      if (res && typeof res === "object") {
+        if ("data" in res && Array.isArray(res.data)) {
+          return res.data;
+        }
+        if ("items" in res && Array.isArray(res.items)) {
+          return res.items;
+        }
       }
+      return [];
+    } catch {
+      return [];
     }
-    return [];
   };
 }
 

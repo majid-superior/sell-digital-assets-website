@@ -1,12 +1,23 @@
 // src/features/seller-dashboard/pages/StorefrontSetupPage.tsx
-import React from "react";
+import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Icons } from "../../../lib/icons/index.ts";
 import { Skeleton } from "../../../components/ui/index.ts";
 import { useStorefrontSetup } from "../hooks/useStorefrontSetup.ts";
 import { StorefrontSetupForm } from "../components/StorefrontSetupForm.tsx";
+import {
+  cancelClearStorefrontDraft,
+  scheduleClearStorefrontDraft,
+} from "../utils/storefrontDraft.ts";
 
 export const StorefrontSetupPage: React.FC = () => {
+  useEffect(() => {
+    cancelClearStorefrontDraft();
+    return () => {
+      scheduleClearStorefrontDraft();
+    };
+  }, []);
+
   const {
     config,
     publishedAssets,

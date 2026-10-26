@@ -207,7 +207,8 @@ describe("assetService.getFeaturedAssets Integration & Contract", () => {
       const res = await assetService.uploadStorefrontBanner(mockBlob, "my-banner.webp");
       expect(apiClient.upload).toHaveBeenCalledWith(
         "/seller/storefront/banner",
-        expect.any(FormData)
+        expect.any(FormData),
+        { timeoutMs: 45000 }
       );
       expect(res.url).toBe("/api/v1/storage/download?key=public/media/storefront/banner.webp");
     });

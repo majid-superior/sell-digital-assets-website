@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { assetService } from "../../../services/v1/assetService.ts";
 import { getHumanErrorMessage } from "../../../utils/errors.ts";
+import type { DigitalAsset } from "../../../types/asset.ts";
 import type { SellerStorefrontConfig, UpdateStorefrontPayload } from "../types.ts";
 
 export const STOREFRONT_QUERY_KEY = ["seller", "storefront-config"] as const;
@@ -16,17 +17,23 @@ export const DEFAULT_STOREFRONT_CONFIG: SellerStorefrontConfig = Object.freeze({
   isVisible: false,
 });
 
+const EMPTY_PUBLISHED_ASSETS: DigitalAsset[] = [];
+
 export const useStorefrontSetup = () => {
   const queryClient = useQueryClient();
 
   const configQuery = useQuery({
     queryKey: STOREFRONT_QUERY_KEY,
     queryFn: assetService.getSellerStorefrontConfig,
+    refetchOnWindowFocus: false,
+    retry: false,
   });
 
   const assetsQuery = useQuery({
     queryKey: ["seller", "assets", "published"],
     queryFn: assetService.getSellerPublishedAssets,
+    refetchOnWindowFocus: false,
+    retry: false,
   });
 
   const saveMutation = useMutation({
@@ -57,8 +64,8 @@ export const useStorefrontSetup = () => {
 
   return {
     config: configQuery.data ?? DEFAULT_STOREFRONT_CONFIG,
-    publishedAssets: assetsQuery.data ?? [],
-    isLoading: configQuery.isLoading || assetsQuery.isLoading,
+    publishedAssets: assetsQuery.data ?? EMPTY_PUBLISHED_ASSETS,
+    isLoading: configQuery.isLoading && !configQuery.isFetched,
     isError: configQuery.isError,
     isSaving: saveMutation.isPending,
     saveSuccess: saveMutation.isSuccess,

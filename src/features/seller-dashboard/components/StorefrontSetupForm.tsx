@@ -19,8 +19,15 @@ import {
   BANNER_TARGET_WIDTH,
   BANNER_TARGET_HEIGHT,
 } from "./BannerCropModal.tsx";
+import {
+  dataUrlToBlob,
+  getStorefrontDraft,
+  setStorefrontDraft,
+  getLastSyncedServerKey,
+  setLastSyncedServerKey,
+} from "../utils/storefrontDraft.ts";
 
-const MAX_BANNER_BYTES = 3 * 1024 * 1024; // 3 MB
+const MAX_BANNER_BYTES = 3 * 1024 * 1024; // 3 MB max file size (no min limit)
 const ALLOWED_BANNER_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
 const storefrontSchema = z.object({
@@ -104,14 +111,36 @@ export const StorefrontSetupForm: React.FC<StorefrontSetupFormProps> = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [cropModalOpen, setCropModalOpen] = useState(false);
-  const [rawBannerSource, setRawBannerSource] = useState<string | null>(null);
+  const [rawBannerSource, setRawBannerSource] = useState<string | null>(
+    () => getStorefrontDraft()?.rawBannerSource ?? null
+  );
+  const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(
+    () => getStorefrontDraft()?.localPreviewUrl ?? null
+  );
   const [uploadedDimensions, setUploadedDimensions] = useState<{
     width: number;
     height: number;
-  } | null>(null);
-  const [uploadedFileName, setUploadedFileName] = useState<string>("");
+  } | null>(() => getStorefrontDraft()?.uploadedDimensions ?? null);
+  const [uploadedFileName, setUploadedFileName] = useState<string>(
+    () => getStorefrontDraft()?.uploadedFileName ?? ""
+  );
+  const [pendingBannerBlob, setPendingBannerBlob] = useState<Blob | null>(
+    () => getStorefrontDraft()?.pendingBannerBlob ?? null
+  );
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
-  const lastSyncedKeyRef = useRef<string>("");
+
+  const currentDraft = getStorefrontDraft();
+  const initialFormDefaults: StorefrontFormValues =
+    currentDraft?.hasUserEdits
+      ? currentDraft.values
+      : {
+          url: initialData.url || "",
+          title: initialData.title || "",
+          description: initialData.description || "",
+          bannerUrl: initialData.bannerUrl || "",
+          featuredAssetId: initialData.featuredAssetId || "",
+          isVisible: initialData.url ? initialData.isVisible : true,
+        };
 
   const {
     register,
@@ -119,26 +148,22 @@ export const StorefrontSetupForm: React.FC<StorefrontSetupFormProps> = ({
     control,
     reset,
     setValue,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<StorefrontFormValues>({
     resolver: zodResolver(storefrontSchema),
-    defaultValues: {
-      url: initialData.url || "", // Starts as ""
-      title: initialData.title || "",
-      description: initialData.description || "",
-      bannerUrl: initialData.bannerUrl || "",
-      featuredAssetId: initialData.featuredAssetId || "",
-      isVisible: initialData.url ? initialData.isVisible : true,
-    },
+    defaultValues: initialFormDefaults,
   });
 
+  // Synchronize initial server config ONLY if the user has not made unsaved edits
   useEffect(() => {
-    const syncKey = `${initialData.url || ""}_${initialData.updatedAt || ""}_${initialData.title || ""}`;
+    const syncKey = `${initialData.url || ""}_${initialData.updatedAt || ""}_${initialData.title || ""}_${initialData.bannerUrl || ""}`;
     if (
-      syncKey !== lastSyncedKeyRef.current &&
+      syncKey !== getLastSyncedServerKey() &&
+      !isDirty &&
+      !getStorefrontDraft()?.hasUserEdits &&
       (initialData.url || initialData.title || initialData.bannerUrl)
     ) {
-      lastSyncedKeyRef.current = syncKey;
+      setLastSyncedServerKey(syncKey);
       reset({
         url: initialData.url || "",
         title: initialData.title || "",
@@ -148,11 +173,50 @@ export const StorefrontSetupForm: React.FC<StorefrontSetupFormProps> = ({
         isVisible: initialData.url ? initialData.isVisible : true,
       });
     }
-  }, [initialData, reset]);
+  }, [initialData, isDirty, reset]);
 
+  const watchedAllValues = useWatch({ control });
   const rawWatchedUrl = useWatch({ control, name: "url" });
   const watchedBanner = useWatch({ control, name: "bannerUrl" });
   const watchedUrl = normalizeStorefrontUrl(rawWatchedUrl || "");
+
+  // Persist current form edits in memory until submit succeeds, user navigates away, or page reloads
+  useEffect(() => {
+    const currentValues: StorefrontFormValues = {
+      url: watchedAllValues.url ?? "",
+      title: watchedAllValues.title ?? "",
+      description: watchedAllValues.description ?? "",
+      bannerUrl: watchedAllValues.bannerUrl ?? "",
+      featuredAssetId: watchedAllValues.featuredAssetId ?? "",
+      isVisible: watchedAllValues.isVisible ?? true,
+    };
+
+    const hasEdits =
+      isDirty ||
+      Boolean(localPreviewUrl) ||
+      Boolean(pendingBannerBlob) ||
+      Boolean(getStorefrontDraft()?.hasUserEdits);
+
+    if (hasEdits) {
+      setStorefrontDraft({
+        values: currentValues,
+        rawBannerSource,
+        localPreviewUrl,
+        uploadedDimensions,
+        uploadedFileName,
+        pendingBannerBlob,
+        hasUserEdits: true,
+      });
+    }
+  }, [
+    watchedAllValues,
+    isDirty,
+    rawBannerSource,
+    localPreviewUrl,
+    uploadedDimensions,
+    uploadedFileName,
+    pendingBannerBlob,
+  ]);
 
   const validateBannerFile = (file: File): boolean => {
     if (!file) {
@@ -216,6 +280,8 @@ export const StorefrontSetupForm: React.FC<StorefrontSetupFormProps> = ({
           width === BANNER_TARGET_WIDTH && height === BANNER_TARGET_HEIGHT;
 
         if (isExactResolution) {
+          setLocalPreviewUrl(dataUrl);
+          setPendingBannerBlob(file);
           setValue("bannerUrl", dataUrl, {
             shouldValidate: true,
             shouldDirty: true,
@@ -254,6 +320,20 @@ export const StorefrontSetupForm: React.FC<StorefrontSetupFormProps> = ({
   };
 
   const handleCropComplete = (croppedDataUrl: string) => {
+    try {
+      const croppedBlob = dataUrlToBlob(croppedDataUrl);
+      if (croppedBlob.size > MAX_BANNER_BYTES) {
+        toast.error("Banner Exceeds 3 MB Limit", {
+          description: `The cropped banner image is ${formatBytes(croppedBlob.size)}, which exceeds the 3 MB limit. Please choose a less complex image.`,
+        });
+        return;
+      }
+      setPendingBannerBlob(croppedBlob);
+    } catch {
+      setPendingBannerBlob(null);
+    }
+
+    setLocalPreviewUrl(croppedDataUrl);
     setValue("bannerUrl", croppedDataUrl, {
       shouldValidate: true,
       shouldDirty: true,
@@ -268,6 +348,8 @@ export const StorefrontSetupForm: React.FC<StorefrontSetupFormProps> = ({
   const handleRemoveBanner = () => {
     setValue("bannerUrl", "", { shouldValidate: true, shouldDirty: true });
     setRawBannerSource(null);
+    setLocalPreviewUrl(null);
+    setPendingBannerBlob(null);
     setUploadedDimensions(null);
     setUploadedFileName("");
     if (fileInputRef.current) {
@@ -289,30 +371,48 @@ export const StorefrontSetupForm: React.FC<StorefrontSetupFormProps> = ({
   const handleFormSubmit = async (values: StorefrontFormValues) => {
     let finalBannerUrl = values.bannerUrl.trim();
 
-    // If banner is a base64 data URL or blob URL, upload it via multipart upload first
-    if (finalBannerUrl.startsWith("data:") || finalBannerUrl.startsWith("blob:")) {
+    // If banner is a local pending file/crop or a base64 data URL, upload it via multipart upload first
+    if (pendingBannerBlob || finalBannerUrl.startsWith("data:")) {
       try {
         setIsUploadingBanner(true);
         const toastId = "storefront-banner-upload";
         toast.loading("Uploading storefront banner image...", { id: toastId });
 
-        const blob = await fetch(finalBannerUrl).then((r) => r.blob());
+        const blobToUpload =
+          pendingBannerBlob ?? dataUrlToBlob(finalBannerUrl);
+
+        if (blobToUpload.size > MAX_BANNER_BYTES) {
+          toast.dismiss(toastId);
+          toast.error("Banner Exceeds 3 MB Limit", {
+            description: `Banner image is ${formatBytes(blobToUpload.size)}. Maximum allowed file size is 3 MB.`,
+          });
+          return;
+        }
+
+        const safeUploadName = uploadedFileName
+          ? uploadedFileName.replace(/\.[^.]+$/, "") + ".webp"
+          : "storefront-banner.webp";
+
         const uploadResult = await assetService.uploadStorefrontBanner(
-          blob,
-          uploadedFileName || "storefront-banner.webp"
+          blobToUpload,
+          safeUploadName
         );
         finalBannerUrl = uploadResult.url;
-        setValue("bannerUrl", finalBannerUrl, { shouldValidate: true, shouldDirty: false });
+        setPendingBannerBlob(null);
+        setValue("bannerUrl", finalBannerUrl, {
+          shouldValidate: true,
+          shouldDirty: true,
+        });
         toast.success("Storefront banner uploaded successfully", { id: toastId });
       } catch (uploadErr) {
         toast.dismiss("storefront-banner-upload");
         toast.error("Banner Upload Failed", {
           description: getHumanErrorMessage(
             uploadErr,
-            "Failed to upload storefront banner. Please check that file is under 3 MB and try again."
+            "Failed to upload storefront banner. Please verify the image is under 3 MB and try again."
           ),
         });
-        // On upload error: DO NOT CLEAR FORM! Return early so all typed data is retained
+        // On upload error: DO NOT CLEAR FORM! Return early so all typed data and banner preview are retained
         return;
       } finally {
         setIsUploadingBanner(false);
@@ -320,27 +420,32 @@ export const StorefrontSetupForm: React.FC<StorefrontSetupFormProps> = ({
     }
 
     try {
-      await onSubmit({
+      const normalizedPayload: UpdateStorefrontPayload = {
         url: normalizeStorefrontUrl(values.url),
         title: values.title.trim(),
         description: values.description.trim(),
         bannerUrl: finalBannerUrl,
         featuredAssetId: values.featuredAssetId || "",
         isVisible: values.isVisible,
+      };
+
+      await onSubmit(normalizedPayload);
+
+      // Submit succeeded: clear unsaved draft marker and synchronize form defaults with saved values
+      setStorefrontDraft({
+        values: normalizedPayload,
+        rawBannerSource,
+        localPreviewUrl,
+        uploadedDimensions,
+        uploadedFileName,
+        pendingBannerBlob: null,
+        hasUserEdits: false,
       });
 
-      // Submit succeeded: synchronize form defaults with saved values
-      reset({
-        url: normalizeStorefrontUrl(values.url),
-        title: values.title.trim(),
-        description: values.description.trim(),
-        bannerUrl: finalBannerUrl,
-        featuredAssetId: values.featuredAssetId || "",
-        isVisible: values.isVisible,
-      });
+      reset(normalizedPayload);
     } catch {
       // On error: DO NOT CLEAR FORM!
-      // All user inputs remain intact in the form fields.
+      // All user inputs and banner preview remain intact in the form fields.
     }
   };
 
@@ -497,11 +602,11 @@ export const StorefrontSetupForm: React.FC<StorefrontSetupFormProps> = ({
           </div>
 
           {/* Live Cropped / Uploaded Banner Preview */}
-          {watchedBanner && (
+          {(localPreviewUrl || watchedBanner) && (
             <div className="rounded-xl overflow-hidden bg-surface-container-low border border-outline-variant/40">
               <div className="relative aspect-3/1 w-full bg-surface-container-high overflow-hidden">
                 <img
-                  src={watchedBanner}
+                  src={localPreviewUrl || watchedBanner}
                   alt="Storefront Banner Preview"
                   className="w-full h-full object-cover"
                 />
@@ -522,7 +627,7 @@ export const StorefrontSetupForm: React.FC<StorefrontSetupFormProps> = ({
                     type="button"
                     onClick={() => {
                       if (!rawBannerSource) {
-                        setRawBannerSource(watchedBanner);
+                        setRawBannerSource(localPreviewUrl || watchedBanner);
                       }
                       setCropModalOpen(true);
                     }}
