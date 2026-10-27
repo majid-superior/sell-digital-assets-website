@@ -51,3 +51,28 @@ export interface AuthSession {
   user: User;
   accessToken: string;
 }
+
+export interface StoreTeamRole {
+  id: number;
+  name: string;
+  slug: string;
+  scope: string;
+  description: string;
+  allow_public_signup?: boolean;
+}
+
+export interface StoreTeamMember {
+  id: string;
+  name: string;
+  display_name?: string;
+  email: string;
+  role: string;
+  role_id: number;
+  role_name?: string;
+  role_scope?: string;
+  parent_seller_id: string;
+  status: "active" | "suspended" | "pending" | "deactive";
+  allowed_permissions?: string[];
+  created_at: string;
+  updated_at?: string;
+}

@@ -28,6 +28,7 @@ import {
   Lock as LucideLock,
   Mail as LucideMail,
   User as LucideUser,
+  Users as LucideUsers,
   LayoutDashboard as LucideLayoutDashboard,
   Download as LucideDownload,
   Package as LucidePackage,
@@ -111,6 +112,8 @@ export const EyeOff: IconComponent = createSemanticIcon(LucideEyeOff);
 export const Lock: IconComponent = createSemanticIcon(LucideLock);
 export const Mail: IconComponent = createSemanticIcon(LucideMail);
 export const User: IconComponent = createSemanticIcon(LucideUser);
+export const Users: IconComponent = createSemanticIcon(LucideUsers);
+export const Team: IconComponent = Users;
 export const LayoutDashboard: IconComponent = createSemanticIcon(LucideLayoutDashboard);
 export const Dashboard: IconComponent = LayoutDashboard;
 export const Download: IconComponent = createSemanticIcon(LucideDownload);

@@ -31,8 +31,10 @@ const EmptyDashboardPage = lazy(() => import("@/features/dashboard/pages/EmptyDa
 const StorefrontSetupPage = lazy(
     () => import("@/features/seller-dashboard/pages/StorefrontSetupPage.tsx")
 );
-const SellerProductsPage = lazy(() => import("@/features/dashboard/pages/seller/SellerProductsPage.tsx"));
-const SellerProductWizardPage = lazy(() => import("@/features/dashboard/pages/seller/SellerProductWizardPage.tsx"));
+const SellerAssetsPage = lazy(() => import("@/features/dashboard/pages/seller/SellerAssetsPage.tsx"));
+const SellerAssetWizardPage = lazy(() => import("@/features/dashboard/pages/seller/SellerAssetWizardPage.tsx"));
+const SellerUsersPage = lazy(() => import("@/features/dashboard/pages/seller/SellerUsersPage.tsx"));
+const SellerCouponsPage = lazy(() => import("@/features/dashboard/pages/seller/SellerCouponsPage.tsx").then(m => ({ default: m.SellerCouponsPage })));
 const BuyerDownloadsPage = lazy(() => import("@/features/dashboard/pages/buyer/BuyerDownloadsPage.tsx"));
 const BuyerLicensesPage = lazy(() => import("@/features/dashboard/pages/buyer/BuyerLicensesPage.tsx"));
 
@@ -40,6 +42,19 @@ export interface AppRoutesProps {
     isAuthenticated?: boolean;
     userRole?: UserRole | null;
 }
+
+const SELLER_ROLES: UserRole[] = [
+    "seller",
+    "admin",
+    "SELLER",
+    "ADMIN",
+    "store_manager",
+    "content_uploader",
+    "analyst",
+    "STORE_MANAGER",
+    "CONTENT_UPLOADER",
+    "ANALYST",
+];
 
 const DashboardIndexRedirect: React.FC = () => {
     const { user } = useAuth();
@@ -74,33 +89,53 @@ export const AppRoutes: React.FC<AppRoutesProps> = () => {
                     <Route path="/dashboard" element={<DashboardLayout />}>
                         <Route index element={<DashboardIndexRedirect />} />
 
-                        {/* Seller Portal Routes (Requires seller or admin role) */}
-                        <Route element={<ProtectedRoute allowedRoles={["seller", "admin", "SELLER", "ADMIN"]} />}>
+                        {/* Seller Portal Routes (Requires seller, admin, or store team member role) */}
+                        <Route element={<ProtectedRoute allowedRoles={SELLER_ROLES} />}>
                             <Route path="seller" element={<Navigate to="/dashboard/seller/overview" replace />} />
                             <Route path="seller/overview" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Overview" />} />
                             <Route path="seller/storefront" element={<StorefrontSetupPage />} />
-                            <Route path="seller/products" element={<Navigate to="/dashboard/seller/products/all" replace />} />
-                            <Route path="seller/products/all" element={<SellerProductsPage />} />
-                            <Route path="seller/products/new" element={<SellerProductWizardPage />} />
-                            <Route path="seller/products/upload" element={<Navigate to="/dashboard/seller/products/upload/files" replace />} />
-                            <Route path="seller/products/upload/files" element={<SellerProductWizardPage />} />
-                            <Route path="seller/products/edit/:id" element={<SellerProductWizardPage />} />
-                            <Route path="seller/products/upload/licenses" element={<Navigate to="/dashboard/seller/products/upload/files" replace />} />
-                            <Route path="seller/products/bundles" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Bundles" />} />
-                            <Route path="seller/products/coupons" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Coupons" />} />
+                            {/* Canonical Assets Routes */}
+                            <Route path="seller/assets" element={<Navigate to="/dashboard/seller/assets/all" replace />} />
+                            <Route path="seller/assets/all" element={<SellerAssetsPage />} />
+                            <Route path="seller/assets/new" element={<SellerAssetWizardPage />} />
+                            <Route path="seller/assets/upload" element={<Navigate to="/dashboard/seller/assets/upload/files" replace />} />
+                            <Route path="seller/assets/upload/files" element={<SellerAssetWizardPage />} />
+                            <Route path="seller/assets/edit/:id" element={<SellerAssetWizardPage />} />
+                            <Route path="seller/assets/upload/licenses" element={<Navigate to="/dashboard/seller/assets/upload/files" replace />} />
+                            <Route path="seller/assets/bundles" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Bundles" />} />
+                            <Route path="seller/assets/coupons" element={<SellerCouponsPage />} />
+                            <Route path="seller/coupons" element={<Navigate to="/dashboard/seller/assets/coupons" replace />} />
+
+                            {/* Backward Compatibility Aliases for Products Routes */}
+                            <Route path="seller/products" element={<Navigate to="/dashboard/seller/assets/all" replace />} />
+                            <Route path="seller/products/all" element={<Navigate to="/dashboard/seller/assets/all" replace />} />
+                            <Route path="seller/products/new" element={<Navigate to="/dashboard/seller/assets/new" replace />} />
+                            <Route path="seller/products/upload" element={<Navigate to="/dashboard/seller/assets/upload/files" replace />} />
+                            <Route path="seller/products/upload/files" element={<Navigate to="/dashboard/seller/assets/upload/files" replace />} />
+                            <Route path="seller/products/edit/:id" element={<SellerAssetWizardPage />} />
+                            <Route path="seller/products/upload/licenses" element={<Navigate to="/dashboard/seller/assets/upload/files" replace />} />
+                            <Route path="seller/products/bundles" element={<Navigate to="/dashboard/seller/assets/bundles" replace />} />
+                            <Route path="seller/products/coupons" element={<Navigate to="/dashboard/seller/assets/coupons" replace />} />
+
                             <Route path="seller/sales" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Sales" />} />
                             <Route path="seller/reviews" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Reviews" />} />
                             <Route path="seller/disputes" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Disputes" />} />
                             <Route path="seller/payouts" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Payouts" />} />
                             <Route path="seller/analytics" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Analytics" />} />
+                            <Route path="seller/users" element={<SellerUsersPage />} />
+                            <Route path="seller/team" element={<Navigate to="/dashboard/seller/users" replace />} />
                             <Route path="seller/settings" element={<Navigate to="/dashboard/seller/settings/profile" replace />} />
                             <Route path="seller/settings/profile" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Profile" />} />
                             <Route path="seller/settings/alerts" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Alerts" />} />
                             <Route path="seller/settings/payouts" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Payouts" />} />
                             <Route path="overview" element={<Navigate to="/dashboard/seller/overview" replace />} />
                             <Route path="storefront" element={<Navigate to="/dashboard/seller/storefront" replace />} />
-                            <Route path="products" element={<Navigate to="/dashboard/seller/products/all" replace />} />
+                            <Route path="assets" element={<Navigate to="/dashboard/seller/assets/all" replace />} />
+                            <Route path="coupons" element={<Navigate to="/dashboard/seller/assets/coupons" replace />} />
+                            <Route path="products" element={<Navigate to="/dashboard/seller/assets/all" replace />} />
                             <Route path="sales" element={<Navigate to="/dashboard/seller/sales" replace />} />
+                            <Route path="users" element={<Navigate to="/dashboard/seller/users" replace />} />
+                            <Route path="team" element={<Navigate to="/dashboard/seller/users" replace />} />
                             <Route path="settings" element={<Navigate to="/dashboard/seller/settings/profile" replace />} />
                         </Route>
 
@@ -126,19 +161,25 @@ export const AppRoutes: React.FC<AppRoutesProps> = () => {
                     </Route>
 
                     {/* Direct Seller Protected Routes (/seller/*) */}
-                    <Route element={<ProtectedRoute allowedRoles={["seller", "admin", "SELLER", "ADMIN"]} />}>
+                    <Route element={<ProtectedRoute allowedRoles={SELLER_ROLES} />}>
                         <Route path="/seller" element={<SellerLayout />}>
                             <Route index element={<Navigate replace to="overview" />} />
                             <Route path="overview" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Overview" />} />
                             <Route path="storefront" element={<StorefrontSetupPage />} />
-                            <Route path="products" element={<SellerProductsPage />} />
-                            <Route path="products/new/files" element={<SellerProductWizardPage />} />
+                            <Route path="assets" element={<SellerAssetsPage />} />
+                            <Route path="assets/new/files" element={<SellerAssetWizardPage />} />
+                            <Route path="assets/coupons" element={<SellerCouponsPage />} />
+                            <Route path="coupons" element={<Navigate to="/dashboard/seller/assets/coupons" replace />} />
+                            <Route path="products" element={<Navigate to="/seller/assets" replace />} />
+                            <Route path="products/new/files" element={<Navigate to="/seller/assets/new/files" replace />} />
+                            <Route path="products/coupons" element={<Navigate to="/dashboard/seller/assets/coupons" replace />} />
                             <Route path="orders" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Sales" />} />
                             <Route path="reviews" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Reviews" />} />
                             <Route path="disputes" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Disputes" />} />
                             <Route path="payouts" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Payouts" />} />
                             <Route path="analytics" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Analytics" />} />
-                            <Route path="team" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Team" />} />
+                            <Route path="users" element={<SellerUsersPage />} />
+                            <Route path="team" element={<Navigate to="/seller/users" replace />} />
                         </Route>
                     </Route>
                 </Route>

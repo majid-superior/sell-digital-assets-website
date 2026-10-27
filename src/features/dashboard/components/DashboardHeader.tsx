@@ -101,9 +101,9 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         const assetId = typeof item.data?.assetId === "string" ? item.data.assetId : null;
         if (assetId) {
             if (item.type === "asset_needs_update" || item.type === "asset_rejected") {
-                void navigate(`/dashboard/seller/products/edit/${assetId}`);
+                void navigate(`/dashboard/seller/assets/edit/${assetId}`);
             } else {
-                void navigate("/dashboard/seller/products/all");
+                void navigate("/dashboard/seller/assets/all");
             }
         }
     };
@@ -280,7 +280,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                                                         <span>
                                                             {n.type === "asset_needs_update" || n.type === "asset_rejected"
                                                                 ? "Edit & respond to feedback"
-                                                                : "View in product catalog"}
+                                                                : "View in asset catalog"}
                                                         </span>
                                                         <Icons.ChevronRight size={12} />
                                                     </div>

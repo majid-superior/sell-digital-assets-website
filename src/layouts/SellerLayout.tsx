@@ -12,14 +12,14 @@ export interface SellerNavItem {
 const sellerNavItems: SellerNavItem[] = [
   { label: "Overview", path: "/seller/overview", icon: "dashboard" },
   { label: "Storefront", path: "/seller/storefront", icon: "storefront" },
-  { label: "Products", path: "/seller/products", icon: "inventory_2" },
-  { label: "Upload", path: "/seller/products/new/files", icon: "cloud_upload" },
+  { label: "Assets", path: "/seller/assets", icon: "inventory_2" },
+  { label: "Upload", path: "/seller/assets/new/files", icon: "cloud_upload" },
   { label: "Sales", path: "/seller/orders", icon: "receipt_long" },
   { label: "Reviews", path: "/seller/reviews", icon: "star" },
   { label: "Disputes", path: "/seller/disputes", icon: "gavel" },
   { label: "Payouts", path: "/seller/payouts", icon: "payments" },
   { label: "Analytics", path: "/seller/analytics", icon: "bar_chart" },
-  { label: "Team", path: "/seller/team", icon: "group" },
+  { label: "Users", path: "/seller/users", icon: "group" },
 ];
 
 const resolveSellerNavIcon = (iconName: string): IconComponent => {
@@ -43,7 +43,8 @@ const resolveSellerNavIcon = (iconName: string): IconComponent => {
     case "bar_chart":
       return Icons.BarChart3;
     case "group":
-      return Icons.User;
+    case "users":
+      return Icons.Users;
     default:
       return Icons.Package;
   }

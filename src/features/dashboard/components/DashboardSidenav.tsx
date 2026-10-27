@@ -54,6 +54,10 @@ const resolveIcon = (iconName: string): React.ComponentType<{ size?: number; cla
             return Icons.Settings;
         case "User":
             return Icons.User;
+        case "Users":
+        case "Team":
+        case "group":
+            return Icons.Users;
         case "Bell":
             return Icons.Bell;
         case "CreditCard":
@@ -216,7 +220,7 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
     const [expandedKeys, setExpandedKeys] = useState<Record<string, boolean>>(() => {
         const isSettingsRoute = location.pathname.includes("/settings");
         return {
-            "seller-products": !isSettingsRoute,
+            "seller-assets": !isSettingsRoute,
             "seller-settings": isSettingsRoute,
             "buyer-library": !isSettingsRoute,
             "buyer-settings": isSettingsRoute,
@@ -257,7 +261,7 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
             });
             if (onClose) onClose();
             // Full refresh to sync user session and navigation access
-            window.location.href = "/dashboard/seller/products/new";
+            window.location.href = "/dashboard/seller/assets/new";
         } catch (err) {
             const msg = err instanceof Error ? err.message : "Failed to upgrade account";
             toast.error("Upgrade Failed", { id: "upgrade-seller", description: msg });

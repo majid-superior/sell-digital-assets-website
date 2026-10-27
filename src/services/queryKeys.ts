@@ -61,6 +61,17 @@ export const queryKeys = {
         all: ["banners"] as const,
         active: () => [...queryKeys.banners.all, "active"] as const,
     },
+    sellerUsers: {
+        all: ["seller-users"] as const,
+        list: () => [...queryKeys.sellerUsers.all, "list"] as const,
+        roles: () => [...queryKeys.sellerUsers.all, "roles"] as const,
+    },
+    coupons: {
+        all: ["coupons"] as const,
+        sellerList: (params: Record<string, string | number | boolean | undefined> = {}) =>
+            [...queryKeys.coupons.all, "sellerList", params] as const,
+        detail: (id: string) => [...queryKeys.coupons.all, "detail", id] as const,
+    },
 } as const;
 
 export default queryKeys;

@@ -41,9 +41,20 @@ export function getUserPortalAccess(user: User | null, currentPath = ""): UserPo
 
     const rolesSet = new Set(rawRoles);
 
-    // Database role IDs: 1 = admin, 2 = seller, 3 = buyer/customer
+    // Database role IDs: 1 = admin, 2 = seller, 3 = buyer/customer, 4 = store_manager, 5 = content_uploader, 6 = analyst
     const isAdmin = rolesSet.has("admin") || user.role_id === 1;
-    const isSeller = isAdmin || rolesSet.has("seller") || user.role_id === 2 || Boolean(user.sellerProfile);
+    const isStoreTeam =
+        rolesSet.has("store_manager") ||
+        rolesSet.has("content_uploader") ||
+        rolesSet.has("analyst") ||
+        [4, 5, 6].includes(user.role_id || 0) ||
+        Boolean(user.parent_seller_id);
+    const isSeller =
+        isAdmin ||
+        rolesSet.has("seller") ||
+        user.role_id === 2 ||
+        Boolean(user.sellerProfile) ||
+        isStoreTeam;
 
     // Unified Marketplace Principle:
     // Every authenticated user has Buyer capabilities (they can purchase assets, download deliverables, and manage keys).

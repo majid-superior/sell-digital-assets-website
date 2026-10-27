@@ -1,4 +1,4 @@
-// src/features/dashboard/pages/seller/SellerProductsPage.tsx
+// src/features/dashboard/pages/seller/SellerAssetsPage.tsx
 import React, { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -25,7 +25,7 @@ const STATUS_TABS: Array<{ id: StatusTab; label: string }> = [
     { id: "archived", label: "Archived" },
 ];
 
-export const SellerProductsPage: React.FC = () => {
+export const SellerAssetsPage: React.FC = () => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
 
@@ -211,17 +211,17 @@ export const SellerProductsPage: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-outline-variant/30">
                 <div>
                     <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-on-surface">
-                        Seller Products &amp; Catalog
+                        Seller Assets &amp; Catalog
                     </h1>
                     <p className="text-xs text-on-surface-variant mt-1">
-                        Manage your digital products, file deliverables, release versions, and admin review feedback.
+                        Manage your digital assets, file deliverables, release versions, and admin review feedback.
                     </p>
                 </div>
 
                 <Button
                     variant="primary"
                     size="md"
-                    onClick={() => navigate("/dashboard/seller/products/upload/files")}
+                    onClick={() => navigate("/dashboard/seller/assets/upload/files")}
                     leftIcon={<Icons.Plus size={16} />}
                     className="cursor-pointer shrink-0"
                 >
@@ -310,7 +310,7 @@ export const SellerProductsPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Products Table Container */}
+            {/* Assets Table Container */}
             <div className="rounded-2xl border border-outline-variant/30 bg-surface overflow-hidden shadow-xs">
                 {isLoading ? (
                     <div className="p-6 space-y-4">
@@ -374,7 +374,7 @@ export const SellerProductsPage: React.FC = () => {
                                                             to={
                                                                 item.status === "published"
                                                                     ? `/asset/${item.slug}`
-                                                                    : `/dashboard/seller/products/edit/${item.id}`
+                                                                    : `/dashboard/seller/assets/edit/${item.id}`
                                                             }
                                                             className="font-bold text-on-surface hover:text-primary transition-colors line-clamp-1"
                                                         >
@@ -479,8 +479,8 @@ export const SellerProductsPage: React.FC = () => {
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
-                                                        onClick={() => navigate(`/dashboard/seller/products/edit/${item.id}`)}
-                                                        title="Edit Product"
+                                                        onClick={() => navigate(`/dashboard/seller/assets/edit/${item.id}`)}
+                                                        title="Edit Asset"
                                                         className="p-1.5 cursor-pointer text-foreground hover:text-primary"
                                                     >
                                                         <Icons.Edit size={14} />
@@ -564,7 +564,7 @@ export const SellerProductsPage: React.FC = () => {
                                 <Button
                                     variant="primary"
                                     size="md"
-                                    onClick={() => navigate("/dashboard/seller/products/upload/files")}
+                                    onClick={() => navigate("/dashboard/seller/assets/upload/files")}
                                     className="cursor-pointer"
                                 >
                                     Create First Asset
@@ -667,7 +667,7 @@ export const SellerProductsPage: React.FC = () => {
                                 onClick={() => {
                                     const id = replyingAsset.id;
                                     setReplyingAsset(null);
-                                    void navigate(`/dashboard/seller/products/edit/${id}`);
+                                    void navigate(`/dashboard/seller/assets/edit/${id}`);
                                 }}
                                 className="cursor-pointer"
                             >
@@ -703,15 +703,15 @@ export const SellerProductsPage: React.FC = () => {
                 )}
             </Modal>
 
-            {/* Archive Product Confirmation Modal */}
+            {/* Archive Asset Confirmation Modal */}
             <Modal
                 isOpen={Boolean(assetToDelete)}
                 onClose={() => setAssetToDelete(null)}
-                title="Archive Product"
+                title="Archive Asset"
             >
                 <div className="space-y-4">
                     <p className="text-sm text-on-surface-variant">
-                        Are you sure you want to archive <strong className="text-on-surface">&quot;{assetToDelete?.title}&quot;</strong>? This product will be hidden from public search and cannot be purchased until republished.
+                        Are you sure you want to archive <strong className="text-on-surface">&quot;{assetToDelete?.title}&quot;</strong>? This asset will be hidden from public search and cannot be purchased until republished.
                     </p>
                     <div className="flex items-center justify-end gap-3 pt-3">
                         <Button
@@ -738,4 +738,4 @@ export const SellerProductsPage: React.FC = () => {
     );
 };
 
-export default SellerProductsPage;
+export default SellerAssetsPage;
