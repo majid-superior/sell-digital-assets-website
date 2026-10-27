@@ -65,6 +65,8 @@ export const queryKeys = {
         all: ["seller-users"] as const,
         list: () => [...queryKeys.sellerUsers.all, "list"] as const,
         roles: () => [...queryKeys.sellerUsers.all, "roles"] as const,
+        permissionsCatalog: () => [...queryKeys.sellerUsers.all, "permissionsCatalog"] as const,
+        rolePermissions: () => [...queryKeys.sellerUsers.all, "rolePermissions"] as const,
     },
     coupons: {
         all: ["coupons"] as const,

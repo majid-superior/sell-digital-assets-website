@@ -88,7 +88,7 @@ interface TreeRowProps {
     item: DashboardNavItem;
     depth?: number;
     expandedKeys: Record<string, boolean>;
-    toggleExpanded: (id: string) => void;
+    toggleExpanded: (id: string, currentExpanded: boolean) => void;
     onClose?: () => void;
 }
 
@@ -101,7 +101,6 @@ const TreeRow: React.FC<TreeRowProps> = ({
 }) => {
     const location = useLocation();
     const hasChildren = Boolean(item.children && item.children.length > 0);
-    const isExpanded = Boolean(expandedKeys[item.id]);
 
     const isChildActive = (children?: DashboardNavItem[]): boolean => {
         if (!children) return false;
@@ -112,6 +111,12 @@ const TreeRow: React.FC<TreeRowProps> = ({
 
     const isActive = location.pathname === item.path;
     const hasActiveChild = hasChildren && isChildActive(item.children);
+    const isExpanded = hasActiveChild
+        ? (expandedKeys[item.id] ?? true)
+        : Boolean(
+            expandedKeys[item.id] ??
+            (item.id === "seller-assets" && depth === 0 && !location.pathname.includes("/users") && !location.pathname.includes("/settings"))
+        );
 
     const depthPadding = depth === 0 ? "pl-2.5" : depth === 1 ? "pl-5.5" : "pl-8.5";
 
@@ -120,7 +125,7 @@ const TreeRow: React.FC<TreeRowProps> = ({
             <div className="w-full select-none space-y-0.5">
                 <button
                     type="button"
-                    onClick={() => toggleExpanded(item.id)}
+                    onClick={() => toggleExpanded(item.id, isExpanded)}
                     className={`w-full flex items-center justify-between py-1.5 pr-2.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${depthPadding} ${
                         hasActiveChild
                             ? "bg-surface-container-high text-on-surface font-semibold"
@@ -217,26 +222,24 @@ export const DashboardSidenav: React.FC<DashboardSidenavProps> = ({
         return access.defaultPortal;
     }, [access, location.pathname]);
 
-    const [expandedKeys, setExpandedKeys] = useState<Record<string, boolean>>(() => {
-        const isSettingsRoute = location.pathname.includes("/settings");
-        return {
-            "seller-assets": !isSettingsRoute,
-            "seller-settings": isSettingsRoute,
-            "buyer-library": !isSettingsRoute,
-            "buyer-settings": isSettingsRoute,
-        };
-    });
+    const [prevPath, setPrevPath] = useState(location.pathname);
+    const [expandedKeys, setExpandedKeys] = useState<Record<string, boolean>>({});
 
-    const toggleExpanded = (id: string) => {
+    if (prevPath !== location.pathname) {
+        setPrevPath(location.pathname);
+        setExpandedKeys({});
+    }
+
+    const toggleExpanded = (id: string, currentExpanded: boolean) => {
         setExpandedKeys((prev) => ({
             ...prev,
-            [id]: !prev[id],
+            [id]: !currentExpanded,
         }));
     };
 
     const currentItems = useMemo(
-        () => dashboardNavigationService.getNavigation(portal).sections[0].items,
-        [portal]
+        () => dashboardNavigationService.getNavigation(portal, user?.permissions).sections[0].items,
+        [portal, user?.permissions]
     );
 
     const [isUpgrading, setIsUpgrading] = useState(false);

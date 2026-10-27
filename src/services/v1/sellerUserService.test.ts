@@ -136,4 +136,89 @@ describe("sellerUserService API client contract", () => {
     await sellerUserService.deleteTeamMember("mem-1");
     expect(apiClient.delete).toHaveBeenCalledWith("/api/v1/seller/users/mem-1");
   });
+
+  it("fetches permissions catalog via GET /api/v1/seller/users/permissions", async () => {
+    const mockCatalog = [
+      {
+        id: 1,
+        name: "analytics:view",
+        module: "analytics",
+        action: "view",
+        description: "View store metrics",
+        scope: "seller",
+      },
+      {
+        id: 2,
+        name: "products:view",
+        module: "products",
+        action: "view",
+        description: "View products",
+        scope: "seller",
+      },
+    ];
+
+    vi.spyOn(apiClient, "get").mockResolvedValueOnce({
+      success: true,
+      data: mockCatalog,
+    });
+
+    const result = await sellerUserService.getPermissionsCatalog();
+    expect(apiClient.get).toHaveBeenCalledWith("/api/v1/seller/users/permissions");
+    expect(result).toHaveLength(2);
+    expect(result[0].name).toBe("analytics:view");
+  });
+
+  it("fetches role permissions via GET /api/v1/seller/users/roles/permissions", async () => {
+    const mockRolePerms = [
+      {
+        roleId: 6,
+        roleName: "Analyst",
+        roleSlug: "analyst",
+        description: "Read-only analytics",
+        isCustomized: false,
+        permissions: ["analytics:view", "products:view", "orders:view"],
+      },
+    ];
+
+    vi.spyOn(apiClient, "get").mockResolvedValueOnce({
+      success: true,
+      data: mockRolePerms,
+    });
+
+    const result = await sellerUserService.getRolePermissions();
+    expect(apiClient.get).toHaveBeenCalledWith("/api/v1/seller/users/roles/permissions");
+    expect(result).toHaveLength(1);
+    expect(result[0].roleSlug).toBe("analyst");
+    expect(result[0].permissions).toContain("analytics:view");
+  });
+
+  it("updates role permissions via PUT /api/v1/seller/users/roles/:roleId/permissions", async () => {
+    const updatedPerms = {
+      roleId: 6,
+      roleName: "Analyst",
+      roleSlug: "analyst",
+      description: "Read-only analytics",
+      isCustomized: true,
+      permissions: ["analytics:view", "products:view", "orders:view", "products:create"],
+    };
+
+    vi.spyOn(apiClient, "put").mockResolvedValueOnce({
+      success: true,
+      data: updatedPerms,
+    });
+
+    const result = await sellerUserService.updateRolePermissions(6, [
+      "analytics:view",
+      "products:view",
+      "orders:view",
+      "products:create",
+    ]);
+
+    expect(apiClient.put).toHaveBeenCalledWith(
+      "/api/v1/seller/users/roles/6/permissions",
+      { permissions: ["analytics:view", "products:view", "orders:view", "products:create"] },
+    );
+    expect(result.isCustomized).toBe(true);
+    expect(result.permissions).toContain("products:create");
+  });
 });

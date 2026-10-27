@@ -1,6 +1,6 @@
 // src/services/v1/sellerUserService.ts
 import { apiClient } from "../api.ts";
-import type { StoreTeamRole, StoreTeamMember } from "@/types/user.ts";
+import type { StoreTeamRole, StoreTeamMember, PermissionItem, StoreRolePermissions } from "@/types/user.ts";
 
 export interface CreateTeamMemberPayload {
   name: string;
@@ -70,5 +70,39 @@ export const sellerUserService = {
    */
   deleteTeamMember: async (id: string): Promise<void> => {
     await apiClient.delete<ApiResponse<void>>(`/api/v1/seller/users/${id}`);
+  },
+
+  /**
+   * Fetches the global catalog of store permissions
+   */
+  getPermissionsCatalog: async (): Promise<PermissionItem[]> => {
+    const res = await apiClient.get<ApiResponse<PermissionItem[]>>(
+      "/api/v1/seller/users/permissions",
+    );
+    return res.data || [];
+  },
+
+  /**
+   * Fetches the current role-level permissions configured for the seller's store
+   */
+  getRolePermissions: async (): Promise<StoreRolePermissions[]> => {
+    const res = await apiClient.get<ApiResponse<StoreRolePermissions[]>>(
+      "/api/v1/seller/users/roles/permissions",
+    );
+    return res.data || [];
+  },
+
+  /**
+   * Updates/customizes permissions assigned to a store role for the seller's store
+   */
+  updateRolePermissions: async (
+    roleId: number,
+    permissions: string[],
+  ): Promise<StoreRolePermissions> => {
+    const res = await apiClient.put<ApiResponse<StoreRolePermissions>>(
+      `/api/v1/seller/users/roles/${roleId}/permissions`,
+      { permissions },
+    );
+    return res.data;
   },
 };

@@ -19,7 +19,9 @@ const sellerNavItems: SellerNavItem[] = [
   { label: "Disputes", path: "/seller/disputes", icon: "gavel" },
   { label: "Payouts", path: "/seller/payouts", icon: "payments" },
   { label: "Analytics", path: "/seller/analytics", icon: "bar_chart" },
-  { label: "Users", path: "/seller/users", icon: "group" },
+  { label: "Roles", path: "/seller/users/roles", icon: "security" },
+  { label: "Permissions", path: "/seller/users/permissions", icon: "key" },
+  { label: "Members", path: "/seller/users/members", icon: "group" },
 ];
 
 const resolveSellerNavIcon = (iconName: string): IconComponent => {
@@ -42,6 +44,12 @@ const resolveSellerNavIcon = (iconName: string): IconComponent => {
       return Icons.Wallet;
     case "bar_chart":
       return Icons.BarChart3;
+    case "security":
+    case "shield":
+      return Icons.Shield;
+    case "key":
+    case "key_round":
+      return Icons.KeyRound;
     case "group":
     case "users":
       return Icons.Users;

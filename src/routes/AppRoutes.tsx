@@ -33,7 +33,9 @@ const StorefrontSetupPage = lazy(
 );
 const SellerAssetsPage = lazy(() => import("@/features/dashboard/pages/seller/SellerAssetsPage.tsx"));
 const SellerAssetWizardPage = lazy(() => import("@/features/dashboard/pages/seller/SellerAssetWizardPage.tsx"));
-const SellerUsersPage = lazy(() => import("@/features/dashboard/pages/seller/SellerUsersPage.tsx"));
+const RolesPage = lazy(() => import("@/features/dashboard/pages/seller/RolesPage.tsx"));
+const PermissionsPage = lazy(() => import("@/features/dashboard/pages/seller/PermissionsPage.tsx"));
+const MembersPage = lazy(() => import("@/features/dashboard/pages/seller/MembersPage.tsx"));
 const SellerCouponsPage = lazy(() => import("@/features/dashboard/pages/seller/SellerCouponsPage.tsx").then(m => ({ default: m.SellerCouponsPage })));
 const BuyerDownloadsPage = lazy(() => import("@/features/dashboard/pages/buyer/BuyerDownloadsPage.tsx"));
 const BuyerLicensesPage = lazy(() => import("@/features/dashboard/pages/buyer/BuyerLicensesPage.tsx"));
@@ -122,8 +124,12 @@ export const AppRoutes: React.FC<AppRoutesProps> = () => {
                             <Route path="seller/disputes" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Disputes" />} />
                             <Route path="seller/payouts" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Payouts" />} />
                             <Route path="seller/analytics" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Analytics" />} />
-                            <Route path="seller/users" element={<SellerUsersPage />} />
-                            <Route path="seller/team" element={<Navigate to="/dashboard/seller/users" replace />} />
+                            {/* Canonical Users Routes: Roles, Permissions, Members */}
+                            <Route path="seller/users" element={<Navigate to="/dashboard/seller/users/roles" replace />} />
+                            <Route path="seller/users/roles" element={<RolesPage />} />
+                            <Route path="seller/users/permissions" element={<PermissionsPage />} />
+                            <Route path="seller/users/members" element={<MembersPage />} />
+                            <Route path="seller/team" element={<Navigate to="/dashboard/seller/users/members" replace />} />
                             <Route path="seller/settings" element={<Navigate to="/dashboard/seller/settings/profile" replace />} />
                             <Route path="seller/settings/profile" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Profile" />} />
                             <Route path="seller/settings/alerts" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Alerts" />} />
@@ -134,8 +140,11 @@ export const AppRoutes: React.FC<AppRoutesProps> = () => {
                             <Route path="coupons" element={<Navigate to="/dashboard/seller/assets/coupons" replace />} />
                             <Route path="products" element={<Navigate to="/dashboard/seller/assets/all" replace />} />
                             <Route path="sales" element={<Navigate to="/dashboard/seller/sales" replace />} />
-                            <Route path="users" element={<Navigate to="/dashboard/seller/users" replace />} />
-                            <Route path="team" element={<Navigate to="/dashboard/seller/users" replace />} />
+                            <Route path="users" element={<Navigate to="/dashboard/seller/users/roles" replace />} />
+                            <Route path="team" element={<Navigate to="/dashboard/seller/users/members" replace />} />
+                            <Route path="roles" element={<Navigate to="/dashboard/seller/users/roles" replace />} />
+                            <Route path="permissions" element={<Navigate to="/dashboard/seller/users/permissions" replace />} />
+                            <Route path="members" element={<Navigate to="/dashboard/seller/users/members" replace />} />
                             <Route path="settings" element={<Navigate to="/dashboard/seller/settings/profile" replace />} />
                         </Route>
 
@@ -178,8 +187,11 @@ export const AppRoutes: React.FC<AppRoutesProps> = () => {
                             <Route path="disputes" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Disputes" />} />
                             <Route path="payouts" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Payouts" />} />
                             <Route path="analytics" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Analytics" />} />
-                            <Route path="users" element={<SellerUsersPage />} />
-                            <Route path="team" element={<Navigate to="/seller/users" replace />} />
+                            <Route path="users" element={<Navigate to="/seller/users/roles" replace />} />
+                            <Route path="users/roles" element={<RolesPage />} />
+                            <Route path="users/permissions" element={<PermissionsPage />} />
+                            <Route path="users/members" element={<MembersPage />} />
+                            <Route path="team" element={<Navigate to="/seller/users/members" replace />} />
                         </Route>
                     </Route>
                 </Route>

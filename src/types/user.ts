@@ -39,6 +39,7 @@ export interface User {
   role_id?: number;
   parent_seller_id?: string | null;
   allowed_permissions?: string[];
+  permissions?: string[];
   avatarUrl?: string;
   bio?: string;
   bannerUrl?: string;
@@ -61,6 +62,24 @@ export interface StoreTeamRole {
   allow_public_signup?: boolean;
 }
 
+export interface PermissionItem {
+  id: number;
+  name: string;
+  module: string;
+  action: string;
+  description: string;
+  scope: string;
+}
+
+export interface StoreRolePermissions {
+  roleId: number;
+  roleName: string;
+  roleSlug: string;
+  description: string;
+  isCustomized: boolean;
+  permissions: string[];
+}
+
 export interface StoreTeamMember {
   id: string;
   name: string;
@@ -73,6 +92,7 @@ export interface StoreTeamMember {
   parent_seller_id: string;
   status: "active" | "suspended" | "pending" | "deactive";
   allowed_permissions?: string[];
+  permissions?: string[];
   created_at: string;
   updated_at?: string;
 }

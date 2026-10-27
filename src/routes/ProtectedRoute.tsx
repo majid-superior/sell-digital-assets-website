@@ -33,9 +33,23 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
     if (allowedRoles && allowedRoles.length > 0) {
         const normalizedUserRole = String(user.role || "").toLowerCase();
-        const isRoleAllowed = allowedRoles.some(
-            (role) => String(role).toLowerCase() === normalizedUserRole
-        );
+        const userRolesList = Array.isArray(user.roles)
+            ? user.roles.map((r) => String(r).toLowerCase())
+            : [normalizedUserRole];
+
+        const isSellerProtected = allowedRoles.some((r) => {
+            const lower = String(r).toLowerCase();
+            return lower === "seller" || lower === "analyst" || lower === "store_manager" || lower === "content_uploader";
+        });
+        const isStoreTeamMember = Boolean(user.parent_seller_id);
+
+        const isRoleAllowed =
+            allowedRoles.some((role) => {
+                const lower = String(role).toLowerCase();
+                return lower === normalizedUserRole || userRolesList.includes(lower);
+            }) ||
+            (isSellerProtected && isStoreTeamMember);
+
         if (!isRoleAllowed) {
             // If role not authorized, redirect to home
             return <Navigate to="/" replace />;

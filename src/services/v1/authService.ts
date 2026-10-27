@@ -17,19 +17,46 @@ class AuthService {
     /**
      * Normalizes backend user representation to marketplace User interface.
      */
-    normalizeUser(user: Partial<User> & { name?: string; role?: string; roles?: string[]; role_id?: number }): User {
+    normalizeUser(user: Partial<User> & {
+        name?: string;
+        role?: string;
+        roles?: string[];
+        role_id?: number;
+        parent_seller_id?: string | null;
+        parentSellerId?: string | null;
+        allowed_permissions?: string[];
+        allowedPermissions?: string[];
+        permissions?: string[];
+    }): User {
         const displayName = user.displayName || user.name || user.email?.split("@")[0] || "User";
         const url = typeof user.url === "string" ? user.url.trim().toLowerCase() : "";
         
         let role: UserRole = "buyer";
         const rawRole = (user.role || "").toLowerCase().trim();
-        if (user.role_id === 1 || rawRole === "admin") {
+        const roleId = user.role_id;
+        const parentSellerId = user.parent_seller_id || user.parentSellerId || null;
+
+        if (roleId === 1 || rawRole === "admin") {
             role = "admin";
-        } else if (user.role_id === 2 || rawRole === "seller") {
+        } else if (roleId === 2 || rawRole === "seller") {
             role = "seller";
-        } else if (user.role_id === 3 || rawRole === "buyer" || rawRole === "customer") {
+        } else if (roleId === 4 || rawRole === "store_manager") {
+            role = "store_manager";
+        } else if (roleId === 5 || rawRole === "content_uploader") {
+            role = "content_uploader";
+        } else if (roleId === 6 || rawRole === "analyst") {
+            role = "analyst";
+        } else if (roleId === 3 || rawRole === "buyer" || rawRole === "customer") {
             role = "buyer";
+        } else if (rawRole) {
+            role = rawRole as UserRole;
         }
+
+        const isStoreTeam =
+            role === "store_manager" ||
+            role === "content_uploader" ||
+            role === "analyst" ||
+            Boolean(parentSellerId);
 
         const rolesList: string[] = Array.isArray(user.roles) && user.roles.length > 0
             ? user.roles
@@ -37,7 +64,12 @@ class AuthService {
             ? ["seller", "buyer"]
             : role === "admin"
             ? ["admin", "seller", "buyer"]
+            : isStoreTeam
+            ? [role, "seller", "buyer"]
             : [role];
+
+        const allowedPerms: string[] = user.allowed_permissions || user.allowedPermissions || [];
+        const permissions: string[] = user.permissions || allowedPerms;
 
         return {
             id: String(user.id || ""),
@@ -47,7 +79,10 @@ class AuthService {
             name: user.name || displayName,
             role,
             roles: rolesList,
-            role_id: user.role_id,
+            role_id: roleId,
+            parent_seller_id: parentSellerId,
+            allowed_permissions: allowedPerms,
+            permissions,
             avatarUrl: user.avatarUrl,
             bio: user.bio,
             bannerUrl: user.bannerUrl,
