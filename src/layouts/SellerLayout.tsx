@@ -11,7 +11,7 @@ export interface SellerNavItem {
 
 const sellerNavItems: SellerNavItem[] = [
   { label: "Overview", path: "/seller/overview", icon: "dashboard" },
-  { label: "Setup Storefront", path: "/seller/storefront", icon: "storefront" },
+  { label: "Storefront", path: "/seller/storefront", icon: "storefront" },
   { label: "Products", path: "/seller/products", icon: "inventory_2" },
   { label: "Upload", path: "/seller/products/new/files", icon: "cloud_upload" },
   { label: "Sales", path: "/seller/orders", icon: "receipt_long" },
@@ -19,6 +19,7 @@ const sellerNavItems: SellerNavItem[] = [
   { label: "Disputes", path: "/seller/disputes", icon: "gavel" },
   { label: "Payouts", path: "/seller/payouts", icon: "payments" },
   { label: "Analytics", path: "/seller/analytics", icon: "bar_chart" },
+  { label: "Team", path: "/seller/team", icon: "group" },
 ];
 
 const resolveSellerNavIcon = (iconName: string): IconComponent => {
@@ -41,6 +42,8 @@ const resolveSellerNavIcon = (iconName: string): IconComponent => {
       return Icons.Wallet;
     case "bar_chart":
       return Icons.BarChart3;
+    case "group":
+      return Icons.User;
     default:
       return Icons.Package;
   }
@@ -91,4 +94,3 @@ export const SellerLayout: React.FC<SellerLayoutProps> = ({ children }) => {
 };
 
 export default SellerLayout;
-

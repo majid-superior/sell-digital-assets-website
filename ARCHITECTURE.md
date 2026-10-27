@@ -164,13 +164,36 @@ sequenceDiagram
 
 ## 6. Authentication & Session Security
 
-1. **Dual Storage Architecture**:
-   - **Persistent (`localStorage`)**: Used when the user selects "Remember Me", preserving session access across browser restarts.
-   - **Ephemeral (`sessionStorage`)**: Used when "Remember Me" is unselected, terminating credentials when the browser tab is closed.
-2. **Schema-Driven Form Validation**:
+1. **Dual Storage Architecture & Token Lifetimes**:
+   - **Access Token Lifetime**: 15 minutes (`auth_token`).
+   - **Refresh Token Lifetime**: 7 days default, 30 days when "Remember Me" is selected (`auth_refresh_token`).
+   - **Idle Session Inactivity Timeout**: 30 minutes (configurable via platform system settings).
+   - **Persistent Storage (`localStorage`)**: Used when the user selects "Remember Me", preserving session access across browser restarts.
+   - **Ephemeral Storage (`sessionStorage`)**: Used when "Remember Me" is unselected, terminating credentials when the browser tab is closed.
+
+2. **Concurrent Request Deduplication (In-Flight Refresh Mutex)**:
+   - Token refresh operations rotate the refresh token and revoke the consumed token's `jti` in PostgreSQL.
+   - To eliminate race conditions where multiple concurrent API requests encounter expired access tokens simultaneously, `authService.refreshSession()` employs a centralized in-flight mutex (`refreshPromise`).
+   - All concurrent callers receive the same pending refresh promise. Only a single `/api/v1/auth/refresh` request is dispatched to the backend, preventing replay errors and unexpected session terminations.
+
+3. **Reliable React 19 Session Hydration & Watchdog**:
+   - `AuthProvider` mounts in React 19 StrictMode safely using `AbortController` cancellation rather than one-way mount flags.
+   - StrictMode unmount/remount cycles reliably execute `verifySession` on the active instance.
+   - A 5-second failsafe watchdog guarantees that `isLoading` is resolved to `false`, preventing endless loading states under any network condition or edge case.
+
+4. **Expired Session Redirect & Destination Preservation**:
+   - When a session genuinely expires, or when token refresh fails with an unauthorized status:
+     - Storage keys (`auth_token`, `auth_refresh_token`, `auth_user`, `last_activity_timestamp`) are cleanly purged.
+     - The user's intended route (e.g. `/dashboard/seller/overview`) is saved in `sessionStorage.setItem("auth_redirect_url", target)` and encoded into the query string `/?redirect=${target}`.
+     - The user is redirected to the public home page (`/`) and presented with a Sonner toast: `"Your session has expired. Please sign in again."`.
+     - Upon navigating to `/signin` and authenticating, `SignInPage` inspects the saved redirect target and seamlessly routes the seller back to their protected destination.
+
+5. **Tab Visibility & Background Renewal**:
+   - Tab revisit listeners (`visibilitychange` and `window.focus`) evaluate idle timeouts and re-validate or refresh the session in the background when the user returns to an inactive tab.
+
+6. **Schema-Driven Form Validation & Toast Feedback**:
    - Sign-in and sign-up forms utilize **React Hook Form** paired with **Zod** schemas (`signInSchema.ts`, `signUpSchema.ts`).
-3. **Session Purging**:
-   - Terminating a session cleans all token keys (`auth_token`, `auth_refresh_token`, `auth_user`) from browser storage.
+   - All feedback follows the strict popup standard (zero inline error text); validation and operational failures are communicated exclusively via Sonner toast popups.
 
 ---
 

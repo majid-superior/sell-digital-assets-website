@@ -13,23 +13,10 @@ export interface RequestOptions extends RequestInit {
 
 export { ApiError };
 
-let refreshInProgressPromise: Promise<string | null> | null = null;
-
 async function attemptSilentRefresh(): Promise<string | null> {
     try {
         const session = await authService.refreshSession();
-        const token = session?.token || session?.tokens?.accessToken;
-        if (token) {
-            if (typeof window !== "undefined") {
-                window.dispatchEvent(
-                    new CustomEvent("auth:token-refreshed", {
-                        detail: { token, user: session.user },
-                    })
-                );
-            }
-            return token;
-        }
-        return null;
+        return session?.token || session?.tokens?.accessToken || null;
     } catch {
         return null;
     }
@@ -124,14 +111,20 @@ async function request<T>(endpoint: string, options: RequestOptions = {}, isRetr
             endpoint.includes("/auth/refresh");
 
         if (response.status === 401 && !isAuthEndpoint && !isRetry) {
-            if (!refreshInProgressPromise) {
-                refreshInProgressPromise = attemptSilentRefresh().finally(() => {
-                    refreshInProgressPromise = null;
-                });
-            }
-            const renewedToken = await refreshInProgressPromise;
+            const renewedToken = await attemptSilentRefresh();
             if (renewedToken) {
-                return request<T>(endpoint, options, true);
+                const updatedOptions: RequestOptions = {
+                    ...options,
+                    headers: {
+                        ...(options.headers instanceof Headers
+                            ? Object.fromEntries(options.headers.entries())
+                            : Array.isArray(options.headers)
+                            ? Object.fromEntries(options.headers)
+                            : options.headers || {}),
+                        Authorization: `Bearer ${renewedToken}`,
+                    },
+                };
+                return request<T>(endpoint, updatedOptions, true);
             }
         }
 

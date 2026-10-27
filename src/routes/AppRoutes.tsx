@@ -138,6 +138,7 @@ export const AppRoutes: React.FC<AppRoutesProps> = () => {
                             <Route path="disputes" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Disputes" />} />
                             <Route path="payouts" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Payouts" />} />
                             <Route path="analytics" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Analytics" />} />
+                            <Route path="team" element={<EmptyDashboardPage portalName="Seller Portal" customTitle="Team" />} />
                         </Route>
                     </Route>
                 </Route>

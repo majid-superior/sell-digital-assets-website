@@ -140,7 +140,6 @@ export async function handleResponseError(
   if (response.status === 401 && !isAuthEndpoint) {
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("auth:session-expired"));
-      window.dispatchEvent(new CustomEvent("auth:unauthorized"));
     }
   }
 

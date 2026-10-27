@@ -68,7 +68,17 @@ function getSafeRedirectUrl(target: string | null | undefined): string | null {
             const stateFrom = (location.state as { from?: { pathname: string; search?: string } } | null)?.from;
             const stateFromPath = stateFrom ? `${stateFrom.pathname}${stateFrom.search || ""}` : undefined;
 
-            const safeTarget = getSafeRedirectUrl(redirectQuery || stateFromPath);
+            let storedRedirect: string | null = null;
+            try {
+                storedRedirect = sessionStorage.getItem("auth_redirect_url");
+                if (storedRedirect) {
+                    sessionStorage.removeItem("auth_redirect_url");
+                }
+            } catch {
+                // Storage access restrictions
+            }
+
+            const safeTarget = getSafeRedirectUrl(redirectQuery || stateFromPath || storedRedirect);
 
             // If target is safe and valid, redirect there
             if (safeTarget) {

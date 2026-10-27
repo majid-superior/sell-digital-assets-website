@@ -64,6 +64,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
     const closeMobileMenu = () => setMobileMenuOpen(false);
 
+    const redirectParam = new URLSearchParams(location.search).get("redirect");
+    const signInPath = redirectParam ? `/signin?redirect=${encodeURIComponent(redirectParam)}` : "/signin";
+    const signUpPath = redirectParam ? `/signup?redirect=${encodeURIComponent(redirectParam)}` : "/signup";
+
     const handleSignOut = () => {
         signOut("/");
         void navigate("/", { replace: true });
@@ -210,7 +214,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         <>
                             {/* Sign In — hidden on very small screens, shown sm+ */}
                             <Link
-                                to="/signin"
+                                to={signInPath}
                                 className="hidden sm:inline-flex items-center justify-center px-3.5 py-1.5 rounded-full text-sm font-medium text-on-surface hover:bg-surface-container-high transition-colors"
                             >
                                 Sign In
@@ -218,7 +222,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                             {/* Create Account CTA */}
                             <Link
-                                to="/signup"
+                                to={signUpPath}
                                 className="hidden sm:inline-flex items-center justify-center px-4 py-1.5 rounded-full bg-primary text-on-primary text-sm font-semibold hover:opacity-90 active:scale-95 transition-all shadow-xs"
                             >
                                 Get Started
@@ -332,14 +336,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                         ) : (
                             <>
                                 <Link
-                                    to="/signin"
+                                    to={signInPath}
                                     onClick={closeMobileMenu}
                                     className="w-full py-3 text-center text-sm font-medium text-on-surface hover:bg-surface-container-high rounded-lg transition-colors"
                                 >
                                     Sign In
                                 </Link>
                                 <Link
-                                    to="/signup"
+                                    to={signUpPath}
                                     onClick={closeMobileMenu}
                                     className="w-full py-3 text-center text-sm font-semibold rounded-lg bg-primary text-on-primary hover:opacity-90 transition-opacity shadow-xs"
                                 >

@@ -131,8 +131,10 @@ class AuthService {
     /**
      * Fetch authenticated user identity from backend endpoint /api/v1/auth/me.
      */
-    async getCurrentUser(): Promise<User> {
-        const response = await apiClient.get<User | { data: User }>("/api/v1/auth/me");
+    async getCurrentUser(options?: { signal?: AbortSignal }): Promise<User> {
+        const response = await apiClient.get<User | { data: User }>("/api/v1/auth/me", {
+            signal: options?.signal,
+        });
         const rawUser: User = (response && "data" in response && response.data) ? response.data : (response as User);
         const user = this.normalizeUser(rawUser);
         const storage = localStorage.getItem(TOKEN_KEY) ? localStorage : sessionStorage;
@@ -240,52 +242,70 @@ class AuthService {
         const refreshToken = this.getStoredRefreshToken();
         apiClient.post("/api/v1/auth/signout", refreshToken ? { refreshToken } : {}).catch(() => {});
         this.clearSession();
-        window.dispatchEvent(new CustomEvent("auth:signout"));
+        if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("auth:signout"));
+        }
     }
 
     /**
      * Save session tokens and user data.
      */
     saveSession(token: string, user: User, rememberMe = false, refreshToken?: string): void {
-        const storage = rememberMe ? localStorage : sessionStorage;
-        // Clean both before setting to prevent conflicts
-        this.clearSession();
-        storage.setItem(TOKEN_KEY, token);
-        storage.setItem(USER_KEY, JSON.stringify(user));
-        if (refreshToken) {
-            storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+        if (typeof window === "undefined") return;
+        try {
+            const storage = rememberMe ? localStorage : sessionStorage;
+            // Clean both before setting to prevent conflicts
+            this.clearSession();
+            storage.setItem(TOKEN_KEY, token);
+            storage.setItem(USER_KEY, JSON.stringify(user));
+            if (refreshToken) {
+                storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+            }
+            this.updateLastActivity();
+        } catch {
+            // Storage access issues
         }
-        this.updateLastActivity();
     }
 
     /**
      * Clear session tokens from both storages.
      */
     clearSession(): void {
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(USER_KEY);
-        localStorage.removeItem(REFRESH_TOKEN_KEY);
-        localStorage.removeItem(LAST_ACTIVITY_KEY);
-        sessionStorage.removeItem(TOKEN_KEY);
-        sessionStorage.removeItem(USER_KEY);
-        sessionStorage.removeItem(REFRESH_TOKEN_KEY);
-        sessionStorage.removeItem(LAST_ACTIVITY_KEY);
+        if (typeof window === "undefined") return;
+        try {
+            localStorage.removeItem(TOKEN_KEY);
+            localStorage.removeItem(USER_KEY);
+            localStorage.removeItem(REFRESH_TOKEN_KEY);
+            localStorage.removeItem(LAST_ACTIVITY_KEY);
+            sessionStorage.removeItem(TOKEN_KEY);
+            sessionStorage.removeItem(USER_KEY);
+            sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+            sessionStorage.removeItem(LAST_ACTIVITY_KEY);
+        } catch {
+            // Storage access issues
+        }
     }
 
     /**
      * Retrieve last recorded activity timestamp (ms) across browser/PC restarts.
      */
     getLastActivity(): number | null {
-        const raw = localStorage.getItem(LAST_ACTIVITY_KEY) || sessionStorage.getItem(LAST_ACTIVITY_KEY);
-        if (!raw) return null;
-        const parsed = Number(raw);
-        return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+        if (typeof window === "undefined") return null;
+        try {
+            const raw = localStorage.getItem(LAST_ACTIVITY_KEY) || sessionStorage.getItem(LAST_ACTIVITY_KEY);
+            if (!raw) return null;
+            const parsed = Number(raw);
+            return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+        } catch {
+            return null;
+        }
     }
 
     /**
      * Persist last user activity timestamp (ms) in storage.
      */
     updateLastActivity(timestamp: number = Date.now()): void {
+        if (typeof window === "undefined") return;
         try {
             const isLocal = Boolean(localStorage.getItem(TOKEN_KEY) || localStorage.getItem(REFRESH_TOKEN_KEY));
             const storage = isLocal ? localStorage : sessionStorage;
@@ -299,70 +319,103 @@ class AuthService {
      * Retrieve current stored token if available.
      */
     getStoredToken(): string | null {
-        return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+        if (typeof window === "undefined") return null;
+        try {
+            return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+        } catch {
+            return null;
+        }
     }
 
     /**
      * Retrieve current stored refresh token if available.
      */
     getStoredRefreshToken(): string | null {
-        return localStorage.getItem(REFRESH_TOKEN_KEY) || sessionStorage.getItem(REFRESH_TOKEN_KEY);
+        if (typeof window === "undefined") return null;
+        try {
+            return localStorage.getItem(REFRESH_TOKEN_KEY) || sessionStorage.getItem(REFRESH_TOKEN_KEY);
+        } catch {
+            return null;
+        }
     }
+
+    private refreshPromise: Promise<AuthResponse | null> | null = null;
 
     /**
      * Refresh the active session using the stored refresh token.
+     * Includes mutex locking to prevent concurrent refresh requests, race conditions, and duplicate logouts.
      */
-    async refreshSession(): Promise<AuthResponse | null> {
+    async refreshSession(options?: { signal?: AbortSignal }): Promise<AuthResponse | null> {
+        if (this.refreshPromise) {
+            return this.refreshPromise;
+        }
+
         const refreshToken = this.getStoredRefreshToken();
         if (!refreshToken) {
             return null;
         }
 
-        try {
-            const response = await apiClient.post<AuthResponse>("/api/v1/auth/refresh", {
-                refreshToken,
-            });
+        this.refreshPromise = (async () => {
+            try {
+                const response = await apiClient.post<AuthResponse>(
+                    "/api/v1/auth/refresh",
+                    { refreshToken },
+                    { signal: options?.signal }
+                );
 
-            const token = response?.token || response?.tokens?.accessToken;
-            if (token && response?.user) {
-                const normalizedUser = this.normalizeUser(response.user);
-                const isRemembered = Boolean(
-                    localStorage.getItem(TOKEN_KEY) || localStorage.getItem(REFRESH_TOKEN_KEY)
-                );
-                const newRefreshToken = response.refreshToken || response?.tokens?.refreshToken || refreshToken;
-                this.saveSession(
-                    token,
-                    normalizedUser,
-                    isRemembered,
-                    newRefreshToken
-                );
-                return {
-                    ...response,
-                    token,
-                    refreshToken: newRefreshToken,
-                    user: normalizedUser,
-                };
-            }
-            return null;
-        } catch (error: unknown) {
-            // ONLY clear session if server actively rejected token with 401 or 403
-            if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
-                this.clearSession();
-                if (typeof window !== "undefined") {
-                    window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+                const token = response?.token || response?.tokens?.accessToken;
+                if (token && response?.user) {
+                    const normalizedUser = this.normalizeUser(response.user);
+                    const isRemembered = Boolean(
+                        localStorage.getItem(TOKEN_KEY) || localStorage.getItem(REFRESH_TOKEN_KEY)
+                    );
+                    const newRefreshToken = response.refreshToken || response?.tokens?.refreshToken || refreshToken;
+                    this.saveSession(
+                        token,
+                        normalizedUser,
+                        isRemembered,
+                        newRefreshToken
+                    );
+                    if (typeof window !== "undefined") {
+                        window.dispatchEvent(
+                            new CustomEvent("auth:token-refreshed", {
+                                detail: { token, user: normalizedUser },
+                            })
+                        );
+                    }
+                    return {
+                        ...response,
+                        token,
+                        refreshToken: newRefreshToken,
+                        user: normalizedUser,
+                    };
                 }
+                return null;
+            } catch (error: unknown) {
+                // ONLY clear session if server actively rejected token with 401 or 403
+                if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+                    this.clearSession();
+                    if (typeof window !== "undefined") {
+                        window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+                    }
+                }
+                return null;
+            } finally {
+                this.refreshPromise = null;
             }
-            return null;
-        }
+        })();
+
+        return this.refreshPromise;
     }
 
     /**
      * Retrieve current stored user profile if available.
      */
     getStoredUser(): User | null {
-        const raw = localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY);
-        if (!raw) return null;
+        if (typeof window === "undefined") return null;
         try {
+            const raw = localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY);
+            if (!raw) return null;
             const parsed = JSON.parse(raw) as User;
             return {
                 ...parsed,

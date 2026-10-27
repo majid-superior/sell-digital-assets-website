@@ -4,11 +4,17 @@ export type UserRole =
   | "BUYER"
   | "SELLER"
   | "ADMIN"
+  | "STORE_MANAGER"
+  | "CONTENT_UPLOADER"
+  | "ANALYST"
   | "buyer"
   | "seller"
   | "admin"
   | "guest"
-  | "customer";
+  | "customer"
+  | "store_manager"
+  | "content_uploader"
+  | "analyst";
 
 export interface SellerProfile {
   storeName: string;
@@ -31,6 +37,8 @@ export interface User {
   role: UserRole;
   roles?: string[];
   role_id?: number;
+  parent_seller_id?: string | null;
+  allowed_permissions?: string[];
   avatarUrl?: string;
   bio?: string;
   bannerUrl?: string;
