@@ -243,8 +243,8 @@ npm run build
    - Available store roles are fetched dynamically from the database (`GET /api/v1/seller/users/roles`) filtered by `scope = 'SELLER_STORE'`.
    - Sellers can assign existing database roles to their store team members, but cannot add, edit, or delete database roles.
    - Seeded database roles:
-     - `STORE_MANAGER` (ID: 4, slug: `store_manager`): Full store management access except store ownership transfer.
-     - `CONTENT_UPLOADER` (ID: 5, slug: `content_uploader`): Delegated permissions to draft and upload assets.
+     - `MANAGER` (ID: 4, slug: `manager`): Full store management access except store ownership transfer.
+     - `USER` (ID: 5, slug: `user`): Delegated permissions to draft and upload assets.
      - `ANALYST` (ID: 6, slug: `analyst`): Read-only access to sales and analytics.
 
 3. **Backend Multi-Tenant Isolation & Privilege Escalation Defense**:

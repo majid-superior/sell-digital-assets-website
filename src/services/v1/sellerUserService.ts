@@ -1,6 +1,13 @@
 // src/services/v1/sellerUserService.ts
 import { apiClient } from "../api.ts";
-import type { StoreTeamRole, StoreTeamMember, PermissionItem, StoreRolePermissions } from "@/types/user.ts";
+import type {
+  StoreTeamRole,
+  StoreTeamMember,
+  PermissionItem,
+  StoreRolePermissions,
+  CreateRolePayload,
+  RoleMatrixUpdate,
+} from "@/types/user.ts";
 
 export interface CreateTeamMemberPayload {
   name: string;
@@ -30,17 +37,22 @@ export const sellerUserService = {
   /**
    * Fetches dynamically defined store roles from the database (scope: SELLER_STORE)
    */
-  getStoreRoles: async (): Promise<StoreTeamRole[]> => {
-    const res = await apiClient.get<ApiResponse<StoreTeamRole[]>>("/api/v1/seller/users/roles");
-    return res.data || [];
+  getStoreRoles: async (includeInactive = false): Promise<StoreTeamRole[]> => {
+    const endpoint = includeInactive
+      ? "/api/v1/seller/users/roles?includeInactive=true"
+      : "/api/v1/seller/users/roles";
+    const res = await apiClient.get<ApiResponse<StoreTeamRole[]> | StoreTeamRole[]>(endpoint);
+    if (Array.isArray(res)) return res;
+    return Array.isArray(res?.data) ? res.data : [];
   },
 
   /**
    * Fetches all team members assigned to the authenticated seller's store
    */
   getTeamMembers: async (): Promise<StoreTeamMember[]> => {
-    const res = await apiClient.get<ApiResponse<StoreTeamMember[]>>("/api/v1/seller/users");
-    return res.data || [];
+    const res = await apiClient.get<ApiResponse<StoreTeamMember[]> | StoreTeamMember[]>("/api/v1/seller/users");
+    if (Array.isArray(res)) return res;
+    return Array.isArray(res?.data) ? res.data : [];
   },
 
   /**
@@ -76,20 +88,23 @@ export const sellerUserService = {
    * Fetches the global catalog of store permissions
    */
   getPermissionsCatalog: async (): Promise<PermissionItem[]> => {
-    const res = await apiClient.get<ApiResponse<PermissionItem[]>>(
+    const res = await apiClient.get<ApiResponse<PermissionItem[]> | PermissionItem[]>(
       "/api/v1/seller/users/permissions",
     );
-    return res.data || [];
+    if (Array.isArray(res)) return res;
+    return Array.isArray(res?.data) ? res.data : [];
   },
 
   /**
    * Fetches the current role-level permissions configured for the seller's store
    */
-  getRolePermissions: async (): Promise<StoreRolePermissions[]> => {
-    const res = await apiClient.get<ApiResponse<StoreRolePermissions[]>>(
-      "/api/v1/seller/users/roles/permissions",
-    );
-    return res.data || [];
+  getRolePermissions: async (includeInactive = false): Promise<StoreRolePermissions[]> => {
+    const endpoint = includeInactive
+      ? "/api/v1/seller/users/roles/permissions?includeInactive=true"
+      : "/api/v1/seller/users/roles/permissions";
+    const res = await apiClient.get<ApiResponse<StoreRolePermissions[]> | StoreRolePermissions[]>(endpoint);
+    if (Array.isArray(res)) return res;
+    return Array.isArray(res?.data) ? res.data : [];
   },
 
   /**
@@ -102,6 +117,45 @@ export const sellerUserService = {
     const res = await apiClient.put<ApiResponse<StoreRolePermissions>>(
       `/api/v1/seller/users/roles/${roleId}/permissions`,
       { permissions },
+    );
+    return res.data;
+  },
+
+  /**
+   * Atomically saves permission sets across multiple roles in a single request
+   */
+  updateRolePermissionsMatrix: async (
+    matrix: RoleMatrixUpdate[],
+  ): Promise<StoreRolePermissions[]> => {
+    const res = await apiClient.put<ApiResponse<StoreRolePermissions[]> | StoreRolePermissions[]>(
+      "/api/v1/seller/users/roles/permissions",
+      { matrix },
+    );
+    if (Array.isArray(res)) return res;
+    return Array.isArray(res?.data) ? res.data : [];
+  },
+
+  /**
+   * Creates a new store role or reactivates an existing inactive role
+   */
+  createStoreRole: async (payload: CreateRolePayload): Promise<StoreTeamRole> => {
+    const res = await apiClient.post<ApiResponse<StoreTeamRole>>(
+      "/api/v1/seller/users/roles",
+      payload,
+    );
+    return res.data;
+  },
+
+  /**
+   * Activates or deactivates a store role
+   */
+  updateStoreRoleStatus: async (
+    roleId: number,
+    isActive: boolean,
+  ): Promise<StoreTeamRole> => {
+    const res = await apiClient.patch<ApiResponse<StoreTeamRole>>(
+      `/api/v1/seller/users/roles/${roleId}/status`,
+      { is_active: isActive },
     );
     return res.data;
   },

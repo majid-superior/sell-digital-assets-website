@@ -11,15 +11,15 @@ describe("sellerUserService API client contract", () => {
   const mockRoles: StoreTeamRole[] = [
     {
       id: 4,
-      name: "Store Manager",
-      slug: "store_manager",
+      name: "Manager",
+      slug: "manager",
       scope: "SELLER_STORE",
       description: "Full store management access except store transfer",
     },
     {
       id: 5,
-      name: "Content Uploader",
-      slug: "content_uploader",
+      name: "User",
+      slug: "user",
       scope: "SELLER_STORE",
       description: "Draft and upload digital products",
     },
@@ -37,9 +37,9 @@ describe("sellerUserService API client contract", () => {
       id: "mem-1",
       name: "Alice Cooper",
       email: "alice@store.internal",
-      role: "store_manager",
+      role: "manager",
       role_id: 4,
-      role_name: "Store Manager",
+      role_name: "Manager",
       parent_seller_id: "seller-123",
       status: "active",
       created_at: new Date().toISOString(),
@@ -55,8 +55,8 @@ describe("sellerUserService API client contract", () => {
     const roles = await sellerUserService.getStoreRoles();
     expect(apiClient.get).toHaveBeenCalledWith("/api/v1/seller/users/roles");
     expect(roles).toHaveLength(3);
-    expect(roles[0].slug).toBe("store_manager");
-    expect(roles[1].slug).toBe("content_uploader");
+    expect(roles[0].slug).toBe("manager");
+    expect(roles[1].slug).toBe("user");
     expect(roles[2].slug).toBe("analyst");
   });
 
@@ -85,9 +85,9 @@ describe("sellerUserService API client contract", () => {
       id: "mem-2",
       name: payload.name,
       email: payload.email,
-      role: "content_uploader",
+      role: "user",
       role_id: 5,
-      role_name: "Content Uploader",
+      role_name: "User",
       parent_seller_id: "seller-123",
       status: "active",
       created_at: new Date().toISOString(),
@@ -101,7 +101,7 @@ describe("sellerUserService API client contract", () => {
     const result = await sellerUserService.createTeamMember(payload);
     expect(apiClient.post).toHaveBeenCalledWith("/api/v1/seller/users", payload);
     expect(result.id).toBe("mem-2");
-    expect(result.role).toBe("content_uploader");
+    expect(result.role).toBe("user");
   });
 
   it("updates an existing store team member via PATCH /api/v1/seller/users/:id", async () => {
@@ -220,5 +220,83 @@ describe("sellerUserService API client contract", () => {
     );
     expect(result.isCustomized).toBe(true);
     expect(result.permissions).toContain("products:create");
+  });
+
+  it("handles raw non-enveloped array payloads gracefully", async () => {
+    vi.spyOn(apiClient, "get").mockResolvedValueOnce(mockRoles);
+
+    const roles = await sellerUserService.getStoreRoles();
+    expect(roles).toHaveLength(3);
+    expect(roles[0].slug).toBe("manager");
+  });
+
+  it("handles unexpected null or non-array responses gracefully by returning an empty array", async () => {
+    vi.spyOn(apiClient, "get").mockResolvedValueOnce({
+      success: true,
+      data: null,
+    });
+
+    const roles = await sellerUserService.getStoreRoles();
+    expect(roles).toEqual([]);
+  });
+
+  it("creates a new store role via POST /api/v1/seller/users/roles", async () => {
+    const payload = {
+      name: "Content Editor",
+      description: "Manage product descriptions and images",
+      permissions: ["products:view", "products:edit"],
+    };
+    const createdRole: StoreTeamRole = {
+      id: 7,
+      name: payload.name,
+      slug: "content_editor",
+      scope: "SELLER_STORE",
+      description: payload.description,
+      is_active: true,
+    };
+    vi.spyOn(apiClient, "post").mockResolvedValueOnce({
+      success: true,
+      data: createdRole,
+    });
+
+    const res = await sellerUserService.createStoreRole(payload);
+    expect(apiClient.post).toHaveBeenCalledWith("/api/v1/seller/users/roles", payload);
+    expect(res.name).toBe("Content Editor");
+    expect(res.id).toBe(7);
+  });
+
+  it("toggles role status via PATCH /api/v1/seller/users/roles/:roleId/status", async () => {
+    vi.spyOn(apiClient, "patch").mockResolvedValueOnce({
+      success: true,
+      data: { id: 7, name: "Content Editor", is_active: false },
+    });
+
+    const res = await sellerUserService.updateStoreRoleStatus(7, false);
+    expect(apiClient.patch).toHaveBeenCalledWith(
+      "/api/v1/seller/users/roles/7/status",
+      { is_active: false },
+    );
+    expect(res.is_active).toBe(false);
+  });
+
+  it("batch updates permissions matrix via PUT /api/v1/seller/users/roles/permissions", async () => {
+    const matrix = [
+      { roleId: 4, permissions: ["analytics:view", "products:view"] },
+      { roleId: 5, permissions: ["products:view"] },
+    ];
+    vi.spyOn(apiClient, "put").mockResolvedValueOnce({
+      success: true,
+      data: [
+        { roleId: 4, permissions: ["analytics:view", "products:view"] },
+        { roleId: 5, permissions: ["products:view"] },
+      ],
+    });
+
+    const res = await sellerUserService.updateRolePermissionsMatrix(matrix);
+    expect(apiClient.put).toHaveBeenCalledWith(
+      "/api/v1/seller/users/roles/permissions",
+      { matrix },
+    );
+    expect(res).toHaveLength(2);
   });
 });

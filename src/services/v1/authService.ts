@@ -40,10 +40,10 @@ class AuthService {
             role = "admin";
         } else if (roleId === 2 || rawRole === "seller") {
             role = "seller";
-        } else if (roleId === 4 || rawRole === "store_manager") {
-            role = "store_manager";
-        } else if (roleId === 5 || rawRole === "content_uploader") {
-            role = "content_uploader";
+        } else if (roleId === 4 || rawRole === "manager" || rawRole === "store_manager") {
+            role = "manager";
+        } else if (roleId === 5 || rawRole === "user" || rawRole === "content_uploader") {
+            role = "user";
         } else if (roleId === 6 || rawRole === "analyst") {
             role = "analyst";
         } else if (roleId === 3 || rawRole === "buyer" || rawRole === "customer") {
@@ -53,6 +53,8 @@ class AuthService {
         }
 
         const isStoreTeam =
+            role === "manager" ||
+            role === "user" ||
             role === "store_manager" ||
             role === "content_uploader" ||
             role === "analyst" ||

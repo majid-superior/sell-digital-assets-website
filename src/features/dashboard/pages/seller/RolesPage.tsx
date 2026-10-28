@@ -1,5 +1,5 @@
 // src/features/dashboard/pages/seller/RolesPage.tsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -7,6 +7,7 @@ import { Icons } from "@/lib/icons/index.ts";
 import { Button } from "@/components/ui/Button.tsx";
 import { Badge } from "@/components/ui/Badge.tsx";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card.tsx";
+import { EmptyState } from "@/components/ui/EmptyState.tsx";
 import { Modal } from "@/components/ui/Modal.tsx";
 import { Skeleton } from "@/components/ui/Skeleton.tsx";
 import { Spinner } from "@/components/ui/Spinner.tsx";
@@ -20,27 +21,79 @@ export const RolesPage: React.FC = () => {
   const queryClient = useQueryClient();
 
   // Queries
-  const { data: roles = [], isLoading: isLoadingRoles } = useQuery({
+  const {
+    data: roles = [],
+    isLoading: isLoadingRoles,
+    isError: isErrorRoles,
+    error: rolesError,
+  } = useQuery({
     queryKey: queryKeys.sellerUsers.roles(),
     queryFn: () => sellerUserService.getStoreRoles(),
   });
 
-  const { data: members = [], isLoading: isLoadingMembers } = useQuery({
+  const {
+    data: members = [],
+    isLoading: isLoadingMembers,
+    isError: isErrorMembers,
+    error: membersError,
+  } = useQuery({
     queryKey: queryKeys.sellerUsers.list(),
     queryFn: () => sellerUserService.getTeamMembers(),
   });
 
-  const { data: rolePermissions = [], isLoading: isLoadingRolePerms } = useQuery({
+  const {
+    data: rolePermissions = [],
+    isLoading: isLoadingRolePerms,
+    isError: isErrorRolePerms,
+    error: rolePermsError,
+  } = useQuery({
     queryKey: queryKeys.sellerUsers.rolePermissions(),
     queryFn: () => sellerUserService.getRolePermissions(),
   });
 
-  const { data: permissionsCatalog = [], isLoading: isLoadingCatalog } = useQuery({
+  const {
+    data: permissionsCatalog = [],
+    isLoading: isLoadingCatalog,
+    isError: isErrorCatalog,
+    error: catalogError,
+  } = useQuery({
     queryKey: queryKeys.sellerUsers.permissionsCatalog(),
     queryFn: () => sellerUserService.getPermissionsCatalog(),
   });
 
   const isLoading = isLoadingRoles || isLoadingMembers || isLoadingRolePerms || isLoadingCatalog;
+
+  useEffect(() => {
+    if (isErrorRoles) {
+      toast.error("Failed to load store roles", {
+        description: getHumanErrorMessage(rolesError, "Unable to load store roles. Please try again."),
+      });
+    }
+  }, [isErrorRoles, rolesError]);
+
+  useEffect(() => {
+    if (isErrorMembers) {
+      toast.error("Failed to load store team members", {
+        description: getHumanErrorMessage(membersError, "Unable to load team members."),
+      });
+    }
+  }, [isErrorMembers, membersError]);
+
+  useEffect(() => {
+    if (isErrorRolePerms) {
+      toast.error("Failed to load role permissions", {
+        description: getHumanErrorMessage(rolePermsError, "Unable to load configured role permissions."),
+      });
+    }
+  }, [isErrorRolePerms, rolePermsError]);
+
+  useEffect(() => {
+    if (isErrorCatalog) {
+      toast.error("Failed to load permissions catalog", {
+        description: getHumanErrorMessage(catalogError, "Unable to load permissions catalog."),
+      });
+    }
+  }, [isErrorCatalog, catalogError]);
 
   // Assign Role Modal state
   const [assigningRole, setAssigningRole] = useState<StoreTeamRole | null>(null);
@@ -108,10 +161,10 @@ export const RolesPage: React.FC = () => {
         </Badge>
       );
     }
-    if (normalized.includes("uploader")) {
+    if (normalized.includes("user") || normalized.includes("uploader")) {
       return (
         <Badge variant="success" size="sm" className="font-medium tracking-wide">
-          Contributor Tier
+          User Tier
         </Badge>
       );
     }
@@ -148,19 +201,16 @@ export const RolesPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Structured action area for future custom role creation */}
+        {/* Action button to create role / manage permissions matrix */}
         <div className="flex items-center gap-2">
           <Button
-            variant="outline"
-            disabled
-            className="shrink-0 flex items-center justify-center gap-2 opacity-60 cursor-not-allowed w-full sm:w-auto text-xs"
-            title="Custom role creation will be supported in an upcoming release"
+            variant="primary"
+            size="sm"
+            onClick={() => navigate("/dashboard/seller/users/permissions")}
+            className="shrink-0 flex items-center justify-center gap-2 w-full sm:w-auto text-xs cursor-pointer"
           >
-            <Icons.Plus size={16} />
+            <Icons.Plus size={15} />
             <span>Create Role</span>
-            <Badge variant="secondary" size="sm" className="text-[10px] py-0 px-1 ml-1">
-              Soon
-            </Badge>
           </Button>
         </div>
       </div>
@@ -269,6 +319,27 @@ export const RolesPage: React.FC = () => {
               </Card>
             ))}
           </div>
+        ) : roles.length === 0 ? (
+          <EmptyState
+            icon={<Icons.Shield size={28} className="text-primary" />}
+            title="No Store Roles Available"
+            description={
+              isErrorRoles
+                ? "There was an error communicating with the server while retrieving store roles."
+                : "No assignable store roles were found. Please verify your store configuration or refresh the page."
+            }
+            action={
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void queryClient.invalidateQueries({ queryKey: queryKeys.sellerUsers.all })}
+                className="gap-2 cursor-pointer"
+              >
+                <Icons.RotateCcw size={14} />
+                <span>Retry</span>
+              </Button>
+            }
+          />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {roles.map((role) => {
@@ -283,89 +354,124 @@ export const RolesPage: React.FC = () => {
               return (
                 <Card
                   key={role.id}
-                  className="border border-outline-variant/30 hover:border-outline-variant/60 transition-all duration-150 flex flex-col justify-between"
+                  className="border border-outline-variant/30 hover:border-outline-variant/60 transition-all duration-150 flex flex-col justify-between shadow-xs hover:shadow-sm"
                 >
                   <CardHeader className="p-4 sm:p-5 pb-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <CardTitle className="text-base sm:text-lg font-bold">
-                            {role.name}
-                          </CardTitle>
-                          {renderRoleBadge(role.slug)}
-                        </div>
-                        <code className="text-[11px] text-on-surface-variant/70 font-mono">
-                          {role.slug}
-                        </code>
-                      </div>
+                    {/* Top Row: Title & Preset Badge */}
+                    <div className="flex items-center justify-between gap-2 min-w-0">
+                      <CardTitle className="text-base sm:text-lg font-bold tracking-tight text-on-surface truncate">
+                        {role.name}
+                      </CardTitle>
 
                       {isCustomized ? (
-                        <Badge variant="warning" size="sm" className="text-[10px] shrink-0">
+                        <Badge variant="warning" size="sm" className="text-[10px] font-medium shrink-0 whitespace-nowrap">
                           Customized
                         </Badge>
                       ) : (
-                        <Badge variant="outline" size="sm" className="text-[10px] shrink-0">
+                        <Badge variant="outline" size="sm" className="text-[10px] font-medium shrink-0 whitespace-nowrap">
                           Default Preset
                         </Badge>
                       )}
                     </div>
 
-                    <CardDescription className="text-xs text-on-surface-variant line-clamp-3 mt-2 leading-relaxed">
+                    {/* Sub Row: Tier Tag and Slug */}
+                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                      {renderRoleBadge(role.slug)}
+                      <code className="text-[11px] text-on-surface-variant/70 font-mono bg-surface-container-low px-1.5 py-0.5 rounded border border-outline-variant/20">
+                        {role.slug}
+                      </code>
+                    </div>
+
+                    <CardDescription className="text-xs text-on-surface-variant line-clamp-3 mt-2.5 leading-relaxed min-h-[38px]">
                       {role.description}
                     </CardDescription>
                   </CardHeader>
 
                   <CardContent className="p-4 sm:p-5 pt-0 space-y-4">
-                    {/* Role Metrics Box */}
-                    <div className="grid grid-cols-2 gap-2 p-2.5 rounded-lg bg-surface-container-low border border-outline-variant/20 text-xs">
-                      <div>
-                        <span className="text-on-surface-variant/80 text-[11px] block">
-                          Assigned Members:
-                        </span>
-                        <span className="font-bold text-on-surface">
-                          {assignedMembers.length}{" "}
-                          {assignedMembers.length === 1 ? "Member" : "Members"}
-                        </span>
+                    {/* Role Metrics Box with visual progress bar */}
+                    <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/20 text-xs space-y-2.5">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-7 h-7 rounded-lg bg-surface-container-high flex items-center justify-center text-on-surface-variant shrink-0">
+                            <Icons.Users size={14} />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="text-on-surface-variant/80 text-[10px] uppercase font-semibold tracking-wider block">
+                              Assigned
+                            </span>
+                            <span className="font-bold text-on-surface truncate block">
+                              {assignedMembers.length}{" "}
+                              {assignedMembers.length === 1 ? "Member" : "Members"}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                            <Icons.Shield size={14} />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="text-on-surface-variant/80 text-[10px] uppercase font-semibold tracking-wider block">
+                              Capabilities
+                            </span>
+                            <span className="font-bold text-primary truncate block">
+                              {grantedCount} / {totalPerms}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-on-surface-variant/80 text-[11px] block">
-                          Capabilities:
-                        </span>
-                        <span className="font-bold text-primary">
-                          {grantedCount} / {totalPerms}
-                        </span>
+
+                      {/* Capability Progress Bar */}
+                      <div className="space-y-1">
+                        <div className="flex justify-between items-center text-[10px] text-on-surface-variant/70">
+                          <span>Coverage</span>
+                          <span className="font-mono font-medium">
+                            {Math.round((grantedCount / (totalPerms || 16)) * 100)}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-surface-container-highest/60 rounded-full h-1 overflow-hidden">
+                          <div
+                            className="bg-primary h-1 rounded-full transition-all duration-300"
+                            style={{
+                              width: `${Math.min(100, Math.round((grantedCount / (totalPerms || 16)) * 100))}%`,
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
 
                     {/* Assigned Members Preview */}
-                    {assignedMembers.length > 0 ? (
-                      <div className="space-y-1">
-                        <span className="text-[11px] font-medium text-on-surface-variant block">
-                          Assigned to:
-                        </span>
-                        <div className="flex flex-wrap gap-1">
-                          {assignedMembers.slice(0, 3).map((m) => (
-                            <span
-                              key={m.id}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface border border-outline-variant/20 text-[11px] text-on-surface truncate max-w-[140px]"
-                              title={`${m.name} (${m.email})`}
-                            >
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                              <span className="truncate">{m.name}</span>
-                            </span>
-                          ))}
-                          {assignedMembers.length > 3 && (
-                            <span className="text-[11px] text-on-surface-variant self-center">
-                              +{assignedMembers.length - 3} more
-                            </span>
-                          )}
+                    <div className="min-h-[36px] flex flex-col justify-center">
+                      {assignedMembers.length > 0 ? (
+                        <div className="space-y-1">
+                          <span className="text-[11px] font-medium text-on-surface-variant block">
+                            Assigned to:
+                          </span>
+                          <div className="flex flex-wrap gap-1">
+                            {assignedMembers.slice(0, 3).map((m) => (
+                              <span
+                                key={m.id}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface border border-outline-variant/20 text-[11px] text-on-surface truncate max-w-[140px]"
+                                title={`${m.name} (${m.email})`}
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                <span className="truncate">{m.name}</span>
+                              </span>
+                            ))}
+                            {assignedMembers.length > 3 && (
+                              <span className="text-[11px] text-on-surface-variant self-center">
+                                +{assignedMembers.length - 3} more
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <p className="text-[11px] text-on-surface-variant/60 italic">
-                        No team members currently assigned to this role.
-                      </p>
-                    )}
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-[11px] text-on-surface-variant/60 italic">
+                          <Icons.Info size={13} className="shrink-0 opacity-60" />
+                          <span>No team members currently assigned to this role.</span>
+                        </div>
+                      )}
+                    </div>
 
                     {/* Action Buttons */}
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-outline-variant/15">
@@ -373,7 +479,7 @@ export const RolesPage: React.FC = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => handleOpenAssignModal(role)}
-                        className="flex-1 text-xs h-8 cursor-pointer gap-1.5"
+                        className="flex-1 text-xs h-8.5 cursor-pointer gap-1.5 font-medium hover:border-outline-variant/60"
                       >
                         <Icons.User size={13} />
                         <span>Assign Member</span>
@@ -385,7 +491,7 @@ export const RolesPage: React.FC = () => {
                         onClick={() => {
                           void navigate(`/dashboard/seller/users/permissions?role=${role.id}`);
                         }}
-                        className="flex-1 text-xs h-8 cursor-pointer gap-1.5"
+                        className="flex-1 text-xs h-8.5 cursor-pointer gap-1.5 font-medium shadow-xs"
                       >
                         <Icons.KeyRound size={13} />
                         <span>Permissions</span>

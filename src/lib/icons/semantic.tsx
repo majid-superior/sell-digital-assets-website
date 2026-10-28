@@ -63,6 +63,7 @@ import {
   Copy as LucideCopy,
   Link as LucideLink,
   Share2 as LucideShare,
+  Info as LucideInfo,
 } from "lucide-react";
 
 import type { LucideProps } from "lucide-react";
@@ -152,6 +153,7 @@ export const ChevronDown: IconComponent = createSemanticIcon(LucideChevronDown);
 export const Copy: IconComponent = createSemanticIcon(LucideCopy);
 export const Link: IconComponent = createSemanticIcon(LucideLink);
 export const Share: IconComponent = createSemanticIcon(LucideShare);
+export const Info: IconComponent = createSemanticIcon(LucideInfo);
 
 // Friendly aliases
 export const Sun: IconComponent = ThemeLight;

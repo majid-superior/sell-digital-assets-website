@@ -41,10 +41,12 @@ export function getUserPortalAccess(user: User | null, currentPath = ""): UserPo
 
     const rolesSet = new Set(rawRoles);
 
-    // Database role IDs: 1 = admin, 2 = seller, 3 = buyer/customer, 4 = store_manager, 5 = content_uploader, 6 = analyst
+    // Database role IDs: 1 = admin, 2 = seller, 3 = buyer/customer, 4 = manager, 5 = user, 6 = analyst
     const isAdmin = rolesSet.has("admin") || user.role_id === 1;
     const isStoreTeam =
+        rolesSet.has("manager") ||
         rolesSet.has("store_manager") ||
+        rolesSet.has("user") ||
         rolesSet.has("content_uploader") ||
         rolesSet.has("analyst") ||
         [4, 5, 6].includes(user.role_id || 0) ||

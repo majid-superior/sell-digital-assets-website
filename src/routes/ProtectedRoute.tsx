@@ -39,16 +39,19 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
         const isSellerProtected = allowedRoles.some((r) => {
             const lower = String(r).toLowerCase();
-            return lower === "seller" || lower === "analyst" || lower === "store_manager" || lower === "content_uploader";
+            return lower === "seller" || lower === "analyst" || lower === "manager" || lower === "user" || lower === "store_manager" || lower === "content_uploader";
         });
-        const isStoreTeamMember = Boolean(user.parent_seller_id);
+        const isStoreTeamMember = Boolean(user.parent_seller_id) || [4, 5, 6].includes(user.role_id || 0);
+        const hasSellerIdentity = user.role_id === 2 || Boolean(user.sellerProfile);
+        const hasAdminIdentity = user.role_id === 1 || normalizedUserRole === "admin" || userRolesList.includes("admin");
 
         const isRoleAllowed =
+            hasAdminIdentity ||
             allowedRoles.some((role) => {
                 const lower = String(role).toLowerCase();
                 return lower === normalizedUserRole || userRolesList.includes(lower);
             }) ||
-            (isSellerProtected && isStoreTeamMember);
+            (isSellerProtected && (isStoreTeamMember || hasSellerIdentity));
 
         if (!isRoleAllowed) {
             // If role not authorized, redirect to home

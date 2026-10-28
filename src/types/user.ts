@@ -4,6 +4,8 @@ export type UserRole =
   | "BUYER"
   | "SELLER"
   | "ADMIN"
+  | "MANAGER"
+  | "USER"
   | "STORE_MANAGER"
   | "CONTENT_UPLOADER"
   | "ANALYST"
@@ -12,6 +14,8 @@ export type UserRole =
   | "admin"
   | "guest"
   | "customer"
+  | "manager"
+  | "user"
   | "store_manager"
   | "content_uploader"
   | "analyst";
@@ -60,6 +64,9 @@ export interface StoreTeamRole {
   scope: string;
   description: string;
   allow_public_signup?: boolean;
+  is_active?: boolean;
+  is_system?: boolean;
+  created_at?: string;
 }
 
 export interface PermissionItem {
@@ -77,6 +84,23 @@ export interface StoreRolePermissions {
   roleSlug: string;
   description: string;
   isCustomized: boolean;
+  is_active?: boolean;
+  permissions: string[];
+}
+
+export interface CreateRolePayload {
+  name: string;
+  description?: string;
+  permissions?: string[];
+  reactivateIfExists?: boolean;
+}
+
+export interface UpdateRoleStatusPayload {
+  is_active: boolean;
+}
+
+export interface RoleMatrixUpdate {
+  roleId: number;
   permissions: string[];
 }
 

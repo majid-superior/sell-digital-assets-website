@@ -207,6 +207,8 @@ export const MembersPage: React.FC = () => {
     ).length;
     const contributors = members.filter(
       (m) =>
+        m.role.toLowerCase() === "user" ||
+        m.role.toLowerCase().includes("user") ||
         m.role.toLowerCase().includes("uploader") ||
         m.role.toLowerCase().includes("analyst") ||
         m.role_id === 5 ||
@@ -318,14 +320,14 @@ export const MembersPage: React.FC = () => {
     if (normalized.includes("manager")) {
       return (
         <Badge variant="warning" size="sm" className="font-medium tracking-wide">
-          Store Manager
+          Manager
         </Badge>
       );
     }
-    if (normalized.includes("uploader")) {
+    if (normalized === "user" || normalized.includes("user") || normalized.includes("uploader")) {
       return (
         <Badge variant="success" size="sm" className="font-medium tracking-wide">
-          Content Uploader
+          User
         </Badge>
       );
     }
@@ -453,7 +455,7 @@ export const MembersPage: React.FC = () => {
         <Card className="p-4 sm:p-5 transition-colors duration-150">
           <div className="flex items-center justify-between">
             <span className="text-xs sm:text-sm font-medium text-on-surface-variant">
-              Uploaders & Analysts
+              Users & Analysts
             </span>
             <div className="w-8 h-8 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center">
               <Icons.Package size={16} />
