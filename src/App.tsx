@@ -1,6 +1,7 @@
 // src/App.tsx
 import React from "react";
 import { AppRoutes } from "@/routes/AppRoutes.tsx";
+import { CookieConsentBanner } from "@/components/common/CookieConsentBanner.tsx";
 import { Toaster } from "sonner";
 import { useTheme } from "@/hooks/useTheme.ts";
 
@@ -10,6 +11,7 @@ export default function App(): React.JSX.Element {
   return (
     <>
       <AppRoutes />
+      <CookieConsentBanner />
       <Toaster
         position="bottom-right"
         theme={theme}

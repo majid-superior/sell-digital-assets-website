@@ -1,11 +1,13 @@
 // src/features/public-catalog/pages/SellerStorefrontPage.tsx
-import React from "react";
+import React, { useEffect } from "react";
 import { useParams, Navigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ENV } from "../../../config/env.ts";
 import { Icons } from "../../../lib/icons/index.ts";
 import { Skeleton } from "../../../components/ui/index.ts";
 import { assetService } from "../../../services/v1/assetService.ts";
+import { usePageDwellTracker } from "@/hooks/usePageDwellTracker.ts";
+import { useTelemetry } from "@/hooks/useTelemetry.ts";
 import {
   RESERVED_STOREFRONT_URLS,
   normalizeStorefrontUrl,
@@ -51,6 +53,12 @@ export const SellerStorefrontPage: React.FC = () => {
   const isReservedOrEmpty =
     !normalizedUrl || RESERVED_STOREFRONT_URLS.has(normalizedUrl);
 
+  const { trackCreatorView } = useTelemetry();
+  usePageDwellTracker({
+    entityType: "seller_profile",
+    entityId: normalizedUrl,
+  });
+
   const {
     data: storefront,
     isLoading,
@@ -61,6 +69,12 @@ export const SellerStorefrontPage: React.FC = () => {
     enabled: !isReservedOrEmpty,
     retry: false,
   });
+
+  useEffect(() => {
+    if (storefront?.sellerId) {
+      trackCreatorView(storefront.sellerId, storefront.displayName);
+    }
+  }, [storefront?.sellerId, storefront?.displayName, trackCreatorView]);
 
   // Prevent system routes from matching as seller URLs
   if (isReservedOrEmpty) {

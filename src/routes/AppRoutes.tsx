@@ -19,6 +19,8 @@ const ErrorPage = lazy(() => import("@/layouts/website/pages/error.tsx"));
 const ExplorePage = lazy(() => import("@/features/website/pages/ExplorePage.tsx"));
 const AssetDetailPage = lazy(() => import("@/features/website/pages/AssetDetailPage.tsx"));
 const StaticInfoPage = lazy(() => import("@/features/website/pages/StaticInfoPage.tsx"));
+const TermsPage = lazy(() => import("@/features/website/pages/TermsPage.tsx"));
+const PolicyPage = lazy(() => import("@/features/website/pages/PolicyPage.tsx"));
 const SellerStorefrontPage = lazy(
     () => import("@/features/public-catalog/pages/SellerStorefrontPage.tsx")
 );
@@ -213,8 +215,8 @@ export const AppRoutes: React.FC<AppRoutesProps> = () => {
                     <Route path="/assets/:slug" element={<AssetDetailPage />} />
 
                     {/* Legal & Informational Static Pages */}
-                    <Route path="/terms" element={<StaticInfoPage title="Terms of Service" category="Legal" />} />
-                    <Route path="/privacy" element={<StaticInfoPage title="Privacy Policy" category="Legal" />} />
+                    <Route path="/terms" element={<TermsPage />} />
+                    <Route path="/privacy" element={<PolicyPage />} />
                     <Route path="/licenses" element={<StaticInfoPage title="Licensing Agreement" category="Legal" />} />
                     <Route path="/security" element={<StaticInfoPage title="Security & Trust" category="Security" />} />
                     <Route path="/docs" element={<StaticInfoPage title="Documentation" category="Resources" />} />

@@ -10,6 +10,8 @@ import { useCategories } from "@/hooks/useCategories.ts";
 import { assetService } from "@/services/v1/assetService.ts";
 import { findCategoryBySlug } from "@/services/v1/categoryService.ts";
 import { queryKeys } from "@/services/queryKeys.ts";
+import { usePageDwellTracker } from "@/hooks/usePageDwellTracker.ts";
+import { useTelemetry } from "@/hooks/useTelemetry.ts";
 import type { DigitalAsset } from "@/types/asset.ts";
 
 const ALL_CATEGORIES = "all";
@@ -121,6 +123,19 @@ export const ExplorePage: React.FC = () => {
 
     const totalCount = apiResponse?.total ?? assets.length;
     const totalPages = Math.max(1, apiResponse?.totalPages ?? Math.ceil(totalCount / limit));
+
+    const { trackSearch } = useTelemetry();
+    usePageDwellTracker({
+        entityType: "category",
+        entityId: categoryMatch?.node?.slug || (selectedCategory !== ALL_CATEGORIES ? selectedCategory : undefined),
+    });
+
+    useEffect(() => {
+        const queryTrimmed = debouncedSearchQuery.trim();
+        if (queryTrimmed && !isLoading && apiResponse) {
+            trackSearch(queryTrimmed, totalCount, categoryMatch?.node?.id);
+        }
+    }, [debouncedSearchQuery, isLoading, apiResponse, totalCount, categoryMatch?.node?.id, trackSearch]);
 
     const handleResetFilters = () => {
         setSearchQuery("");

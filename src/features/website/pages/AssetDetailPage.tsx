@@ -27,6 +27,8 @@ import { downloadService } from "@/services/v1/downloadService.ts";
 import { licenseService } from "@/services/v1/licenseService.ts";
 import { queryKeys } from "@/services/queryKeys.ts";
 import { useAuth } from "@/hooks/useAuth.ts";
+import { usePageDwellTracker } from "@/hooks/usePageDwellTracker.ts";
+import { useTelemetry } from "@/hooks/useTelemetry.ts";
 import type { TierType, DigitalAsset, AssetTier } from "@/types/asset.ts";
 
 export const AssetDetailPage: React.FC = () => {
@@ -35,6 +37,7 @@ export const AssetDetailPage: React.FC = () => {
     const location = useLocation();
     const { user } = useAuth();
     const { organization } = useOrganization();
+    const { trackAddToCart } = useTelemetry();
 
     const { data: asset, isLoading } = useQuery<DigitalAsset>({
         queryKey: queryKeys.assets.detail(slug || ""),
@@ -42,6 +45,8 @@ export const AssetDetailPage: React.FC = () => {
         enabled: Boolean(slug),
         staleTime: 1000 * 60 * 5,
     });
+
+    usePageDwellTracker({ entityType: "asset", entityId: asset?.id });
 
     useEffect(() => {
         if (asset?.title) {
@@ -187,6 +192,14 @@ export const AssetDetailPage: React.FC = () => {
         : "Verified Creator";
 
     const handleCheckoutOrTestLicense = async () => {
+        if (asset?.id) {
+            trackAddToCart(
+                asset.id,
+                asset.title,
+                typeof currentPrice === "number" ? currentPrice : Number(currentPrice) || 0
+            );
+        }
+
         if (!user?.id) {
             toast.error("Authentication Required", {
                 description: "Please sign in to complete your asset purchase.",
@@ -501,7 +514,7 @@ export const AssetDetailPage: React.FC = () => {
                         <CardContent className="space-y-3 pt-0 text-xs">
                             <div className="flex justify-between py-1.5 border-b border-outline-variant/20">
                                 <span className="text-on-surface-variant">File Name</span>
-                                <span className="font-semibold text-on-surface font-mono truncate max-w-[200px]">
+                                <span className="font-semibold text-on-surface font-mono truncate max-w-50">
                                     {deliverableFile?.file_name || "ZIP Archive"}
                                 </span>
                             </div>

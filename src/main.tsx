@@ -9,6 +9,7 @@ import App from './App.tsx';
 import { queryClient } from './services/queryClient.ts';
 import { ThemeProvider } from './provider/ThemeProvider.tsx';
 import { AuthProvider } from './provider/AuthProvider.tsx';
+import { TelemetryProvider } from './provider/TelemetryProvider.tsx';
 import { websiteThemeService, organizationService } from './services/index.ts';
 
 // Bootstrap dynamic database theme tokens (0ms cached paint + background sync)
@@ -22,7 +23,9 @@ createRoot(document.getElementById('root')!).render(
       <ThemeProvider>
         <BrowserRouter>
           <AuthProvider>
-            <App />
+            <TelemetryProvider>
+              <App />
+            </TelemetryProvider>
           </AuthProvider>
         </BrowserRouter>
       </ThemeProvider>
